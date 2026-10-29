@@ -22,7 +22,7 @@ namespace CIMS.Controllers
                 ? AllowedSortBy.First(s => s.Equals(query.SortBy, StringComparison.OrdinalIgnoreCase))
                 : "Code";
             query.SortDir = string.Equals(query.SortDir, "DESC", StringComparison.OrdinalIgnoreCase) ? "DESC" : "ASC";
-            query.PageSize = Math.Clamp(query.PageSize, 1, 100);
+            query.PageSize = Math.Clamp(query.PageSize, 1, 5);
             if (query.Page < 1) query.Page = 1;
 
             var result = await _customerService.GetPagedAsync(

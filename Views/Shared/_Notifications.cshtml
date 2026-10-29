@@ -1,0 +1,20 @@
+@* Notifikasi dari server. Nilai di-encode Razor sebagai atribut HTML; dibaca oleh notify.js. *@
+@{
+    var success = TempData["Success"] as string;
+
+    var errors = new List<string>();
+    if (TempData["Error"] is string tempError && !string.IsNullOrWhiteSpace(tempError))
+    {
+        errors.Add(tempError);
+    }
+    // Error umum (bukan error field) dari ModelState, mis. ModelState.AddModelError(string.Empty, ...).
+    if (ViewData.ModelState.TryGetValue(string.Empty, out var generalEntry))
+    {
+        errors.AddRange(generalEntry.Errors.Select(x => x.ErrorMessage).Where(m => !string.IsNullOrWhiteSpace(m)));
+    }
+    var error = errors.Count > 0 ? string.Join(" ", errors) : null;
+}
+@if (!string.IsNullOrEmpty(success) || !string.IsNullOrEmpty(error))
+{
+    <div id="server-notifications" hidden data-success="@success" data-error="@error"></div>
+}

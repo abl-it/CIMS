@@ -103,7 +103,10 @@ else
                                 <a asp-action="Details" asp-route-id="@c.Id" class="btn btn-outline-secondary">Detail</a>
                                 <a asp-action="Edit" asp-route-id="@c.Id" class="btn btn-outline-primary">Edit</a>
                                 <form asp-action="SetActive" method="post" class="d-inline"
-                                      onsubmit="return @(c.IsActive ? "confirm('Nonaktifkan customer ini?')" : "true");">
+                                      data-confirm="@(c.IsActive ? "Nonaktifkan customer ini?" : "Aktifkan customer ini?")"
+                                      data-confirm-title="@(c.IsActive ? "Nonaktifkan Customer" : "Aktifkan Customer")"
+                                      data-confirm-ok="@(c.IsActive ? "Nonaktifkan" : "Aktifkan")"
+                                      data-confirm-danger="@(c.IsActive ? "true" : null)">
                                     <input type="hidden" name="id" value="@c.Id" />
                                     <input type="hidden" name="isActive" value="@((!c.IsActive).ToString().ToLowerInvariant())" />
                                     <input type="hidden" name="returnUrl" value="@currentUrl" />
@@ -159,7 +162,10 @@ else
                             <div class="col-6"><a asp-action="Edit" asp-route-id="@c.Id" class="btn btn-outline-primary w-100">Edit</a></div>
                         </div>
                         <form asp-action="SetActive" method="post" class="d-grid"
-                              onsubmit="return @(c.IsActive ? "confirm('Nonaktifkan customer ini?')" : "true");">
+                              data-confirm="@(c.IsActive ? "Nonaktifkan customer ini?" : "Aktifkan customer ini?")"
+                              data-confirm-title="@(c.IsActive ? "Nonaktifkan Customer" : "Aktifkan Customer")"
+                              data-confirm-ok="@(c.IsActive ? "Nonaktifkan" : "Aktifkan")"
+                              data-confirm-danger="@(c.IsActive ? "true" : null)">
                             <input type="hidden" name="id" value="@c.Id" />
                             <input type="hidden" name="isActive" value="@((!c.IsActive).ToString().ToLowerInvariant())" />
                             <input type="hidden" name="returnUrl" value="@currentUrl" />

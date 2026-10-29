@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
@@ -33,22 +33,9 @@
             </div>
         </nav>
     </header>
+    <div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3 app-toast-container" aria-live="polite"></div>
     <div class="container">
         <main role="main" class="pb-3">
-            @if (TempData["Success"] is string successMessage)
-            {
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    @successMessage
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Tutup"></button>
-                </div>
-            }
-            @if (TempData["Error"] is string errorMessage)
-            {
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    @errorMessage
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Tutup"></button>
-                </div>
-            }
             @RenderBody()
         </main>
     </div>
@@ -60,7 +47,10 @@
     </footer>
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/lib/sweetalert2/sweetalert2.all.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/js/notify.js" asp-append-version="true"></script>
+    <partial name="_Notifications" />
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

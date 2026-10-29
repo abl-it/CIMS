@@ -5,8 +5,7 @@
     var cancelAction = isEdit ? "Details" : "Index";
 }
 
-<form asp-controller="Customer" asp-action="@action" asp-route-id="@(isEdit ? Model.Id : (int?)null)" method="post" novalidate>
-    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+<form id="customer-form" asp-controller="Customer" asp-action="@action" asp-route-id="@(isEdit ? Model.Id : (int?)null)" method="post" novalidate data-dirty-guard>
     <input type="hidden" asp-for="Id" />
 
     <div class="row g-3">
@@ -53,7 +52,9 @@
         </div>
         <div class="col-12">
             <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                <a asp-action="@cancelAction" asp-route-id="@(isEdit ? Model.Id : (int?)null)" class="btn btn-outline-secondary btn-lg">Batal</a>
+                <a asp-action="@cancelAction" asp-route-id="@(isEdit ? Model.Id : (int?)null)" class="btn btn-outline-secondary btn-lg"
+                   data-confirm="Perubahan yang belum disimpan akan hilang." data-confirm-title="Batalkan perubahan?"
+                   data-confirm-ok="Ya, batalkan" data-confirm-danger="true" data-confirm-if-dirty="#customer-form">Batal</a>
                 <button type="submit" class="btn btn-primary btn-lg">@(isEdit ? "Simpan Perubahan" : "Simpan")</button>
             </div>
         </div>

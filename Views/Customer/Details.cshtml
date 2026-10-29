@@ -49,7 +49,10 @@
     <a asp-action="Index" class="btn btn-outline-secondary btn-lg">Kembali</a>
     <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary btn-lg">Edit</a>
     <form asp-action="SetActive" method="post" class="d-grid"
-          onsubmit="return @(Model.IsActive ? "confirm('Nonaktifkan customer ini?')" : "true");">
+          data-confirm="@(Model.IsActive ? "Nonaktifkan customer ini?" : "Aktifkan customer ini?")"
+          data-confirm-title="@(Model.IsActive ? "Nonaktifkan Customer" : "Aktifkan Customer")"
+          data-confirm-ok="@(Model.IsActive ? "Nonaktifkan" : "Aktifkan")"
+          data-confirm-danger="@(Model.IsActive ? "true" : null)">
         <input type="hidden" name="id" value="@Model.Id" />
         <input type="hidden" name="isActive" value="@toggleTo.ToString().ToLowerInvariant()" />
         <input type="hidden" name="returnUrl" value="@Url.Action("Details", new { id = Model.Id })" />

@@ -83,13 +83,13 @@ Semua halaman wajib tampil baik di desktop, tablet, dan mobile (mobile-first).
 - Validasi: client-side (`jquery-validation-unobtrusive` bila sudah ada) + wajib validasi server-side (`ModelState`).
 
 ### Komponen
-- Gunakan komponen Bootstrap: `card`, `modal`, `toast`, `alert`, `badge`, `spinner-border`.
+- Gunakan komponen Bootstrap: `card`, `modal` (untuk form/konten, bukan konfirmasi), `badge`, `spinner-border`. Notifikasi dan dialog hanya lewat `notify` (lihat "Notifikasi dan Dialog").
 - Modal di mobile: `modal-dialog-scrollable` dan `modal-fullscreen-sm-down` untuk form panjang.
 - Gambar: `img-fluid`. Hindari lebar fixed.
 - Ikon: gunakan yang sudah ada di project (mis. Bootstrap Icons) bila tersedia.
 
 ### AJAX
-- Gunakan `fetch` dengan `async/await`. Tampilkan `spinner-border` saat loading, `toast`/`alert` saat sukses/gagal.
+- Gunakan `fetch` dengan `async/await`. Tampilkan `spinner-border` saat loading. Respons non-2xx dan kegagalan jaringan memakai `notify.fetchError(...)`/`notify.error(...)`; aksi berhasil memakai `notify.success(...)`.
 - URL endpoint memakai helper Razor (`@Url.Action(...)`) atau base path dari layout, **jangan hardcode** `/api/...`, agar aman saat di-deploy ke IIS dengan virtual directory.
 
 ### Checklist UI sebelum dianggap selesai
@@ -98,6 +98,21 @@ Semua halaman wajib tampil baik di desktop, tablet, dan mobile (mobile-first).
 - [ ] Tabel tidak memotong konten (responsive/card)
 - [ ] Tombol dan input mudah disentuh
 - [ ] Menu bisa diakses via hamburger/offcanvas di mobile
+- [ ] Toast sukses tidak menutupi navbar/tombol utama; tombol SweetAlert2 mudah disentuh (uji ±360px)
+- [ ] Tidak ada `confirm(` / `alert(` bawaan browser di Views dan js
+
+## Notifikasi dan Dialog
+
+Berlaku untuk seluruh aplikasi. Library lokal (bukan CDN): SweetAlert2 di `wwwroot/lib/sweetalert2`, Bootstrap Toast; API di `wwwroot/js/notify.js`.
+
+1. **Konfirmasi** (nonaktifkan/aktifkan, hapus, batal dengan perubahan belum tersimpan, aksi berisiko) memakai **SweetAlert2**. Dilarang `confirm()` / `alert()` bawaan browser dan modal Bootstrap untuk konfirmasi.
+2. **Error** memakai **SweetAlert2** (icon error): `TempData["Error"]`, error AJAX/fetch (non-2xx dan jaringan), error umum server (`ModelState` kunci kosong). Pengecualian: error per field tetap inline (`asp-validation-for`), mis. kode duplikat di bawah field Code.
+3. **Sukses** memakai **Bootstrap Toast** (`text-bg-success`, pojok kanan atas, auto-hide 4 detik, ada tombol tutup): `TempData["Success"]` dan aksi AJAX berhasil.
+4. Di luar tiga kasus di atas (info, warning), tanyakan dulu kepada user.
+
+API global `notify`: `notify.success(message)` · `notify.error(message, title?)` · `notify.confirm({ title, text, confirmText, cancelText, danger })` → `Promise<boolean>` · `notify.fetchError(responseOrError)`.
+Konfirmasi deklaratif: `form`/`button`/`a` dengan `data-confirm="pesan"` (opsional `data-confirm-title`, `data-confirm-ok`, `data-confirm-danger="true"`). Form tetap dikirim utuh (token anti-forgery ikut). Guard perubahan belum tersimpan: `form[data-dirty-guard]` + `a[data-confirm][data-confirm-if-dirty="#idForm"]`.
+Notifikasi server dirender oleh `Views/Shared/_Notifications.cshtml` (nilai di-encode lewat atribut data; jangan menyisipkan teks mentah ke string JavaScript).
 
 ## Security
 
@@ -149,6 +164,6 @@ Modul baru WAJIB mengikuti pola Customer berikut.
 - **File per layer:** SQL `Database/Customer.sql` · Model `Models/Customer.cs`, `Models/PagedResult.cs` · ViewModel `Models/CustomerViewModels.cs` · Service `Services/ICustomerService.cs`, `CustomerService.cs`, `CustomerExceptions.cs`, `IDbConnectionFactory.cs` · Controller `Controllers/CustomerController.cs` · Views `Views/Customer/` (Index, Details, Create, Edit, `_CustomerForm`).
 - **Exception SP → Controller:** 50001 `CustomerDuplicateCodeException` → `ModelState.AddModelError(nameof(Code))` · 50002 `CustomerValidationException` → error umum form · 50003 `CustomerNotFoundException` → `NotFound()` (GET) atau `TempData["Error"]` + redirect ke Index (POST). Service menerjemahkan `SqlException.Number`; error lain dicatat dan dilempar ulang.
 - **PagedResult<T>:** `Items`, `TotalCount`, `PageNumber`, `PageSize`, `TotalPages`. `TotalCount` dari parameter OUTPUT SP.
-- **PRG + TempData:** POST valid → redirect; pesan lewat `TempData["Success"]` / `["Error"]`, ditampilkan sebagai alert di `_Layout`. Semua POST memakai `[ValidateAntiForgeryToken]`; `returnUrl` hanya dipakai jika `Url.IsLocalUrl`.
+- **PRG + TempData:** POST valid → redirect; pesan lewat `TempData["Success"]` / `["Error"]`, ditampilkan lewat `_Notifications` (toast untuk sukses, SweetAlert2 untuk error). Semua POST memakai `[ValidateAntiForgeryToken]`; `returnUrl` hanya dipakai jika `Url.IsLocalUrl`.
 - **Pola list:** search (kode/nama), filter status (`bool?`), sort dengan whitelist kolom (SP dan Controller), `SortDir` ASC/DESC, paging server-side dengan `PageSize` dibatasi di Controller; `Page` melebihi total → redirect ke halaman terakhir; semua filter ikut terbawa di link sort/paging. Soft delete lewat `SetActive` (tanpa Delete).
 - **Pola view mobile-first:** tabel `d-none d-md-block` dalam `table-responsive` + card list `d-md-none`; kolom sekunder `d-none d-lg-table-cell`; form `form-floating`, `col-12 col-md-6`, `type` tel/email; tombol aksi `d-grid d-md-flex justify-content-md-end`; `_ValidationScriptsPartial` di `@section Scripts`; URL via tag helper `asp-*`.

@@ -1,0 +1,54 @@
+@model ProfileViewModel
+
+<div class="dropdown app-user ms-auto">
+    <button class="btn app-user-toggle dropdown-toggle" type="button" id="profileDropdown"
+            data-bs-toggle="dropdown" aria-expanded="false" aria-label="Menu pengguna">
+        <i class="bi bi-person-circle" aria-hidden="true"></i>
+        @if (Model.User != null)
+        {
+            <span class="app-user-text d-none d-sm-flex flex-column text-start">
+                <span class="app-user-name">@Model.User.FullName</span>
+                @if (!string.IsNullOrEmpty(Model.User.DeptName))
+                {
+                    <small class="app-user-dept">@Model.User.DeptName</small>
+                }
+            </span>
+        }
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end app-user-menu" aria-labelledby="profileDropdown">
+        @if (Model.User != null)
+        {
+            <li>
+                <div class="dropdown-header text-wrap">
+                    <div class="fw-semibold text-body">@Model.User.FullName</div>
+                    @if (!string.IsNullOrEmpty(Model.User.JobTitle))
+                    {
+                        <div>@Model.User.JobTitle</div>
+                    }
+                    @if (!string.IsNullOrEmpty(Model.User.DeptName))
+                    {
+                        <div>@Model.User.DeptName</div>
+                    }
+                </div>
+            </li>
+            <li><hr class="dropdown-divider" /></li>
+        }
+        @if (!string.IsNullOrWhiteSpace(Model.PortalHomeUrl))
+        {
+            <li>
+                <a class="dropdown-item" href="@Model.PortalHomeUrl">
+                    <i class="bi bi-box-arrow-up-left me-2" aria-hidden="true"></i>Kembali ke Portal
+                </a>
+            </li>
+        }
+        <li>
+            <form asp-controller="Home" asp-action="LogOut" method="post"
+                  data-confirm="Keluar dari CIMS?" data-confirm-title="Logout"
+                  data-confirm-ok="Keluar" data-confirm-danger="true">
+                <button type="submit" class="dropdown-item text-danger">
+                    <i class="bi bi-box-arrow-right me-2" aria-hidden="true"></i>Logout
+                </button>
+            </form>
+        </li>
+    </ul>
+</div>

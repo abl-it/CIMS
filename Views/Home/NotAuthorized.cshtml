@@ -1,0 +1,35 @@
+@inject IConfiguration Configuration
+@{
+    ViewData["Title"] = "Tidak Berwenang";
+    var portalUrl = Configuration["SSO:PortalHomeUrl"];
+}
+
+<div class="row justify-content-center">
+    <div class="col-12 col-md-8 col-lg-6">
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-shield-lock display-4 text-danger" aria-hidden="true"></i>
+                <h1 class="h4 mt-3">Anda tidak berwenang</h1>
+                <p class="text-body-secondary">
+                    Akun Anda berhasil login, tetapi belum terdaftar untuk mengakses CIMS.
+                    Silakan hubungi administrator.
+                </p>
+                <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                    @if (!string.IsNullOrWhiteSpace(portalUrl))
+                    {
+                        <a href="@portalUrl" class="btn btn-outline-secondary btn-lg">Kembali</a>
+                    }
+                    else
+                    {
+                        <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary btn-lg">Kembali</a>
+                    }
+                    <form asp-controller="Home" asp-action="LogOut" method="post" class="d-grid"
+                          data-confirm="Keluar dari CIMS?" data-confirm-title="Logout"
+                          data-confirm-ok="Keluar" data-confirm-danger="true">
+                        <button type="submit" class="btn btn-danger btn-lg">Logout</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -98,6 +98,7 @@ Semua halaman wajib tampil baik di desktop, tablet, dan mobile (mobile-first).
 - [ ] Tabel tidak memotong konten (responsive/card)
 - [ ] Tombol dan input mudah disentuh
 - [ ] Menu bisa diakses via hamburger/offcanvas di mobile, menutup setelah dipilih, dan item aktif benar (`aria-current="page"`)
+- [ ] Blok user di header (nama, departemen, Logout) berfungsi dan mudah disentuh di mobile
 - [ ] Toast sukses tidak menutupi navbar/tombol utama; tombol SweetAlert2 mudah disentuh (uji ±360px)
 - [ ] Tidak ada `confirm(` / `alert(` bawaan browser di Views dan js
 
@@ -111,6 +112,18 @@ App shell di `Views/Shared/_Layout.cshtml`: `<header>` sticky (logo CIMS, subjud
 - Item aktif ditentukan dari controller/action pada `ViewContext.RouteData` (sub-halaman ikut aktif, mis. `/Customer/Edit/5`) dan diberi `aria-current="page"`.
 - **Modul baru WAJIB menambahkan item atau submenu di `_Sidebar.cshtml`** (satu baris; ubah `enabled` menjadi `true` saat halamannya siap).
 - Toast dan SweetAlert2 harus tampil di atas header (z-index); jangan menghapus toast container, `notify.js`, atau `_Notifications` dari layout.
+
+## Autentikasi
+
+SSO berbasis middleware (pola project Training); tidak ada ASP.NET Authentication scheme dan tidak ada `[Authorize]`.
+
+- **Alur:** user login di portal → portal mengarahkan ke CIMS dengan `?token={sessionId}` → `Middleware/SessionTokenMiddleware` menukar sessionId ke JWT (`{SSO:InternalApi}/home/api/token`), memvalidasi (HS256, `SSO:JwtKey`), lalu menyimpan `JWT`, `Username`, `SessionID` di Session dan me-redirect ke URL tanpa `?token=`. Tanpa sesi → redirect ke `SSO:PublicLogin` (request AJAX: 401 JSON `{ success:false, message:"Sesi berakhir" }`).
+- **Urutan pipeline:** `UseStaticFiles` → `UseRouting` → `UseSession` → `SessionTokenMiddleware` → `UseAuthorization`. Cookie sesi `.CIMS.Session`.
+- **Kunci JWT dilarang ada di repo/log/dokumen.** `SSO:JwtKey` kosong di `appsettings.json`; Development lewat User Secrets, Production lewat environment variable (`SSO__JwtKey`) atau file konfigurasi di server. Kosong di non-Development → aplikasi gagal start. Jangan mencatat sessionId, token, atau URL token ke log.
+- **Dev bypass:** `Auth:DevUsername` di `appsettings.Development.json`; hanya berlaku di Development dan bila terisi (kosong = alur SSO normal).
+- **Identitas user:** `ProfileAttribute` (filter global) memuat `CurrentUser` dari `usp_Auth_GetUserByUsername` (`home..users`). **Controller/Service wajib memakai `ICurrentUserService`, dilarang membaca `Session["Username"]` langsung.** User tidak terdaftar → `Home/NotAuthorized` (AJAX: 403 JSON).
+- **Logout:** POST + anti-forgery + `data-confirm` (tombol di dropdown user pada header); `Session.Clear()`, hapus cookie `.CIMS.Session` dan `.Portal.Session`, redirect ke `SSO:PublicLogin`.
+- **Tahap B (rencana, belum dikerjakan):** RoleAuthorize (MVC), RoleAuthorizeApi (403 JSON), AllowAllRoles, menu sidebar per role; daftar role CIMS ditentukan oleh user, jangan menebak nama role.
 
 ## Notifikasi dan Dialog
 
@@ -129,7 +142,7 @@ Notifikasi server dirender oleh `Views/Shared/_Notifications.cshtml` (nilai di-e
 
 - Validasi semua input di server. Gunakan `[ValidateAntiForgeryToken]` untuk POST form MVC.
 - Encode output (Razor default sudah encode; hindari `Html.Raw` pada data user).
-- Autentikasi/otorisasi mengikuti mekanisme existing (`[Authorize]`, policy/role). Jangan membuat mekanisme baru tanpa konfirmasi.
+- Autentikasi: lihat bagian "Autentikasi" (SSO via middleware). Jangan membuat mekanisme autentikasi lain tanpa konfirmasi.
 - Jangan commit secret, password, atau connection string production.
 
 ## Coding Style

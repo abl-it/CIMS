@@ -263,6 +263,53 @@ a.app-sidebar-link.active {
   }
 }
 
+/* Blok user di header */
+.app-user {
+  margin-left: auto;
+}
+
+.app-user-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  color: var(--cims-header-text);
+}
+
+.app-user-toggle:hover,
+.app-user-toggle:focus,
+.app-user-toggle.show {
+  color: var(--cims-header-text);
+  background-color: var(--cims-sidebar-hover);
+}
+
+.app-user-toggle .bi {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.app-user-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.app-user-dept {
+  font-size: 0.75rem;
+  line-height: 1.1;
+  opacity: 0.8;
+}
+
+.app-user-menu {
+  min-width: 14rem;
+}
+
+.app-user-menu .dropdown-item {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+}
+
 /* Customer module */
 .sort-link {
   color: inherit;

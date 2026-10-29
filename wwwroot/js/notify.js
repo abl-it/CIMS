@@ -88,6 +88,15 @@
     // Terima Response (non-2xx) atau Error (kegagalan jaringan).
     async function fetchError(responseOrError) {
         if (typeof Response !== 'undefined' && responseOrError instanceof Response) {
+            if (responseOrError.status === 401) {
+                // Sesi berakhir: setelah ditutup, muat ulang; middleware mengarahkan ke halaman login.
+                return error('Sesi Anda telah berakhir. Silakan login kembali.', 'Sesi berakhir')
+                    .then(function () { window.location.reload(); });
+            }
+            if (responseOrError.status === 403) {
+                return error('Anda tidak memiliki wewenang untuk melakukan aksi ini.', 'Anda tidak berwenang');
+            }
+
             var message = statusMessage(responseOrError.status);
             try {
                 var type = responseOrError.headers.get('content-type') || '';

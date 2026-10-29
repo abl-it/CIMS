@@ -82,7 +82,11 @@ Tidak ada ASP.NET Authentication scheme dan tidak ada [Authorize]. Pola itu teta
 - Isi query sama dengan Training: `home..users` JOIN `home..app_employees` ON EmployeeCode,
   LEFT JOIN `home..APP_Departments` ON DepartmentID, WHERE `u.Username = @Username`.
 - Kolom yang dikembalikan hanya yang dibutuhkan: Username, EmployeeCode, FullName, JobTitle,
-  CoCode, DepartmentName, ABRV. Jangan menyalin seluruh model Employees dari Training.
+  CoCode, DepartmentName, ABRV, dan **PortalRole** (= `u.[Role]` dari `home..users`).
+  Jangan menyalin seluruh model Employees dari Training.
+- **PortalRole hanya dimuat ke `CurrentUser`, TIDAK dipakai untuk keputusan akses apa pun di Tahap A.**
+  Training juga memuat kolom ini (sebagai `Roles`) tetapi otorisasinya memakai fungsi database lain.
+  Role CIMS ditentukan di Tahap B.
 - Stored procedure, bukan SQL inline (aturan CLAUDE.md).
 - Prasyarat: login database CIMS punya hak baca ke database `home` (cross-database).
   Jika Anda tidak bisa memastikannya dari kode, tulis di laporan sebagai pertanyaan untuk saya.
@@ -142,6 +146,9 @@ Tidak ada ASP.NET Authentication scheme dan tidak ada [Authorize]. Pola itu teta
 
 Filter RoleAuthorize (MVC), RoleAuthorizeApi (403 JSON), AllowAllRoles, dan menu sidebar per role.
 Sumber role dan daftar role CIMS: saya tentukan nanti. Jangan menebak nama role.
+Training mengambil role lewat `dbo.fc_GetRole(@username)` (hasil: satu role tertinggi, mis. tc, gm, director).
+Definisi fungsi itu tidak ada di source. Sebelum Tahap B, saya akan memeriksa definisinya dan nilai
+`home..users.Role`, lalu memutuskan apakah CIMS memakai role portal atau tabel role sendiri.
 
 ## Cara kerja
 

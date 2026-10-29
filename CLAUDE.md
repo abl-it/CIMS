@@ -119,8 +119,9 @@ App shell di `Views/Shared/_Layout.cshtml`: `<header>` sticky (logo CIMS, subjud
 
 Desktop dan tablet (>= 768px) compact; mobile (< 768px) tetap default Bootstrap dengan target sentuh ~44px. Seluruhnya CSS-first di `wwwroot/css/site.css` (blok "Kepadatan UI") lewat class pembungkus `.cims-compact` pada `<main>` di `_Layout.cshtml`; header, sidebar, toast, dan SweetAlert2 tidak terpengaruh.
 
-- **Token (`:root`):** `--cims-font-size` 0.875rem · `--cims-font-size-sm` 0.8125rem · `--cims-badge-font-size` 0.75rem · `--cims-space-1/2/3` 0.25/0.5/0.75rem · `--cims-control-height` 2rem · `--cims-table-cell-py/px` 0.25/0.5rem · `--cims-card-padding` 0.75rem · `--cims-form-max-width` 60rem · `--cims-table-offset` (untuk `max-height` tabel).
-- **Class bantu:** `.cims-page-header` (judul + aksi utama sejajar), `.cims-filter` (filter bar satu baris), `.cims-list-footer` (info + pagination), `.cims-form` (batas lebar form), `.cims-icon-btn` (tombol ikon di tabel), `.cims-detail-item` (pasangan label-nilai pada Details).
+- **Token (`:root`):** `--cims-font-size` 0.875rem · `--cims-font-size-sm` 0.8125rem · `--cims-badge-font-size` 0.75rem · `--cims-space-1/2/3` 0.25/0.5/0.75rem · `--cims-control-height` 2rem · `--cims-table-cell-py/px` 0.25/0.5rem · `--cims-card-padding` 0.75rem · `--cims-table-offset` (untuk `max-height` tabel).
+- **Class bantu:** `.cims-page-header` (judul + aksi utama sejajar), `.cims-filter` (filter bar satu baris), `.cims-list-footer` (info + pagination), `.cims-icon-btn` (tombol ikon di tabel), `.cims-detail-item` (pasangan label-nilai pada Details).
+- **Lebar konten:** wrapper `.cims-content` di `_Layout.cshtml` (token `--cims-content-max-width` 1320px, `--cims-content-narrow-max-width` 960px; satu-satunya tempat ukuran `px` layout). Pilih mode lewat `ViewData["ContentWidth"]` di blok `@{ }` view: kosong = default 1320px (halaman list/tabel), `"narrow"` = 960px (form dan detail: Create, Edit, Details), `"full"` = tanpa batas (dashboard, Gantt, laporan lebar). **Dilarang menambah `max-width`/lebar `px` manual di view atau elemen anak.** Kolom tabel Status/Aksi memakai `.cims-col-fit`.
 - **View baru wajib memakai class dan token ini, tanpa kelas ukuran manual per elemen** (`btn-sm`, `py-1`, `mb-1`, dsb.). Hindari `!important` dan inline style; fokus keyboard (focus ring) tidak boleh dihilangkan.
 
 ## Autentikasi

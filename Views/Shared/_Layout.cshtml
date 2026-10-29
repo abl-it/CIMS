@@ -39,7 +39,18 @@
 
         <main role="main" class="app-content cims-compact">
             <div class="container-fluid">
-                @RenderBody()
+                @{
+                    var contentWidth = ViewData["ContentWidth"]?.ToString();
+                    var contentWidthClass = contentWidth switch
+                    {
+                        "narrow" => "cims-content--narrow",
+                        "full" => "cims-content--full",
+                        _ => string.Empty
+                    };
+                }
+                <div class="cims-content @contentWidthClass">
+                    @RenderBody()
+                </div>
             </div>
         </main>
     </div>

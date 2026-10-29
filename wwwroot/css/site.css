@@ -20,3 +20,22 @@ html {
 body {
   margin-bottom: 60px;
 }
+
+/* Customer module */
+.sort-link {
+  color: inherit;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.sort-link:hover {
+  text-decoration: underline;
+}
+
+.customer-card .customer-text {
+  word-break: break-word;
+}
+
+.customer-detail dd {
+  word-break: break-word;
+}

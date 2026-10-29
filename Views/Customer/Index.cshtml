@@ -1,0 +1,198 @@
+@model CustomerListViewModel
+@{
+    ViewData["Title"] = "Customer";
+    var result = Model.Result;
+    var currentUrl = Context.Request.Path + Context.Request.QueryString;
+
+    // Route values untuk link sort/paging; semua filter ikut terbawa.
+    Dictionary<string, string?> RouteFor(int page, string? sortBy = null, string? sortDir = null)
+    {
+        var d = new Dictionary<string, string?>
+        {
+            ["sortBy"] = sortBy ?? Model.SortBy,
+            ["sortDir"] = sortDir ?? Model.SortDir,
+            ["page"] = page.ToString(),
+            ["pageSize"] = Model.PageSize.ToString()
+        };
+        if (!string.IsNullOrWhiteSpace(Model.Search)) d["search"] = Model.Search;
+        if (Model.IsActive.HasValue) d["isActive"] = Model.IsActive.Value.ToString().ToLowerInvariant();
+        return d;
+    }
+
+    Dictionary<string, string?> SortRoute(string column)
+    {
+        var dir = Model.SortBy == column && Model.SortDir == "ASC" ? "DESC" : "ASC";
+        return RouteFor(1, column, dir);
+    }
+
+    string SortMark(string column) =>
+        Model.SortBy == column ? (Model.SortDir == "ASC" ? " ▲" : " ▼") : "";
+
+    var firstItem = result.TotalCount == 0 ? 0 : (result.PageNumber - 1) * result.PageSize + 1;
+    var lastItem = Math.Min(result.PageNumber * result.PageSize, result.TotalCount);
+    var pageStart = Math.Max(1, result.PageNumber - 2);
+    var pageEnd = Math.Min(result.TotalPages, result.PageNumber + 2);
+}
+
+<div class="d-grid d-md-flex justify-content-md-between align-items-md-center gap-2 mb-3">
+    <h1 class="h3 mb-0">Customer</h1>
+    <a asp-action="Create" class="btn btn-primary btn-lg">Tambah Customer</a>
+</div>
+
+<form asp-action="Index" method="get" class="row g-2 mb-3">
+    <input type="hidden" name="sortBy" value="@Model.SortBy" />
+    <input type="hidden" name="sortDir" value="@Model.SortDir" />
+    <input type="hidden" name="pageSize" value="@Model.PageSize" />
+    <div class="col-12 col-md-6">
+        <label for="search" class="form-label visually-hidden">Cari</label>
+        <input type="search" id="search" name="search" value="@Model.Search" class="form-control" placeholder="Cari kode atau nama" />
+    </div>
+    <div class="col-12 col-md-3">
+        <label for="isActive" class="form-label visually-hidden">Status</label>
+        <select id="isActive" name="isActive" class="form-select">
+            <option value="" selected="@(!Model.IsActive.HasValue)">Semua status</option>
+            <option value="true" selected="@(Model.IsActive == true)">Aktif</option>
+            <option value="false" selected="@(Model.IsActive == false)">Nonaktif</option>
+        </select>
+    </div>
+    <div class="col-12 col-md-3 d-grid d-md-flex gap-2">
+        <button type="submit" class="btn btn-primary">Cari</button>
+        <a asp-action="Index" class="btn btn-outline-secondary">Reset</a>
+    </div>
+</form>
+
+@if (!result.Items.Any())
+{
+    <div class="alert alert-info" role="status">Tidak ada data customer.</div>
+}
+else
+{
+    @* Desktop / tablet: tabel *@
+    <div class="d-none d-md-block">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th><a class="sort-link" asp-action="Index" asp-all-route-data='SortRoute("Code")'>Kode@(SortMark("Code"))</a></th>
+                        <th><a class="sort-link" asp-action="Index" asp-all-route-data='SortRoute("Name")'>Nama@(SortMark("Name"))</a></th>
+                        <th class="d-none d-lg-table-cell">Telepon</th>
+                        <th class="d-none d-lg-table-cell">Email</th>
+                        <th>Status</th>
+                        <th class="text-end">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var c in result.Items)
+                    {
+                        <tr>
+                            <td>@c.Code</td>
+                            <td>@c.Name</td>
+                            <td class="d-none d-lg-table-cell">@c.Phone</td>
+                            <td class="d-none d-lg-table-cell">@c.Email</td>
+                            <td>
+                                @if (c.IsActive)
+                                {
+                                    <span class="badge text-bg-success">Aktif</span>
+                                }
+                                else
+                                {
+                                    <span class="badge text-bg-secondary">Nonaktif</span>
+                                }
+                            </td>
+                            <td class="text-end text-nowrap">
+                                <a asp-action="Details" asp-route-id="@c.Id" class="btn btn-outline-secondary">Detail</a>
+                                <a asp-action="Edit" asp-route-id="@c.Id" class="btn btn-outline-primary">Edit</a>
+                                <form asp-action="SetActive" method="post" class="d-inline"
+                                      onsubmit="return @(c.IsActive ? "confirm('Nonaktifkan customer ini?')" : "true");">
+                                    <input type="hidden" name="id" value="@c.Id" />
+                                    <input type="hidden" name="isActive" value="@((!c.IsActive).ToString().ToLowerInvariant())" />
+                                    <input type="hidden" name="returnUrl" value="@currentUrl" />
+                                    <button type="submit" class="btn @(c.IsActive ? "btn-outline-danger" : "btn-outline-success")">
+                                        @(c.IsActive ? "Nonaktifkan" : "Aktifkan")
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @* Mobile: card list *@
+    <div class="d-md-none">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted">Urutkan:</span>
+            <div class="btn-group" role="group" aria-label="Urutkan">
+                <a class="btn btn-outline-secondary @(Model.SortBy == "Code" ? "active" : "")" asp-action="Index" asp-all-route-data='SortRoute("Code")'>Kode@(SortMark("Code"))</a>
+                <a class="btn btn-outline-secondary @(Model.SortBy == "Name" ? "active" : "")" asp-action="Index" asp-all-route-data='SortRoute("Name")'>Nama@(SortMark("Name"))</a>
+            </div>
+        </div>
+        @foreach (var c in result.Items)
+        {
+            <div class="card customer-card mb-2">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start gap-2">
+                        <div class="customer-text">
+                            <div class="fw-semibold">@c.Name</div>
+                            <div class="text-muted small">@c.Code</div>
+                        </div>
+                        @if (c.IsActive)
+                        {
+                            <span class="badge text-bg-success">Aktif</span>
+                        }
+                        else
+                        {
+                            <span class="badge text-bg-secondary">Nonaktif</span>
+                        }
+                    </div>
+                    @if (!string.IsNullOrEmpty(c.Phone) || !string.IsNullOrEmpty(c.Email))
+                    {
+                        <div class="small mt-2 customer-text">
+                            @if (!string.IsNullOrEmpty(c.Phone)) { <div>@c.Phone</div> }
+                            @if (!string.IsNullOrEmpty(c.Email)) { <div>@c.Email</div> }
+                        </div>
+                    }
+                    <div class="d-grid gap-2 mt-3">
+                        <div class="row g-2">
+                            <div class="col-6"><a asp-action="Details" asp-route-id="@c.Id" class="btn btn-outline-secondary w-100">Detail</a></div>
+                            <div class="col-6"><a asp-action="Edit" asp-route-id="@c.Id" class="btn btn-outline-primary w-100">Edit</a></div>
+                        </div>
+                        <form asp-action="SetActive" method="post" class="d-grid"
+                              onsubmit="return @(c.IsActive ? "confirm('Nonaktifkan customer ini?')" : "true");">
+                            <input type="hidden" name="id" value="@c.Id" />
+                            <input type="hidden" name="isActive" value="@((!c.IsActive).ToString().ToLowerInvariant())" />
+                            <input type="hidden" name="returnUrl" value="@currentUrl" />
+                            <button type="submit" class="btn @(c.IsActive ? "btn-outline-danger" : "btn-outline-success")">
+                                @(c.IsActive ? "Nonaktifkan" : "Aktifkan")
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="d-flex flex-column flex-md-row justify-content-md-between align-items-md-center gap-2 mt-3">
+        <div class="text-muted small">Menampilkan @firstItem–@lastItem dari @result.TotalCount</div>
+        @if (result.TotalPages > 1)
+        {
+            <nav aria-label="Navigasi halaman">
+                <ul class="pagination pagination-sm mb-0 flex-wrap">
+                    <li class="page-item @(result.PageNumber <= 1 ? "disabled" : "")">
+                        <a class="page-link" asp-action="Index" asp-all-route-data="RouteFor(result.PageNumber - 1)">Sebelumnya</a>
+                    </li>
+                    @for (var p = pageStart; p <= pageEnd; p++)
+                    {
+                        <li class="page-item @(p == result.PageNumber ? "active" : "")">
+                            <a class="page-link" asp-action="Index" asp-all-route-data="RouteFor(p)">@p</a>
+                        </li>
+                    }
+                    <li class="page-item @(result.PageNumber >= result.TotalPages ? "disabled" : "")">
+                        <a class="page-link" asp-action="Index" asp-all-route-data="RouteFor(result.PageNumber + 1)">Berikutnya</a>
+                    </li>
+                </ul>
+            </nav>
+        }
+    </div>
+}

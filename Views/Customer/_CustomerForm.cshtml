@@ -1,0 +1,61 @@
+@model CustomerFormViewModel
+@{
+    var isEdit = Model.Id > 0;
+    var action = isEdit ? "Edit" : "Create";
+    var cancelAction = isEdit ? "Details" : "Index";
+}
+
+<form asp-controller="Customer" asp-action="@action" asp-route-id="@(isEdit ? Model.Id : (int?)null)" method="post" novalidate>
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+    <input type="hidden" asp-for="Id" />
+
+    <div class="row g-3">
+        <div class="col-12 col-md-6">
+            <div class="form-floating">
+                <input asp-for="Code" class="form-control" placeholder="Kode" autocomplete="off" />
+                <label asp-for="Code"></label>
+            </div>
+            <span asp-validation-for="Code" class="text-danger"></span>
+        </div>
+        <div class="col-12 col-md-6">
+            <div class="form-floating">
+                <input asp-for="Name" class="form-control" placeholder="Nama" autocomplete="off" />
+                <label asp-for="Name"></label>
+            </div>
+            <span asp-validation-for="Name" class="text-danger"></span>
+        </div>
+        <div class="col-12 col-md-6">
+            <div class="form-floating">
+                <input asp-for="Phone" type="tel" class="form-control" placeholder="Telepon" />
+                <label asp-for="Phone"></label>
+            </div>
+            <span asp-validation-for="Phone" class="text-danger"></span>
+        </div>
+        <div class="col-12 col-md-6">
+            <div class="form-floating">
+                <input asp-for="Email" type="email" class="form-control" placeholder="Email" />
+                <label asp-for="Email"></label>
+            </div>
+            <span asp-validation-for="Email" class="text-danger"></span>
+        </div>
+        <div class="col-12">
+            <div class="form-floating">
+                <textarea asp-for="Address" class="form-control" placeholder="Alamat" rows="3"></textarea>
+                <label asp-for="Address"></label>
+            </div>
+            <span asp-validation-for="Address" class="text-danger"></span>
+        </div>
+        <div class="col-12">
+            <div class="form-check form-switch">
+                <input asp-for="IsActive" class="form-check-input" role="switch" />
+                <label asp-for="IsActive" class="form-check-label"></label>
+            </div>
+        </div>
+        <div class="col-12">
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <a asp-action="@cancelAction" asp-route-id="@(isEdit ? Model.Id : (int?)null)" class="btn btn-outline-secondary btn-lg">Batal</a>
+                <button type="submit" class="btn btn-primary btn-lg">@(isEdit ? "Simpan Perubahan" : "Simpan")</button>
+            </div>
+        </div>
+    </div>
+</form>

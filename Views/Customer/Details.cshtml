@@ -1,0 +1,60 @@
+@model Customer
+@{
+    ViewData["Title"] = "Detail Customer";
+    var toggleTo = !Model.IsActive;
+}
+
+<h1 class="h3 mb-3">Detail Customer</h1>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <dl class="row mb-0 customer-detail">
+            <dt class="col-12 col-md-3">Kode</dt>
+            <dd class="col-12 col-md-9">@Model.Code</dd>
+
+            <dt class="col-12 col-md-3">Nama</dt>
+            <dd class="col-12 col-md-9">@Model.Name</dd>
+
+            <dt class="col-12 col-md-3">Telepon</dt>
+            <dd class="col-12 col-md-9">@(string.IsNullOrEmpty(Model.Phone) ? "-" : Model.Phone)</dd>
+
+            <dt class="col-12 col-md-3">Email</dt>
+            <dd class="col-12 col-md-9">@(string.IsNullOrEmpty(Model.Email) ? "-" : Model.Email)</dd>
+
+            <dt class="col-12 col-md-3">Alamat</dt>
+            <dd class="col-12 col-md-9">@(string.IsNullOrEmpty(Model.Address) ? "-" : Model.Address)</dd>
+
+            <dt class="col-12 col-md-3">Status</dt>
+            <dd class="col-12 col-md-9">
+                @if (Model.IsActive)
+                {
+                    <span class="badge text-bg-success">Aktif</span>
+                }
+                else
+                {
+                    <span class="badge text-bg-secondary">Nonaktif</span>
+                }
+            </dd>
+
+            <dt class="col-12 col-md-3">Dibuat</dt>
+            <dd class="col-12 col-md-9">@Model.CreatedAt.ToString("dd MMM yyyy HH:mm")</dd>
+
+            <dt class="col-12 col-md-3">Diperbarui</dt>
+            <dd class="col-12 col-md-9">@(Model.UpdatedAt?.ToString("dd MMM yyyy HH:mm") ?? "-")</dd>
+        </dl>
+    </div>
+</div>
+
+<div class="d-grid gap-2 d-md-flex justify-content-md-end">
+    <a asp-action="Index" class="btn btn-outline-secondary btn-lg">Kembali</a>
+    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary btn-lg">Edit</a>
+    <form asp-action="SetActive" method="post" class="d-grid"
+          onsubmit="return @(Model.IsActive ? "confirm('Nonaktifkan customer ini?')" : "true");">
+        <input type="hidden" name="id" value="@Model.Id" />
+        <input type="hidden" name="isActive" value="@toggleTo.ToString().ToLowerInvariant()" />
+        <input type="hidden" name="returnUrl" value="@Url.Action("Details", new { id = Model.Id })" />
+        <button type="submit" class="btn btn-lg @(Model.IsActive ? "btn-outline-danger" : "btn-outline-success")">
+            @(Model.IsActive ? "Nonaktifkan" : "Aktifkan")
+        </button>
+    </form>
+</div>

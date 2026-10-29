@@ -21,9 +21,13 @@
             <li>
                 <div class="dropdown-header text-wrap">
                     <div class="fw-semibold text-body">@Model.User.FullName</div>
-                    @if (!string.IsNullOrEmpty(Model.User.JobTitle))
+                    @if (Model.User.HighestRole is { } highestRole)
                     {
-                        <div>@Model.User.JobTitle</div>
+                        <div title="@string.Join(", ", Model.User.Roles.Select(r => r.DisplayText))">@highestRole.DisplayText</div>
+                    }
+                    else
+                    {
+                        <div class="text-muted">Belum ada role</div>
                     }
                     @if (!string.IsNullOrEmpty(Model.User.DeptName))
                     {

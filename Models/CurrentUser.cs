@@ -13,5 +13,11 @@ namespace CIMS.Models
 
         /// <summary>home..users.Role. Hanya dimuat; TIDAK dipakai untuk keputusan akses (lihat Tahap B).</summary>
         public string? PortalRole { get; set; }
+
+        /// <summary>Role CIMS yang terdaftar di dbo.HierarchyLevel, urut level naik. Hanya untuk tampilan.</summary>
+        public List<UserRole> Roles { get; set; } = new();
+
+        /// <summary>Role tertinggi (level terkecil); null bila tidak punya role terdaftar.</summary>
+        public UserRole? HighestRole => Roles.FirstOrDefault();
     }
 }

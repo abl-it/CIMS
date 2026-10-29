@@ -61,6 +61,16 @@ namespace CIMS.Filters
                 return;
             }
 
+            // Role hanya untuk tampilan: kegagalan memuat role tidak boleh memblokir akses.
+            try
+            {
+                user.Roles = (await _authService.GetUserRolesAsync(user.Username, http.RequestAborted)).ToList();
+            }
+            catch (Exception ex) when (!http.RequestAborted.IsCancellationRequested)
+            {
+                _logger.LogError(ex, "Gagal memuat role user {Username}.", user.Username);
+            }
+
             _currentUserService.CurrentUser = user;
             await next();
         }

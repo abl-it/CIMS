@@ -1,64 +1,120 @@
 @*
-    Daftar menu aplikasi - SATU-SATUNYA tempat mendefinisikan menu sidebar.
-    Modul baru: tambahkan satu baris pada grup yang sesuai.
-    Enabled = false -> tampil nonaktif ("Segera"), bukan link.
+    Menu aplikasi (maksimal 2 tingkat: grup + submenu) - SATU-SATUNYA tempat mendefinisikan menu sidebar.
+    Modul baru: tambahkan satu baris MenuItem (atau satu submenu pada Children) di daftar "menu" di bawah.
+    Enabled = false -> tampil nonaktif ("Segera hadir"), bukan link.
+    Item dengan Children dirender sebagai tombol collapse (accordion); Controller/Action-nya diabaikan.
 *@
+@functions {
+    private record MenuItem(string Text, string? Icon, string? Controller, string? Action, bool Enabled, MenuItem[]? Children = null);
+
+    private static MenuItem Leaf(string text, string? icon, string controller, string action, bool enabled) =>
+        new(text, icon, controller, action, enabled);
+
+    private static MenuItem Group(string text, string icon, params MenuItem[] children) =>
+        new(text, icon, null, null, false, children);
+}
 @{
-    var groups = new (string? Title, (string Text, string Icon, string Controller, string Action, bool Enabled)[] Items)[]
+    var menu = new[]
     {
-        (null, new[]
-        {
-            ("Home", "bi-house-door", "Home", "Index", true),
-            ("Dashboard", "bi-speedometer2", "Dashboard", "Index", false),
-            ("Request", "bi-inbox", "Request", "Index", false),
-            ("Project / Maintenance", "bi-tools", "Project", "Index", false),
-            ("Cost Management", "bi-cash-coin", "Cost", "Index", false),
-            ("Gantt Chart", "bi-bar-chart-steps", "Gantt", "Index", false),
-            ("User Satisfaction", "bi-emoji-smile", "Survey", "Index", false),
-            ("Report", "bi-file-earmark-text", "Report", "Index", false)
-        }),
-        ("Master Data", new[]
-        {
-            ("Customer", "bi-people", "Customer", "Index", true)
-        })
+        Leaf("Home", "bi-house-door", "Home", "Index", true),
+        Leaf("Dashboard", "bi-speedometer2", "Dashboard", "Index", false),
+        Group("Request", "bi-inbox",
+            Leaf("Daftar Request", null, "Request", "Index", false),
+            Leaf("Buat Request", null, "Request", "Create", false)),
+        Group("Project / Maintenance", "bi-tools",
+            Leaf("CAPEX", null, "Project", "Capex", false),
+            Leaf("OPEX", null, "Project", "Opex", false),
+            Leaf("LVE", null, "Project", "Lve", false)),
+        Group("Cost Management", "bi-cash-coin",
+            Leaf("CAPEX", null, "Cost", "Capex", false),
+            Leaf("OPEX", null, "Cost", "Opex", false),
+            Leaf("LVE", null, "Cost", "Lve", false)),
+        Group("Gantt Chart", "bi-bar-chart-steps",
+            Leaf("CAPEX", null, "Gantt", "Capex", false),
+            Leaf("OPEX", null, "Gantt", "Opex", false),
+            Leaf("LVE", null, "Gantt", "Lve", false)),
+        Leaf("User Satisfaction", "bi-emoji-smile", "Survey", "Index", false),
+        Leaf("Report", "bi-file-earmark-text", "Report", "Index", false),
+        Group("Master Data", "bi-database",
+            Leaf("Customer", null, "Customer", "Index", true))
     };
 
     var currentController = ViewContext.RouteData.Values["controller"]?.ToString() ?? string.Empty;
+    var currentAction = ViewContext.RouteData.Values["action"]?.ToString() ?? string.Empty;
+
+    // Item daun yang aktif: cocok persis (controller + action); jika tidak ada, daun "Index" pada controller yang sama
+    // (sehingga /Customer/Edit/5 tetap menandai Customer).
+    var leaves = menu.SelectMany(m => m.Children ?? new[] { m }).Where(l => l.Enabled).ToList();
+    var activeLeaf =
+        leaves.FirstOrDefault(l => string.Equals(l.Controller, currentController, StringComparison.OrdinalIgnoreCase)
+                                   && string.Equals(l.Action, currentAction, StringComparison.OrdinalIgnoreCase))
+        ?? leaves.FirstOrDefault(l => string.Equals(l.Controller, currentController, StringComparison.OrdinalIgnoreCase)
+                                      && string.Equals(l.Action, "Index", StringComparison.OrdinalIgnoreCase));
 }
 
 <div class="app-sidebar-menu">
-    @foreach (var group in groups)
-    {
-        @if (!string.IsNullOrEmpty(group.Title))
+    <ul class="nav flex-column app-sidebar-list" id="sidebarAccordion">
+        @for (var i = 0; i < menu.Length; i++)
         {
-            <div class="app-sidebar-group">@group.Title</div>
+            var item = menu[i];
+            <li class="nav-item">
+                @if (item.Children is { Length: > 0 })
+                {
+                    var groupId = $"sidebarGroup{i}";
+                    var groupActive = item.Children.Any(c => ReferenceEquals(c, activeLeaf));
+                    <button type="button" class="nav-link app-sidebar-link app-sidebar-toggle @(groupActive ? "active-parent" : "collapsed")"
+                            data-bs-toggle="collapse" data-bs-target="#@groupId"
+                            aria-expanded="@(groupActive ? "true" : "false")" aria-controls="@groupId">
+                        <i class="bi @item.Icon" aria-hidden="true"></i>
+                        <span>@item.Text</span>
+                        <i class="bi bi-chevron-down app-sidebar-chevron ms-auto" aria-hidden="true"></i>
+                    </button>
+                    <div id="@groupId" class="collapse @(groupActive ? "show" : "")" data-bs-parent="#sidebarAccordion">
+                        <ul class="nav flex-column app-sidebar-sub">
+                            @foreach (var child in item.Children)
+                            {
+                                var childActive = ReferenceEquals(child, activeLeaf);
+                                <li class="nav-item">
+                                    @if (child.Enabled)
+                                    {
+                                        <a class="nav-link app-sidebar-link app-sidebar-sublink @(childActive ? "active" : "")"
+                                           asp-controller="@child.Controller" asp-action="@child.Action"
+                                           aria-current="@(childActive ? "page" : null)">
+                                            <span>@child.Text</span>
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <span class="nav-link app-sidebar-link app-sidebar-sublink disabled" aria-disabled="true" title="Segera hadir">
+                                            <span>@child.Text</span>
+                                        </span>
+                                    }
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                }
+                else if (item.Enabled)
+                {
+                    var isActive = ReferenceEquals(item, activeLeaf);
+                    <a class="nav-link app-sidebar-link @(isActive ? "active" : "")"
+                       asp-controller="@item.Controller" asp-action="@item.Action"
+                       aria-current="@(isActive ? "page" : null)">
+                        <i class="bi @item.Icon" aria-hidden="true"></i>
+                        <span>@item.Text</span>
+                    </a>
+                }
+                else
+                {
+                    <span class="nav-link app-sidebar-link disabled" aria-disabled="true" title="Segera hadir">
+                        <i class="bi @item.Icon" aria-hidden="true"></i>
+                        <span>@item.Text</span>
+                        <span class="badge app-sidebar-badge ms-auto">Segera</span>
+                    </span>
+                }
+            </li>
         }
-        <ul class="nav flex-column app-sidebar-list">
-            @foreach (var item in group.Items)
-            {
-                var isActive = item.Enabled && string.Equals(item.Controller, currentController, StringComparison.OrdinalIgnoreCase);
-                <li class="nav-item">
-                    @if (item.Enabled)
-                    {
-                        <a class="nav-link app-sidebar-link @(isActive ? "active" : "")"
-                           asp-controller="@item.Controller" asp-action="@item.Action"
-                           aria-current="@(isActive ? "page" : null)">
-                            <i class="bi @item.Icon" aria-hidden="true"></i>
-                            <span>@item.Text</span>
-                        </a>
-                    }
-                    else
-                    {
-                        <span class="nav-link app-sidebar-link disabled" aria-disabled="true" title="Segera hadir">
-                            <i class="bi @item.Icon" aria-hidden="true"></i>
-                            <span>@item.Text</span>
-                            <span class="badge app-sidebar-badge ms-auto">Segera</span>
-                        </span>
-                    }
-                </li>
-            }
-        </ul>
-    }
+    </ul>
 </div>
 
 <div class="app-sidebar-card">

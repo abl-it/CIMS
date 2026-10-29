@@ -105,10 +105,11 @@ Semua halaman wajib tampil baik di desktop, tablet, dan mobile (mobile-first).
 
 App shell di `Views/Shared/_Layout.cshtml`: `<header>` sticky (logo CIMS, subjudul, tagline di >= lg, hamburger di < lg) · `<nav aria-label="Menu utama">` sidebar · `<main>` konten (`container-fluid`, latar abu-abu kebiruan). Warna dan ukuran lewat CSS variables `--cims-*` di `wwwroot/css/site.css`. Ikon: Bootstrap Icons lokal (`wwwroot/lib/bootstrap-icons`).
 
-- **Responsive:** >= lg sidebar tetap di kiri (lebar `--cims-sidebar-width`), hanya konten yang scroll; < lg sidebar menjadi offcanvas (`offcanvas-lg`) yang dibuka hamburger dan menutup setelah menu dipilih.
-- **Daftar menu: SATU tempat**, `Views/Shared/_Sidebar.cshtml` (tuple: teks, ikon, controller, action, enabled), dikelompokkan per grup. Item `enabled = false` tampil nonaktif (`disabled`, `aria-disabled`, badge "Segera"), bukan link ke `#`.
-- Item aktif ditentukan dari controller pada `ViewContext.RouteData` (sub-halaman ikut aktif) dan diberi `aria-current="page"`.
-- **Modul baru WAJIB menambahkan item menu di `_Sidebar.cshtml`** (satu baris; ubah `enabled` menjadi `true` saat halamannya siap).
+- **Responsive:** >= lg sidebar tetap di kiri (lebar `--cims-sidebar-width`, compact: item ±36px, font 0.875rem, boleh scroll vertikal sendiri), hanya konten yang scroll; < lg sidebar menjadi offcanvas (`offcanvas-lg`) dengan item lebih besar (≥ ±44px) untuk sentuh. Offcanvas menutup hanya saat item daun (link tujuan) dipilih.
+- **Menu dua tingkat (maks. 2):** grup + submenu, accordion (`data-bs-parent`), grup berisi `<button>` collapse dengan `aria-expanded`/`aria-controls` dan chevron; item tanpa submenu adalah link biasa. Grup yang berisi item aktif terbuka otomatis dan ditandai aktif.
+- **Data menu: SATU tempat**, daftar `MenuItem` (teks, ikon, controller, action, enabled, children) di `Views/Shared/_Sidebar.cshtml`; markup tidak perlu disentuh. Item `enabled = false` tampil nonaktif (`disabled`, `aria-disabled`, tooltip "Segera hadir"; badge "Segera" hanya untuk item tingkat atas tanpa submenu), bukan link ke `#`.
+- Item aktif ditentukan dari controller/action pada `ViewContext.RouteData` (sub-halaman ikut aktif, mis. `/Customer/Edit/5`) dan diberi `aria-current="page"`.
+- **Modul baru WAJIB menambahkan item atau submenu di `_Sidebar.cshtml`** (satu baris; ubah `enabled` menjadi `true` saat halamannya siap).
 - Toast dan SweetAlert2 harus tampil di atas header (z-index); jangan menghapus toast container, `notify.js`, atau `_Notifications` dari layout.
 
 ## Notifikasi dan Dialog
@@ -176,5 +177,5 @@ Modul baru WAJIB mengikuti pola Customer berikut.
 - **PagedResult<T>:** `Items`, `TotalCount`, `PageNumber`, `PageSize`, `TotalPages`. `TotalCount` dari parameter OUTPUT SP.
 - **PRG + TempData:** POST valid → redirect; pesan lewat `TempData["Success"]` / `["Error"]`, ditampilkan lewat `_Notifications` (toast untuk sukses, SweetAlert2 untuk error). Semua POST memakai `[ValidateAntiForgeryToken]`; `returnUrl` hanya dipakai jika `Url.IsLocalUrl`.
 - **Pola list:** search (kode/nama), filter status (`bool?`), sort dengan whitelist kolom (SP dan Controller), `SortDir` ASC/DESC, paging server-side dengan `PageSize` dibatasi di Controller; `Page` melebihi total → redirect ke halaman terakhir; semua filter ikut terbawa di link sort/paging. Soft delete lewat `SetActive` (tanpa Delete).
-- **Sidebar:** Customer terdaftar di `_Sidebar.cshtml` (grup "Master Data") sebagai contoh; modul baru menambah item di sana.
+- **Sidebar:** Customer terdaftar di `_Sidebar.cshtml` (grup "Master Data" > Customer) sebagai contoh; modul baru menambah item/submenu di sana.
 - **Pola view mobile-first:** tabel `d-none d-md-block` dalam `table-responsive` + card list `d-md-none`; kolom sekunder `d-none d-lg-table-cell`; form `form-floating`, `col-12 col-md-6`, `type` tel/email; tombol aksi `d-grid d-md-flex justify-content-md-end`; `_ValidationScriptsPartial` di `@section Scripts`; URL via tag helper `asp-*`.

@@ -1,0 +1,143 @@
+# CLAUDE.md
+
+Panduan untuk Claude Code pada project ASP.NET Core 8 MVC ini. Baca seluruh file ini sebelum mengubah code.
+
+## Prinsip Kerja
+
+- **Fix the problem with the smallest safe change.** Jangan refactor besar untuk bug kecil.
+- Jangan ubah framework, architecture, naming, namespace, atau struktur database tanpa alasan jelas dan persetujuan.
+- Jangan mengarang class, method, property, atau konfigurasi yang belum ada. Cek dulu di source code.
+- Jangan mengklaim "berhasil" sebelum `dotnet build` (dan test, jika ada) benar-benar dijalankan.
+- Jika informasi belum cukup untuk menentukan root cause, katakan apa yang belum diketahui. Jangan menebak.
+- Kerjakan per modul/fitur kecil. Selesaikan satu tahap sebelum lanjut ke tahap berikutnya.
+
+## Technology Stack (tetap, jangan diganti)
+
+- .NET 8 / ASP.NET Core 8 MVC, C#
+- Dapper + SQL Server + Stored Procedure
+- **Tidak memakai Entity Framework. Tidak memakai Blazor.**
+- Bootstrap 5 (UI), JavaScript / Fetch / AJAX
+- Dependency Injection bawaan ASP.NET Core
+- async/await untuk seluruh akses I/O dan database
+
+## Architecture
+
+Pola: **Controller → Service (Dapper) → Stored Procedure**
+
+**Tidak ada layer Repository.** Service berisi business logic sekaligus akses data via Dapper.
+
+```
+/Controllers      -> hanya routing, validasi input, return View/Json. Tanpa business logic.
+/Models           -> entity, ViewModel, DTO
+/Services         -> business logic + akses data via Dapper (interface IxxxService + implementasi)
+/Views            -> Razor views (MVC)
+/wwwroot          -> static files (css, js, lib)
+/Database         -> script SQL: tabel, stored procedure (versioned, idempotent)
+```
+
+Aturan:
+- Controller tidak boleh mengakses database atau Dapper langsung. Selalu lewat Service.
+- **Jangan membuat class/interface Repository baru.** Query Dapper ditulis di Service.
+- Satu Service per domain/modul (mis. `OrderService`). Jika Service terlalu besar, pecah per sub-domain, bukan dengan menambah layer Repository.
+- Semua query lewat **stored procedure** dengan parameter (`DynamicParameters`). Dilarang string concatenation untuk SQL (SQL injection).
+- Koneksi dibuat per operasi lewat factory/`IDbConnection` yang di-inject ke Service. Gunakan `using`, jangan simpan koneksi sebagai field static.
+- Connection string dibaca dari `appsettings.json` / `appsettings.{Environment}.json`. Jangan hardcode.
+- Register DI di `Program.cs` (atau extension method yang sudah ada). Ikuti pola registrasi existing.
+
+## Database (SQL Server, T-SQL)
+
+- Gunakan syntax T-SQL yang valid untuk SQL Server.
+- Perhatikan: NULL handling, identity (`SCOPE_IDENTITY()` / `OUTPUT`), datatype, date/time.
+- Pagination: `OFFSET ... FETCH NEXT ...` dengan `ORDER BY` yang deterministik.
+- Setiap stored procedure baru disimpan sebagai file `.sql` di `/Database`, bisa dijalankan ulang (`CREATE OR ALTER PROCEDURE`).
+- Jangan ubah struktur tabel existing tanpa konfirmasi. Berikan script migrasi terpisah.
+- Claude Code **tidak menjalankan script SQL ke database production**. Hanya dev/test.
+
+## Date/Time
+
+- Aplikasi internal/operasional memakai **local time** (`DateTime.Now`, `GETDATE()`), bukan UTC, kecuali ada instruksi eksplisit.
+
+## UI: Bootstrap 5 + Mobile Responsive
+
+Semua halaman wajib tampil baik di desktop, tablet, dan mobile (mobile-first).
+
+### Dasar
+- `_Layout.cshtml` wajib memuat: `<meta name="viewport" content="width=device-width, initial-scale=1">`
+- Gunakan Bootstrap 5 yang sudah ada di project (`wwwroot/lib`). Jangan menambah CSS framework lain.
+- Custom style taruh di `wwwroot/css/site.css`. Hindari inline style dan ukuran fixed dalam `px` untuk layout.
+
+### Layout & Navigasi
+- Konten dibungkus `container` / `container-fluid`, lalu `row` + `col-12 col-md-* col-lg-*`. Mulai dari ukuran mobile (`col-12`), baru tambahkan breakpoint yang lebih besar.
+- Navbar: `navbar navbar-expand-lg` dengan tombol hamburger (`navbar-toggler`). Untuk menu/sidebar aplikasi, gunakan **offcanvas** (`offcanvas-lg`) agar sidebar jadi drawer di mobile.
+
+### Tabel & Data List
+- Tabel selalu dibungkus `<div class="table-responsive">`.
+- Untuk tabel dengan banyak kolom: pada layar kecil tampilkan sebagai **card list** (`d-md-none` untuk card, `d-none d-md-block` untuk tabel), atau sembunyikan kolom sekunder dengan `d-none d-md-table-cell`.
+- Pagination memakai komponen `pagination` Bootstrap (`pagination-sm` di mobile bila perlu), server-side paging.
+
+### Form
+- Gunakan `form-control`, `form-select`, `form-label`, `form-floating`; satu kolom di mobile (`col-12`), multi-kolom mulai `col-md-6`.
+- Input memakai `type` yang tepat (`email`, `tel`, `number`, `date`) agar keyboard mobile sesuai.
+- Target sentuh minimal ~44px: gunakan `btn` default / `btn-lg` untuk aksi utama di mobile. Hindari tombol `btn-sm` berdempetan.
+- Tombol aksi utama di mobile: `d-grid` (full width), di desktop `d-md-flex justify-content-md-end`.
+- Validasi: client-side (`jquery-validation-unobtrusive` bila sudah ada) + wajib validasi server-side (`ModelState`).
+
+### Komponen
+- Gunakan komponen Bootstrap: `card`, `modal`, `toast`, `alert`, `badge`, `spinner-border`.
+- Modal di mobile: `modal-dialog-scrollable` dan `modal-fullscreen-sm-down` untuk form panjang.
+- Gambar: `img-fluid`. Hindari lebar fixed.
+- Ikon: gunakan yang sudah ada di project (mis. Bootstrap Icons) bila tersedia.
+
+### AJAX
+- Gunakan `fetch` dengan `async/await`. Tampilkan `spinner-border` saat loading, `toast`/`alert` saat sukses/gagal.
+- URL endpoint memakai helper Razor (`@Url.Action(...)`) atau base path dari layout, **jangan hardcode** `/api/...`, agar aman saat di-deploy ke IIS dengan virtual directory.
+
+### Checklist UI sebelum dianggap selesai
+- [ ] Tampil benar di lebar 360px (mobile), 768px (tablet), 1366px (desktop)
+- [ ] Tidak ada horizontal scroll di mobile
+- [ ] Tabel tidak memotong konten (responsive/card)
+- [ ] Tombol dan input mudah disentuh
+- [ ] Menu bisa diakses via hamburger/offcanvas di mobile
+
+## Security
+
+- Validasi semua input di server. Gunakan `[ValidateAntiForgeryToken]` untuk POST form MVC.
+- Encode output (Razor default sudah encode; hindari `Html.Raw` pada data user).
+- Autentikasi/otorisasi mengikuti mekanisme existing (`[Authorize]`, policy/role). Jangan membuat mekanisme baru tanpa konfirmasi.
+- Jangan commit secret, password, atau connection string production.
+
+## Coding Style
+
+- Pertahankan namespace dan naming yang sudah ada.
+- Interface Service diawali `I` (mis. `IOrderService`), method async berakhiran `Async`, parameter `CancellationToken` bila pola existing memakainya.
+- Logging memakai `ILogger<T>`. Jangan menelan exception tanpa log.
+- Perubahan kecil: tunjukkan hanya bagian yang berubah. Jika full file lebih aman, berikan full file.
+
+## Build & Test
+
+```
+dotnet restore
+dotnet build
+dotnet test        # jika ada project test
+dotnet run --project <NamaProject>
+```
+
+Sebelum menyatakan task selesai: `dotnet build` harus 0 error. Laporkan warning baru jika ada.
+
+## Deployment (IIS / Windows Server)
+
+Jika aplikasi jalan di localhost tetapi gagal setelah publish, periksa dulu: publish output, `appsettings` & environment, base URL / endpoint AJAX, IIS binding & HTTPS, static files, permission folder, identity app pool, firewall, connection string, dan log. Jangan langsung menyimpulkan masalah ada di source code.
+
+## Cara Memberi Laporan
+
+Format laporan hasil kerja:
+
+```
+Diagnosis:
+Root Cause:
+Perubahan: (file + bagian yang diubah)
+Test: (command / langkah verifikasi)
+Expected Result:
+```
+
+Jika user menjawab "PASS", anggap step selesai, pertahankan perubahannya, dan lanjut ke step berikutnya tanpa mengulang solusi sebelumnya.

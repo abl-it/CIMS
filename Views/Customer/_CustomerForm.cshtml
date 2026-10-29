@@ -9,39 +9,29 @@
     <input type="hidden" asp-for="Id" />
 
     <div class="row g-3">
-        <div class="col-12 col-md-6">
-            <div class="form-floating">
-                <input asp-for="Code" class="form-control" placeholder="Kode" autocomplete="off" />
-                <label asp-for="Code"></label>
-            </div>
+        <div class="col-12 col-md-6 col-lg-4">
+            <label asp-for="Code" class="form-label"></label>
+            <input asp-for="Code" class="form-control" autocomplete="off" />
             <span asp-validation-for="Code" class="text-danger"></span>
         </div>
-        <div class="col-12 col-md-6">
-            <div class="form-floating">
-                <input asp-for="Name" class="form-control" placeholder="Nama" autocomplete="off" />
-                <label asp-for="Name"></label>
-            </div>
+        <div class="col-12 col-md-6 col-lg-8">
+            <label asp-for="Name" class="form-label"></label>
+            <input asp-for="Name" class="form-control" autocomplete="off" />
             <span asp-validation-for="Name" class="text-danger"></span>
         </div>
-        <div class="col-12 col-md-6">
-            <div class="form-floating">
-                <input asp-for="Phone" type="tel" class="form-control" placeholder="Telepon" />
-                <label asp-for="Phone"></label>
-            </div>
+        <div class="col-12 col-md-6 col-lg-4">
+            <label asp-for="Phone" class="form-label"></label>
+            <input asp-for="Phone" type="tel" class="form-control" />
             <span asp-validation-for="Phone" class="text-danger"></span>
         </div>
-        <div class="col-12 col-md-6">
-            <div class="form-floating">
-                <input asp-for="Email" type="email" class="form-control" placeholder="Email" />
-                <label asp-for="Email"></label>
-            </div>
+        <div class="col-12 col-md-6 col-lg-8">
+            <label asp-for="Email" class="form-label"></label>
+            <input asp-for="Email" type="email" class="form-control" />
             <span asp-validation-for="Email" class="text-danger"></span>
         </div>
         <div class="col-12">
-            <div class="form-floating">
-                <textarea asp-for="Address" class="form-control" placeholder="Alamat" rows="3"></textarea>
-                <label asp-for="Address"></label>
-            </div>
+            <label asp-for="Address" class="form-label"></label>
+            <textarea asp-for="Address" class="form-control" rows="3"></textarea>
             <span asp-validation-for="Address" class="text-danger"></span>
         </div>
         <div class="col-12">

@@ -330,8 +330,9 @@ a.app-sidebar-link.active {
 }
 
 /* Notifikasi (toast + SweetAlert2) */
+/* Pojok kanan bawah agar tidak menimpa tombol aksi di bagian atas halaman */
 .app-toast-container {
-  top: var(--cims-header-height);
+  bottom: 0;
   z-index: 1090;
   max-width: 100%;
 }
@@ -356,4 +357,182 @@ a.app-sidebar-link.active {
 
 .swal2-container {
   z-index: 1100;
+}
+
+/* ===== Kepadatan UI (Compact) =====
+   Compact hanya untuk >= 768px dan hanya di dalam .cims-compact (<main>).
+   Di bawah 768px ukuran kontrol default Bootstrap (target sentuh ~44px). */
+:root {
+  --cims-font-size: 0.875rem;
+  --cims-font-size-sm: 0.8125rem;
+  --cims-badge-font-size: 0.75rem;
+  --cims-space-1: 0.25rem;
+  --cims-space-2: 0.5rem;
+  --cims-space-3: 0.75rem;
+  --cims-control-height: 2rem;
+  --cims-table-cell-py: 0.25rem;
+  --cims-table-cell-px: 0.5rem;
+  --cims-card-padding: 0.75rem;
+  --cims-form-max-width: 60rem;
+  --cims-table-offset: 11rem; /* ruang di luar tabel (judul, filter, pagination) untuk max-height */
+}
+
+/* Ruang antar blok (nilai mobile) */
+.cims-page-header,
+.cims-filter {
+  margin-bottom: 1rem;
+}
+
+.cims-list-footer {
+  margin-top: 1rem;
+}
+
+.cims-form {
+  max-width: var(--cims-form-max-width);
+}
+
+.cims-detail-item {
+  margin-bottom: 0.5rem;
+}
+
+.cims-detail-item dt,
+.cims-detail-item dd {
+  margin-bottom: 0;
+}
+
+/* Mobile: card dirapatkan sedikit, tombol tidak dikecilkan */
+@media (max-width: 767.98px) {
+  .cims-compact .customer-card .card-body {
+    padding: var(--cims-space-3);
+  }
+}
+
+@media (min-width: 768px) {
+  .app-content.cims-compact {
+    padding: var(--cims-space-3) 0;
+    font-size: var(--cims-font-size);
+  }
+
+  .cims-compact h1,
+  .cims-compact .h3 {
+    font-size: 1.25rem;
+  }
+
+  .cims-page-header,
+  .cims-filter {
+    margin-bottom: var(--cims-space-2);
+  }
+
+  .cims-list-footer {
+    margin-top: var(--cims-space-2);
+  }
+
+  /* Kontrol */
+  .cims-compact .form-control,
+  .cims-compact .form-select {
+    min-height: var(--cims-control-height);
+    padding: 0.2rem var(--cims-space-2);
+    font-size: var(--cims-font-size);
+  }
+
+  .cims-compact textarea.form-control {
+    min-height: calc(var(--cims-control-height) * 2);
+  }
+
+  .cims-compact .form-label {
+    margin-bottom: var(--cims-space-1);
+    font-size: var(--cims-font-size-sm);
+  }
+
+  .cims-compact .form-select {
+    min-width: 10rem;
+  }
+
+  .cims-compact .btn,
+  .cims-compact .btn-lg {
+    --bs-btn-padding-y: 0.2rem;
+    --bs-btn-padding-x: 0.75rem;
+    --bs-btn-font-size: var(--cims-font-size);
+    --bs-btn-border-radius: 0.375rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--cims-control-height);
+  }
+
+  .cims-compact .cims-icon-btn {
+    width: var(--cims-control-height);
+    padding: 0;
+  }
+
+  /* Grid form rapat */
+  .cims-compact .row.g-3 {
+    --bs-gutter-x: var(--cims-space-3);
+    --bs-gutter-y: var(--cims-space-2);
+  }
+
+  .cims-compact .field-validation-error,
+  .cims-compact .text-danger[data-valmsg-for] {
+    display: block;
+    font-size: var(--cims-font-size-sm);
+  }
+
+  /* Tabel: setara table-sm, header sticky di dalam .table-responsive */
+  .cims-compact .table {
+    font-size: var(--cims-font-size-sm);
+  }
+
+  .cims-compact .table > :not(caption) > * > * {
+    padding: var(--cims-table-cell-py) var(--cims-table-cell-px);
+  }
+
+  .cims-compact .table-responsive {
+    max-height: calc(100vh - var(--cims-header-height) - var(--cims-table-offset));
+    overflow: auto;
+  }
+
+  .cims-compact .table-responsive > .table > thead > tr > th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background-color: var(--bs-body-bg);
+    box-shadow: inset 0 -1px 0 var(--bs-border-color);
+  }
+
+  .cims-compact .badge {
+    font-size: var(--cims-badge-font-size);
+  }
+
+  .cims-compact .pagination {
+    --bs-pagination-padding-y: 0.15rem;
+    --bs-pagination-padding-x: var(--cims-space-2);
+    --bs-pagination-font-size: var(--cims-font-size-sm);
+  }
+
+  /* Card, modal, alert */
+  .cims-compact .card {
+    --bs-card-spacer-y: var(--cims-card-padding);
+    --bs-card-spacer-x: var(--cims-card-padding);
+    --bs-card-cap-padding-y: var(--cims-space-2);
+    --bs-card-cap-padding-x: var(--cims-card-padding);
+  }
+
+  .cims-compact .modal-header,
+  .cims-compact .modal-footer {
+    padding: var(--cims-space-2) var(--cims-card-padding);
+  }
+
+  .cims-compact .alert {
+    --bs-alert-padding-y: var(--cims-space-2);
+    --bs-alert-padding-x: var(--cims-card-padding);
+    margin-bottom: var(--cims-space-2);
+  }
+
+  /* Detail: label + nilai berdampingan */
+  .cims-detail-item {
+    display: grid;
+    grid-template-columns: 7rem 1fr;
+    gap: var(--cims-space-2);
+    margin-bottom: var(--cims-space-1);
+  }
 }

@@ -72,13 +72,14 @@ Semua halaman wajib tampil baik di desktop, tablet, dan mobile (mobile-first).
 
 ### Tabel & Data List
 - Tabel selalu dibungkus `<div class="table-responsive">`.
+- Tabel memakai token compact (`.cims-compact`, setara `table-sm`); kolom aksi berupa tombol ikon dengan `title` dan `aria-label` (aksi berisiko tetap `data-confirm`).
 - Untuk tabel dengan banyak kolom: pada layar kecil tampilkan sebagai **card list** (`d-md-none` untuk card, `d-none d-md-block` untuk tabel), atau sembunyikan kolom sekunder dengan `d-none d-md-table-cell`.
 - Pagination memakai komponen `pagination` Bootstrap (`pagination-sm` di mobile bila perlu), server-side paging.
 
 ### Form
-- Gunakan `form-control`, `form-select`, `form-label`, `form-floating`; satu kolom di mobile (`col-12`), multi-kolom mulai `col-md-6`.
+- Gunakan `form-control`, `form-select`, `form-label` (label kecil di atas input; tidak memakai `form-floating`); satu kolom di mobile (`col-12`), multi-kolom mulai `col-md-6`.
 - Input memakai `type` yang tepat (`email`, `tel`, `number`, `date`) agar keyboard mobile sesuai.
-- Target sentuh minimal ~44px: gunakan `btn` default / `btn-lg` untuk aksi utama di mobile. Hindari tombol `btn-sm` berdempetan.
+- Target sentuh minimal ~44px di mobile: `btn` default / `btn-lg` untuk aksi utama berlaku **hanya di mobile (< 768px)**; di desktop `.cims-compact` menyeragamkan tinggi kontrol (jangan menambah `btn-sm`/`py-1` manual). Hindari tombol berdempetan.
 - Tombol aksi utama di mobile: `d-grid` (full width), di desktop `d-md-flex justify-content-md-end`.
 - Validasi: client-side (`jquery-validation-unobtrusive` bila sudah ada) + wajib validasi server-side (`ModelState`).
 
@@ -96,7 +97,8 @@ Semua halaman wajib tampil baik di desktop, tablet, dan mobile (mobile-first).
 - [ ] Tampil benar di lebar 360px (mobile), 768px (tablet), 1366px (desktop)
 - [ ] Tidak ada horizontal scroll di mobile
 - [ ] Tabel tidak memotong konten (responsive/card)
-- [ ] Tombol dan input mudah disentuh
+- [ ] Tombol dan input mudah disentuh; di mobile tinggi kontrol >= 44px
+- [ ] Desktop: baris tabel rapat (token compact), filter list satu baris, form 2 kolom (3 untuk field pendek di >= lg), header tabel sticky bila panjang
 - [ ] Menu bisa diakses via hamburger/offcanvas di mobile, menutup setelah dipilih, dan item aktif benar (`aria-current="page"`)
 - [ ] Blok user di header (nama, departemen, Logout) berfungsi dan mudah disentuh di mobile
 - [ ] Toast sukses tidak menutupi navbar/tombol utama; tombol SweetAlert2 mudah disentuh (uji ±360px)
@@ -112,6 +114,14 @@ App shell di `Views/Shared/_Layout.cshtml`: `<header>` sticky (logo CIMS, subjud
 - Item aktif ditentukan dari controller/action pada `ViewContext.RouteData` (sub-halaman ikut aktif, mis. `/Customer/Edit/5`) dan diberi `aria-current="page"`.
 - **Modul baru WAJIB menambahkan item atau submenu di `_Sidebar.cshtml`** (satu baris; ubah `enabled` menjadi `true` saat halamannya siap).
 - Toast dan SweetAlert2 harus tampil di atas header (z-index); jangan menghapus toast container, `notify.js`, atau `_Notifications` dari layout.
+
+## Kepadatan UI (Compact)
+
+Desktop dan tablet (>= 768px) compact; mobile (< 768px) tetap default Bootstrap dengan target sentuh ~44px. Seluruhnya CSS-first di `wwwroot/css/site.css` (blok "Kepadatan UI") lewat class pembungkus `.cims-compact` pada `<main>` di `_Layout.cshtml`; header, sidebar, toast, dan SweetAlert2 tidak terpengaruh.
+
+- **Token (`:root`):** `--cims-font-size` 0.875rem · `--cims-font-size-sm` 0.8125rem · `--cims-badge-font-size` 0.75rem · `--cims-space-1/2/3` 0.25/0.5/0.75rem · `--cims-control-height` 2rem · `--cims-table-cell-py/px` 0.25/0.5rem · `--cims-card-padding` 0.75rem · `--cims-form-max-width` 60rem · `--cims-table-offset` (untuk `max-height` tabel).
+- **Class bantu:** `.cims-page-header` (judul + aksi utama sejajar), `.cims-filter` (filter bar satu baris), `.cims-list-footer` (info + pagination), `.cims-form` (batas lebar form), `.cims-icon-btn` (tombol ikon di tabel), `.cims-detail-item` (pasangan label-nilai pada Details).
+- **View baru wajib memakai class dan token ini, tanpa kelas ukuran manual per elemen** (`btn-sm`, `py-1`, `mb-1`, dsb.). Hindari `!important` dan inline style; fokus keyboard (focus ring) tidak boleh dihilangkan.
 
 ## Autentikasi
 
@@ -131,7 +141,7 @@ Berlaku untuk seluruh aplikasi. Library lokal (bukan CDN): SweetAlert2 di `wwwro
 
 1. **Konfirmasi** (nonaktifkan/aktifkan, hapus, batal dengan perubahan belum tersimpan, aksi berisiko) memakai **SweetAlert2**. Dilarang `confirm()` / `alert()` bawaan browser dan modal Bootstrap untuk konfirmasi.
 2. **Error** memakai **SweetAlert2** (icon error): `TempData["Error"]`, error AJAX/fetch (non-2xx dan jaringan), error umum server (`ModelState` kunci kosong). Pengecualian: error per field tetap inline (`asp-validation-for`), mis. kode duplikat di bawah field Code.
-3. **Sukses** memakai **Bootstrap Toast** (`text-bg-success`, pojok kanan atas, auto-hide 4 detik, ada tombol tutup): `TempData["Success"]` dan aksi AJAX berhasil.
+3. **Sukses** memakai **Bootstrap Toast** (`text-bg-success`, pojok kanan bawah, auto-hide 4 detik, ada tombol tutup): `TempData["Success"]` dan aksi AJAX berhasil.
 4. Di luar tiga kasus di atas (info, warning), tanyakan dulu kepada user.
 
 API global `notify`: `notify.success(message)` · `notify.error(message, title?)` · `notify.confirm({ title, text, confirmText, cancelText, danger })` → `Promise<boolean>` · `notify.fetchError(responseOrError)`.
@@ -191,4 +201,4 @@ Modul baru WAJIB mengikuti pola Customer berikut.
 - **PRG + TempData:** POST valid → redirect; pesan lewat `TempData["Success"]` / `["Error"]`, ditampilkan lewat `_Notifications` (toast untuk sukses, SweetAlert2 untuk error). Semua POST memakai `[ValidateAntiForgeryToken]`; `returnUrl` hanya dipakai jika `Url.IsLocalUrl`.
 - **Pola list:** search (kode/nama), filter status (`bool?`), sort dengan whitelist kolom (SP dan Controller), `SortDir` ASC/DESC, paging server-side dengan `PageSize` dibatasi di Controller; `Page` melebihi total → redirect ke halaman terakhir; semua filter ikut terbawa di link sort/paging. Soft delete lewat `SetActive` (tanpa Delete).
 - **Sidebar:** Customer terdaftar di `_Sidebar.cshtml` (grup "Master Data" > Customer) sebagai contoh; modul baru menambah item/submenu di sana.
-- **Pola view mobile-first:** tabel `d-none d-md-block` dalam `table-responsive` + card list `d-md-none`; kolom sekunder `d-none d-lg-table-cell`; form `form-floating`, `col-12 col-md-6`, `type` tel/email; tombol aksi `d-grid d-md-flex justify-content-md-end`; `_ValidationScriptsPartial` di `@section Scripts`; URL via tag helper `asp-*`.
+- **Pola view mobile-first:** tabel `d-none d-md-block` dalam `table-responsive` + card list `d-md-none`; kolom sekunder `d-none d-lg-table-cell`; form `form-label` di atas input, `col-12 col-md-6 col-lg-*`, `type` tel/email; kolom aksi tabel berupa tombol ikon; tombol aksi `d-grid d-md-flex justify-content-md-end`; `_ValidationScriptsPartial` di `@section Scripts`; URL via tag helper `asp-*`.

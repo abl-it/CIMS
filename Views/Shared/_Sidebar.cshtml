@@ -1,0 +1,67 @@
+@*
+    Daftar menu aplikasi - SATU-SATUNYA tempat mendefinisikan menu sidebar.
+    Modul baru: tambahkan satu baris pada grup yang sesuai.
+    Enabled = false -> tampil nonaktif ("Segera"), bukan link.
+*@
+@{
+    var groups = new (string? Title, (string Text, string Icon, string Controller, string Action, bool Enabled)[] Items)[]
+    {
+        (null, new[]
+        {
+            ("Home", "bi-house-door", "Home", "Index", true),
+            ("Dashboard", "bi-speedometer2", "Dashboard", "Index", false),
+            ("Request", "bi-inbox", "Request", "Index", false),
+            ("Project / Maintenance", "bi-tools", "Project", "Index", false),
+            ("Cost Management", "bi-cash-coin", "Cost", "Index", false),
+            ("Gantt Chart", "bi-bar-chart-steps", "Gantt", "Index", false),
+            ("User Satisfaction", "bi-emoji-smile", "Survey", "Index", false),
+            ("Report", "bi-file-earmark-text", "Report", "Index", false)
+        }),
+        ("Master Data", new[]
+        {
+            ("Customer", "bi-people", "Customer", "Index", true)
+        })
+    };
+
+    var currentController = ViewContext.RouteData.Values["controller"]?.ToString() ?? string.Empty;
+}
+
+<div class="app-sidebar-menu">
+    @foreach (var group in groups)
+    {
+        @if (!string.IsNullOrEmpty(group.Title))
+        {
+            <div class="app-sidebar-group">@group.Title</div>
+        }
+        <ul class="nav flex-column app-sidebar-list">
+            @foreach (var item in group.Items)
+            {
+                var isActive = item.Enabled && string.Equals(item.Controller, currentController, StringComparison.OrdinalIgnoreCase);
+                <li class="nav-item">
+                    @if (item.Enabled)
+                    {
+                        <a class="nav-link app-sidebar-link @(isActive ? "active" : "")"
+                           asp-controller="@item.Controller" asp-action="@item.Action"
+                           aria-current="@(isActive ? "page" : null)">
+                            <i class="bi @item.Icon" aria-hidden="true"></i>
+                            <span>@item.Text</span>
+                        </a>
+                    }
+                    else
+                    {
+                        <span class="nav-link app-sidebar-link disabled" aria-disabled="true" title="Segera hadir">
+                            <i class="bi @item.Icon" aria-hidden="true"></i>
+                            <span>@item.Text</span>
+                            <span class="badge app-sidebar-badge ms-auto">Segera</span>
+                        </span>
+                    }
+                </li>
+            }
+        </ul>
+    }
+</div>
+
+<div class="app-sidebar-card">
+    <div class="fw-semibold">Civil Department</div>
+    <div class="small">Build Better, Support Production</div>
+</div>

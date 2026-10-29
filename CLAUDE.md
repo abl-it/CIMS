@@ -68,7 +68,7 @@ Semua halaman wajib tampil baik di desktop, tablet, dan mobile (mobile-first).
 
 ### Layout & Navigasi
 - Konten dibungkus `container` / `container-fluid`, lalu `row` + `col-12 col-md-* col-lg-*`. Mulai dari ukuran mobile (`col-12`), baru tambahkan breakpoint yang lebih besar.
-- Navbar: `navbar navbar-expand-lg` dengan tombol hamburger (`navbar-toggler`). Untuk menu/sidebar aplikasi, gunakan **offcanvas** (`offcanvas-lg`) agar sidebar jadi drawer di mobile.
+- Navigasi aplikasi memakai app shell header + sidebar (lihat "Layout dan Navigasi"); sidebar menjadi **offcanvas** (`offcanvas-lg`) di mobile.
 
 ### Tabel & Data List
 - Tabel selalu dibungkus `<div class="table-responsive">`.
@@ -97,9 +97,19 @@ Semua halaman wajib tampil baik di desktop, tablet, dan mobile (mobile-first).
 - [ ] Tidak ada horizontal scroll di mobile
 - [ ] Tabel tidak memotong konten (responsive/card)
 - [ ] Tombol dan input mudah disentuh
-- [ ] Menu bisa diakses via hamburger/offcanvas di mobile
+- [ ] Menu bisa diakses via hamburger/offcanvas di mobile, menutup setelah dipilih, dan item aktif benar (`aria-current="page"`)
 - [ ] Toast sukses tidak menutupi navbar/tombol utama; tombol SweetAlert2 mudah disentuh (uji ±360px)
 - [ ] Tidak ada `confirm(` / `alert(` bawaan browser di Views dan js
+
+## Layout dan Navigasi
+
+App shell di `Views/Shared/_Layout.cshtml`: `<header>` sticky (logo CIMS, subjudul, tagline di >= lg, hamburger di < lg) · `<nav aria-label="Menu utama">` sidebar · `<main>` konten (`container-fluid`, latar abu-abu kebiruan). Warna dan ukuran lewat CSS variables `--cims-*` di `wwwroot/css/site.css`. Ikon: Bootstrap Icons lokal (`wwwroot/lib/bootstrap-icons`).
+
+- **Responsive:** >= lg sidebar tetap di kiri (lebar `--cims-sidebar-width`), hanya konten yang scroll; < lg sidebar menjadi offcanvas (`offcanvas-lg`) yang dibuka hamburger dan menutup setelah menu dipilih.
+- **Daftar menu: SATU tempat**, `Views/Shared/_Sidebar.cshtml` (tuple: teks, ikon, controller, action, enabled), dikelompokkan per grup. Item `enabled = false` tampil nonaktif (`disabled`, `aria-disabled`, badge "Segera"), bukan link ke `#`.
+- Item aktif ditentukan dari controller pada `ViewContext.RouteData` (sub-halaman ikut aktif) dan diberi `aria-current="page"`.
+- **Modul baru WAJIB menambahkan item menu di `_Sidebar.cshtml`** (satu baris; ubah `enabled` menjadi `true` saat halamannya siap).
+- Toast dan SweetAlert2 harus tampil di atas header (z-index); jangan menghapus toast container, `notify.js`, atau `_Notifications` dari layout.
 
 ## Notifikasi dan Dialog
 
@@ -166,4 +176,5 @@ Modul baru WAJIB mengikuti pola Customer berikut.
 - **PagedResult<T>:** `Items`, `TotalCount`, `PageNumber`, `PageSize`, `TotalPages`. `TotalCount` dari parameter OUTPUT SP.
 - **PRG + TempData:** POST valid → redirect; pesan lewat `TempData["Success"]` / `["Error"]`, ditampilkan lewat `_Notifications` (toast untuk sukses, SweetAlert2 untuk error). Semua POST memakai `[ValidateAntiForgeryToken]`; `returnUrl` hanya dipakai jika `Url.IsLocalUrl`.
 - **Pola list:** search (kode/nama), filter status (`bool?`), sort dengan whitelist kolom (SP dan Controller), `SortDir` ASC/DESC, paging server-side dengan `PageSize` dibatasi di Controller; `Page` melebihi total → redirect ke halaman terakhir; semua filter ikut terbawa di link sort/paging. Soft delete lewat `SetActive` (tanpa Delete).
+- **Sidebar:** Customer terdaftar di `_Sidebar.cshtml` (grup "Master Data") sebagai contoh; modul baru menambah item di sana.
 - **Pola view mobile-first:** tabel `d-none d-md-block` dalam `table-responsive` + card list `d-md-none`; kolom sekunder `d-none d-lg-table-cell`; form `form-floating`, `col-12 col-md-6`, `type` tel/email; tombol aksi `d-grid d-md-flex justify-content-md-end`; `_ValidationScriptsPartial` di `@section Scripts`; URL via tag helper `asp-*`.

@@ -16,7 +16,7 @@ Panduan untuk Claude Code pada project ASP.NET Core 8 MVC ini. Baca seluruh file
 - .NET 8 / ASP.NET Core 8 MVC, C#
 - Dapper + SQL Server + Stored Procedure
 - **Tidak memakai Entity Framework. Tidak memakai Blazor.**
-- Bootstrap 5 (UI), JavaScript / Fetch / AJAX
+- Bootstrap 5.3 (lokal di wwwroot/lib/bootstrap, bukan CDN) (UI), JavaScript / Fetch / AJAX
 - Dependency Injection bawaan ASP.NET Core
 - async/await untuk seluruh akses I/O dan database
 
@@ -57,13 +57,13 @@ Aturan:
 
 - Aplikasi internal/operasional memakai **local time** (`DateTime.Now`, `GETDATE()`), bukan UTC, kecuali ada instruksi eksplisit.
 
-## UI: Bootstrap 5 + Mobile Responsive
+## UI: Bootstrap 5.3 + Mobile Responsive
 
 Semua halaman wajib tampil baik di desktop, tablet, dan mobile (mobile-first).
 
 ### Dasar
 - `_Layout.cshtml` wajib memuat: `<meta name="viewport" content="width=device-width, initial-scale=1">`
-- Gunakan Bootstrap 5 yang sudah ada di project (`wwwroot/lib`). Jangan menambah CSS framework lain.
+- Gunakan Bootstrap 5.3 yang sudah ada di project (`wwwroot/lib`). Jangan menambah CSS framework lain.
 - Custom style taruh di `wwwroot/css/site.css`. Hindari inline style dan ukuran fixed dalam `px` untuk layout.
 
 ### Layout & Navigasi
@@ -141,3 +141,14 @@ Expected Result:
 ```
 
 Jika user menjawab "PASS", anggap step selesai, pertahankan perubahannya, dan lanjut ke step berikutnya tanpa mengulang solusi sebelumnya.
+
+## Modul Acuan: Customer
+
+Modul baru WAJIB mengikuti pola Customer berikut.
+
+- **File per layer:** SQL `Database/Customer.sql` · Model `Models/Customer.cs`, `Models/PagedResult.cs` · ViewModel `Models/CustomerViewModels.cs` · Service `Services/ICustomerService.cs`, `CustomerService.cs`, `CustomerExceptions.cs`, `IDbConnectionFactory.cs` · Controller `Controllers/CustomerController.cs` · Views `Views/Customer/` (Index, Details, Create, Edit, `_CustomerForm`).
+- **Exception SP → Controller:** 50001 `CustomerDuplicateCodeException` → `ModelState.AddModelError(nameof(Code))` · 50002 `CustomerValidationException` → error umum form · 50003 `CustomerNotFoundException` → `NotFound()` (GET) atau `TempData["Error"]` + redirect ke Index (POST). Service menerjemahkan `SqlException.Number`; error lain dicatat dan dilempar ulang.
+- **PagedResult<T>:** `Items`, `TotalCount`, `PageNumber`, `PageSize`, `TotalPages`. `TotalCount` dari parameter OUTPUT SP.
+- **PRG + TempData:** POST valid → redirect; pesan lewat `TempData["Success"]` / `["Error"]`, ditampilkan sebagai alert di `_Layout`. Semua POST memakai `[ValidateAntiForgeryToken]`; `returnUrl` hanya dipakai jika `Url.IsLocalUrl`.
+- **Pola list:** search (kode/nama), filter status (`bool?`), sort dengan whitelist kolom (SP dan Controller), `SortDir` ASC/DESC, paging server-side dengan `PageSize` dibatasi di Controller; `Page` melebihi total → redirect ke halaman terakhir; semua filter ikut terbawa di link sort/paging. Soft delete lewat `SetActive` (tanpa Delete).
+- **Pola view mobile-first:** tabel `d-none d-md-block` dalam `table-responsive` + card list `d-md-none`; kolom sekunder `d-none d-lg-table-cell`; form `form-floating`, `col-12 col-md-6`, `type` tel/email; tombol aksi `d-grid d-md-flex justify-content-md-end`; `_ValidationScriptsPartial` di `@section Scripts`; URL via tag helper `asp-*`.

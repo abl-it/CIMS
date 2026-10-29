@@ -134,7 +134,7 @@ SSO berbasis middleware (pola project Training); tidak ada ASP.NET Authenticatio
 - **Dev bypass:** `Auth:DevUsername` di `appsettings.Development.json`; hanya berlaku di Development dan bila terisi (kosong = alur SSO normal).
 - **Identitas user:** `ProfileAttribute` (filter global) memuat `CurrentUser` dari `usp_Auth_GetUserByUsername` (`home..users`). **Controller/Service wajib memakai `ICurrentUserService`, dilarang membaca `Session["Username"]` langsung.** User tidak terdaftar → `Home/NotAuthorized` (AJAX: 403 JSON).
 - **Logout:** POST + anti-forgery + `data-confirm` (tombol di dropdown user pada header); `Session.Clear()`, hapus cookie `.CIMS.Session` dan `.Portal.Session`, redirect ke `SSO:PublicLogin`.
-- **Tahap B (rencana, belum dikerjakan):** RoleAuthorize (MVC), RoleAuthorizeApi (403 JSON), AllowAllRoles, menu sidebar per role; daftar role CIMS ditentukan oleh user, jangan menebak nama role.
+- **Tahap B (rencana, belum dikerjakan):** RoleAuthorize (MVC), RoleAuthorizeApi (403 JSON), AllowAllRoles, menu sidebar per role; daftar role CIMS ditentukan oleh user, jangan menebak nama role. `CurrentUser.PortalRole` (`home..users.Role`) hanya dimuat dan **tidak boleh** dipakai untuk keputusan akses. Training mengambil role lewat `dbo.fc_GetRole(@username)` (definisinya tidak ada di source); user memeriksanya sebelum memutuskan apakah CIMS memakai role portal atau tabel role sendiri.
 
 ## Notifikasi dan Dialog
 

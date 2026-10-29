@@ -5,7 +5,9 @@
    Prasyarat: login database CIMS harus punya hak BACA (SELECT) ke database
               [home]: tabel users, app_employees, APP_Departments (cross-database).
               Script ini TIDAK mengubah hak akses.
-   Catatan : Query mengikuti project Training. ResignDate sengaja TIDAK
+   Catatan : PortalRole (home..users.Role) HANYA dimuat, TIDAK dipakai untuk keputusan akses
+             apa pun (role CIMS ditentukan di Tahap B).
+             Query mengikuti project Training. ResignDate sengaja TIDAK
              diperiksa (perilaku Training dipertahankan) - pertanyaan terbuka.
    ===================================================================== */
 
@@ -26,7 +28,8 @@ BEGIN
             e.JobTitle,
             e.CoCode,
             ad.DeptName,
-            ad.ABRV
+            ad.ABRV,
+            u.[Role] AS PortalRole
     FROM    home..users u
             JOIN home..app_employees e ON u.EmployeeCode = e.EmployeeCode
             LEFT JOIN home..APP_Departments ad ON ad.DepartmentID = e.DepartmentID

@@ -10,5 +10,8 @@ namespace CIMS.Models
         public string? CoCode { get; set; }
         public string? DeptName { get; set; }
         public string? ABRV { get; set; }
+
+        /// <summary>home..users.Role. Hanya dimuat; TIDAK dipakai untuk keputusan akses (lihat Tahap B).</summary>
+        public string? PortalRole { get; set; }
     }
 }

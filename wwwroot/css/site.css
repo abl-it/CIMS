@@ -17,17 +17,17 @@ html {
   min-height: 100%;
 }
 
-/* App shell: header + sidebar + konten. Warna perkiraan, ganti sesuai gambar referensi. */
+/* App shell: header + sidebar + konten. Warna diambil dari Prompts/ui-referensi-dashboard.png (sampel piksel). */
 :root {
-  --cims-header-bg: #0a2540;
+  --cims-header-bg: #144176;
   --cims-header-text: #ffffff;
   --cims-header-height: 3.75rem;
-  --cims-sidebar-bg: #123c7a;
+  --cims-sidebar-bg: #103968;
   --cims-sidebar-text: #cfe0f7;
   --cims-sidebar-hover: rgba(255, 255, 255, 0.08);
-  --cims-sidebar-active: #2f80ed;
+  --cims-sidebar-active: #217cdb;
   --cims-sidebar-width: 220px;
-  --cims-content-bg: #eef2f7;
+  --cims-content-bg: #f4f7fb;
 }
 
 body {

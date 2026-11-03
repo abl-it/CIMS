@@ -11,6 +11,14 @@ Panduan untuk Claude Code pada project ASP.NET Core 8 MVC ini. Baca seluruh file
 - Jika informasi belum cukup untuk menentukan root cause, katakan apa yang belum diketahui. Jangan menebak.
 - Kerjakan per modul/fitur kecil. Selesaikan satu tahap sebelum lanjut ke tahap berikutnya.
 
+## Sumber Kebenaran Bisnis
+
+- Kebutuhan bisnis CIMS ada di `docs/PRD.md` (FINAL v1.0). Riwayat keputusan: `docs/PRD-log.md`.
+- Setiap modul wajib mengikuti ID kebutuhan di PRD (`BR-xx`, `FR-xx`, `NFR-xx`, `ST-xx`, `RL-xx`, `MD-xx`, `CF-xx`) dan menyebut ID tersebut di rencana kerja serta laporan.
+- Jika ada konflik antara permintaan di prompt dan PRD, berhenti dan tanyakan. Jangan mengubah aturan bisnis tanpa persetujuan.
+- Urutan pengerjaan mengikuti PRD bagian 9.1 (T0 → T6 + dashboard dasar).
+- Role dan matriks hak akses: PRD bagian 5 (input untuk `design-role`).
+
 ## Technology Stack (tetap, jangan diganti)
 
 - .NET 8 / ASP.NET Core 8 MVC, C#
@@ -36,6 +44,7 @@ Pola: **Controller → Service (Dapper) → Stored Procedure**
 ```
 
 Aturan:
+
 - Controller tidak boleh mengakses database atau Dapper langsung. Selalu lewat Service.
 - **Jangan membuat class/interface Repository baru.** Query Dapper ditulis di Service.
 - Satu Service per domain/modul (mis. `OrderService`). Jika Service terlalu besar, pecah per sub-domain, bukan dengan menambah layer Repository.
@@ -62,21 +71,25 @@ Aturan:
 Semua halaman wajib tampil baik di desktop, tablet, dan mobile (mobile-first).
 
 ### Dasar
+
 - `_Layout.cshtml` wajib memuat: `<meta name="viewport" content="width=device-width, initial-scale=1">`
 - Gunakan Bootstrap 5.3 yang sudah ada di project (`wwwroot/lib`). Jangan menambah CSS framework lain.
 - Custom style taruh di `wwwroot/css/site.css`. Hindari inline style dan ukuran fixed dalam `px` untuk layout.
 
 ### Layout & Navigasi
+
 - Konten dibungkus `container` / `container-fluid`, lalu `row` + `col-12 col-md-* col-lg-*`. Mulai dari ukuran mobile (`col-12`), baru tambahkan breakpoint yang lebih besar.
 - Navigasi aplikasi memakai app shell header + sidebar (lihat "Layout dan Navigasi"); sidebar menjadi **offcanvas** (`offcanvas-lg`) di mobile.
 
 ### Tabel & Data List
+
 - Tabel selalu dibungkus `<div class="table-responsive">`.
 - Tabel memakai token compact (`.cims-compact`, setara `table-sm`); kolom aksi berupa tombol ikon dengan `title` dan `aria-label` (aksi berisiko tetap `data-confirm`).
 - Untuk tabel dengan banyak kolom: pada layar kecil tampilkan sebagai **card list** (`d-md-none` untuk card, `d-none d-md-block` untuk tabel), atau sembunyikan kolom sekunder dengan `d-none d-md-table-cell`.
 - Pagination memakai komponen `pagination` Bootstrap (`pagination-sm` di mobile bila perlu), server-side paging.
 
 ### Form
+
 - Gunakan `form-control`, `form-select`, `form-label` (label kecil di atas input; tidak memakai `form-floating`); satu kolom di mobile (`col-12`), multi-kolom mulai `col-md-6`.
 - Input memakai `type` yang tepat (`email`, `tel`, `number`, `date`) agar keyboard mobile sesuai.
 - Target sentuh minimal ~44px di mobile: `btn` default / `btn-lg` untuk aksi utama berlaku **hanya di mobile (< 768px)**; di desktop `.cims-compact` menyeragamkan tinggi kontrol (jangan menambah `btn-sm`/`py-1` manual). Hindari tombol berdempetan.
@@ -84,16 +97,19 @@ Semua halaman wajib tampil baik di desktop, tablet, dan mobile (mobile-first).
 - Validasi: client-side (`jquery-validation-unobtrusive` bila sudah ada) + wajib validasi server-side (`ModelState`).
 
 ### Komponen
+
 - Gunakan komponen Bootstrap: `card`, `modal` (untuk form/konten, bukan konfirmasi), `badge`, `spinner-border`. Notifikasi dan dialog hanya lewat `notify` (lihat "Notifikasi dan Dialog").
 - Modal di mobile: `modal-dialog-scrollable` dan `modal-fullscreen-sm-down` untuk form panjang.
 - Gambar: `img-fluid`. Hindari lebar fixed.
 - Ikon: gunakan yang sudah ada di project (mis. Bootstrap Icons) bila tersedia.
 
 ### AJAX
+
 - Gunakan `fetch` dengan `async/await`. Tampilkan `spinner-border` saat loading. Respons non-2xx dan kegagalan jaringan memakai `notify.fetchError(...)`/`notify.error(...)`; aksi berhasil memakai `notify.success(...)`.
 - URL endpoint memakai helper Razor (`@Url.Action(...)`) atau base path dari layout, **jangan hardcode** `/api/...`, agar aman saat di-deploy ke IIS dengan virtual directory.
 
 ### Checklist UI sebelum dianggap selesai
+
 - [ ] Tampil benar di lebar 360px (mobile), 768px (tablet), 1366px (desktop)
 - [ ] Tidak ada horizontal scroll di mobile
 - [ ] Tabel tidak memotong konten (responsive/card)

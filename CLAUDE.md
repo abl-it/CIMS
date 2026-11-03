@@ -149,11 +149,19 @@ SSO berbasis middleware (pola project Training); tidak ada ASP.NET Authenticatio
 - **Kunci JWT dilarang ada di repo/log/dokumen.** `SSO:JwtKey` kosong di `appsettings.json`; Development lewat User Secrets, Production lewat environment variable (`SSO__JwtKey`) atau file konfigurasi di server. Kosong di non-Development → aplikasi gagal start. Jangan mencatat sessionId, token, atau URL token ke log.
 - **Dev bypass:** `Auth:DevUsername` di `appsettings.Development.json`; hanya berlaku di Development dan bila terisi (kosong = alur SSO normal).
 - **Identitas user:** `ProfileAttribute` (filter global) memuat `CurrentUser` dari `usp_Auth_GetUserByUsername` (`home..users`). **Controller/Service wajib memakai `ICurrentUserService`, dilarang membaca `Session["Username"]` langsung.** User tidak terdaftar → `Home/NotAuthorized` (AJAX: 403 JSON).
-- **Role (tampilan saja):** dropdown user menampilkan role tertinggi (`CurrentUser.HighestRole`: `Description`, jika kosong kode role; tooltip memuat semua role). `ProfileAttribute` memuat `Roles` sekali per request (kegagalan hanya dicatat, tidak memblokir).
+- **Role:** dropdown user menampilkan role tertinggi (`CurrentUser.HighestRole`: `Description`, jika kosong kode role; tooltip memuat semua role). `ProfileAttribute` memuat `Roles` sekali per request.
 - **Sumber role:** `home..users.Role` (dipisah `;`) dicocokkan dengan `dbo.HierarchyLevel` lewat `usp_Auth_GetUserRoles` (`Database/Role.sql`); level kecil = lebih tinggi. Isi tabel disesuaikan tanpa ubah kode.
-- **Otorisasi berbasis role BELUM aktif** (tanpa filter, default-deny, atau menu per role); menunggu `Prompts/design-role.md`. Role tidak boleh dipakai untuk keputusan akses sebelum itu.
 - **Logout:** POST + anti-forgery + `data-confirm` (tombol di dropdown user pada header); `Session.Clear()`, hapus cookie `.CIMS.Session` dan `.Portal.Session`, redirect ke `SSO:PublicLogin`.
-- **Tahap B (rencana, belum dikerjakan):** RoleAuthorize (MVC), RoleAuthorizeApi (403 JSON), AllowAllRoles, menu sidebar per role; daftar role CIMS ditentukan oleh user, jangan menebak nama role. `CurrentUser.PortalRole` (`home..users.Role`) hanya dimuat dan **tidak boleh** dipakai untuk keputusan akses. Training mengambil role lewat `dbo.fc_GetRole(@username)` (definisinya tidak ada di source); user memeriksanya sebelum memutuskan apakah CIMS memakai role portal atau tabel role sendiri.
+- `CurrentUser.PortalRole` (`home..users.Role`) hanya dimuat dan **tidak boleh** dipakai untuk keputusan akses; gunakan `CurrentUser.Roles`. Karyawan resign (`ResignDate` terisi dan sudah lewat) ditolak oleh `usp_Auth_GetUserByUsername`.
+
+## Otorisasi
+
+- 12 role CIMS (PRD 5.1) di `Filters/CimsRoles` (`All`); `plan`/`spv` setara `adm`, `emp` hanya lihat. Semantik **any-of** (salah satu role cocok), case-insensitive, dibaca dari `ICurrentUserService` (tanpa query ulang).
+- **Default deny:** `ProfileAttribute` menolak user tanpa role di `CimsRoles.All` atau bila role gagal dimuat (kecuali `Home/NotAuthorized`, `Error`, `LogOut`); AJAX → 403 JSON `{ success:false, message:"Tidak berwenang" }`.
+- Atribut: `[RoleAuthorize(CimsRoles.X, ...)]` (MVC), `[RoleAuthorizeApi(...)]` (403 JSON), `[AllowAllRoles]` hanya untuk action read-only. Dilarang string role literal.
+- **Modul baru WAJIB menentukan role per action sesuai matriks PRD 5.2** (action tulis tidak boleh hanya `[AllowAllRoles]`). Customer = `administrator` saja.
+- Lingkup data: setiap SP list/detail transaksi wajib membatasi lewat `dbo.fn_User_AllowedDepartments(@Username)` (`Database/Scope.sql`). Hak approve dari langkah workflow (T2), bukan hardcode role.
+- Sidebar: `MenuItem.Roles` (kosong = semua role CIMS) hanya kosmetik; otorisasi tetap di server.
 
 ## Notifikasi dan Dialog
 
@@ -167,6 +175,15 @@ Berlaku untuk seluruh aplikasi. Library lokal (bukan CDN): SweetAlert2 di `wwwro
 API global `notify`: `notify.success(message)` · `notify.error(message, title?)` · `notify.confirm({ title, text, confirmText, cancelText, danger })` → `Promise<boolean>` · `notify.fetchError(responseOrError)`.
 Konfirmasi deklaratif: `form`/`button`/`a` dengan `data-confirm="pesan"` (opsional `data-confirm-title`, `data-confirm-ok`, `data-confirm-danger="true"`). Form tetap dikirim utuh (token anti-forgery ikut). Guard perubahan belum tersimpan: `form[data-dirty-guard]` + `a[data-confirm][data-confirm-if-dirty="#idForm"]`.
 Notifikasi server dirender oleh `Views/Shared/_Notifications.cshtml` (nilai di-encode lewat atribut data; jangan menyisipkan teks mentah ke string JavaScript).
+
+## Konfigurasi (tabel)
+
+`Database/Config.sql`: `WorkflowStep`, `DepartmentGroup`, `DepartmentGroupMember`, `AppSetting`, `WorkCalendarWeekend`, `WorkCalendarHoliday`.
+- **Nilai bisnis yang bisa berubah (langkah approval, grup departemen, ambang, batas hari kerja, hari libur) wajib dari tabel, bukan hardcode.**
+- Langkah approval: `usp_Workflow_GetSteps(@CoCode, @Point, @Category, @DepartmentID)`; snapshot ke request dikerjakan modul Request (BR-37).
+- Setting: `usp_AppSetting_Get(@CoCode, @SettingKey)` (baris Company, fallback `'*'`).
+- Hari kerja: `fn_WorkingDaysBetween` (setelah tanggal awal s.d. tanggal akhir) dan `fn_IsWorkingDay`; libur mingguan hanya Minggu, Sabtu hari kerja.
+- Pengelolaan isi tabel di MVP lewat script SQL oleh administrator (BR-38); seed `MERGE` hanya menambah, tidak menimpa.
 
 ## Security
 

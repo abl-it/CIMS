@@ -131,7 +131,7 @@ Rantai approval BAPP juga **alur default** di tabel workflow (3.9). MO tidak iku
 
 | ID | Aturan | Sumber |
 |---|---|---|
-| BR-01 | Request dibuat oleh `adm` departemen peminta. | Keputusan |
+| BR-01 | Request dibuat oleh `adm`, `plan`, atau `spv` departemen peminta. | Keputusan |
 | BR-02 | Kategori dan sub-kategori wajib dipilih requester. CIVIL boleh mengubah keduanya saat Feasibility; perubahan dicatat (lama, baru, oleh, waktu, alasan). | Keputusan |
 | BR-03 | Request wajib disetujui Kabag departemen peminta sebelum diterima CIVIL. Kabag dapat Approve, Revise, atau Reject. | Keputusan |
 | BR-04 | CIVIL dapat mengembalikan request ke `adm`. Request hasil revisi wajib melewati seluruh langkah approval sebelum Civil lagi. | Flow + Keputusan |
@@ -195,7 +195,7 @@ ST-07 tidak dipakai (digabung ke ST-06 sejak v0.6).
 | ID | Kunci | Isi | Nilai awal |
 |---|---|---|---|
 | CF-02 | Batas approval susulan Emergency | `dbo.AppSetting` (nilai + satuan) | 3 hari kerja (Keputusan, BR-65) |
-| CF-07 | Hari libur mingguan dan tanggal libur | Tabel kalender kerja MD-11 (per Company) | Sabtu-Minggu + libur nasional |
+| CF-07 | Hari libur mingguan dan tanggal libur | Tabel kalender kerja MD-11 (per Company) | Minggu (Sabtu hari kerja) + libur nasional |
 | CF-03 | Format dan ukuran lampiran | Tabel jenis lampiran (6.5) | Lihat 6.5 (Keputusan) |
 | CF-04 | Path penyimpanan lampiran | `appsettings.json`: `FileStorage:RealizationAttachmentsPath` = `D:\APP_DATA\CIMSAttachments` | Keputusan |
 | CF-05 | Grup departemen (Mill, lingkup MO) | Tabel grup departemen (3.9) | Lihat 3.9 |
@@ -294,8 +294,13 @@ Catatan: di NKM tidak ada langkah MO dan GM; Director meng-approve semua kategor
 | RL-06 | `purchasing` | Purchasing | 6 | Project outsource (ABL + NKM) | Role khusus, dibuat di portal | Keputusan |
 | RL-07 | `kabag` | Kepala Bagian | 7 | Departemen sendiri | Role umum portal | Keputusan |
 | RL-08 | `adm` | Admin Departemen (requester) | 10 | Departemen sendiri | Role umum portal | Keputusan |
+| RL-10 | `plan` | Planner (requester, setara `adm`) | 8 | Departemen sendiri (ABRV + Company) | Role umum portal | Keputusan (03-11-2026) |
+| RL-11 | `spv` | Supervisor (requester, setara `adm`) | 9 | Departemen sendiri (ABRV + Company) | Role umum portal | Keputusan (03-11-2026) |
+| RL-12 | `emp` | Karyawan (hanya lihat) | 11 | Departemen sendiri (ABRV + Company) | Role umum portal | Keputusan (03-11-2026) |
 
-Level hanya untuk tampilan; nilai sama diperbolehkan. Role seed lain (`komisaris`, `plan`, `spv`, `emp`, `creator`) tidak memberi akses ke CIMS.
+Level hanya untuk tampilan; nilai sama diperbolehkan. Role seed lain (`komisaris`, `creator`) tidak memberi akses ke CIMS.
+Role `plan` dan `spv` memiliki hak akses **sama dengan `adm`** (kolom `adm` di matriks 5.2, termasuk buat, revisi, dan cancel request departemen sendiri).
+Role `emp` **hanya lihat (R (D))**: Request, Feasibility/BOQ/Drawing, Schedule/action plan/estimasi biaya, Progress mingguan, Dashboard, dan Report departemen sendiri. Tanpa buat/ubah/approve, dan tanpa akses kontrak, actual cost, BAPP, survei, dan master data.
 
 ### 5.2 Matriks hak akses per modul
 
@@ -325,7 +330,7 @@ Kolom A mengikuti **default** tabel workflow (3.9); bila tabel diubah, hak appro
 
 | ID | Aturan | Status |
 |---|---|---|
-| BR-27 | Akses diizinkan jika salah satu role user ada di matriks (any-of); user tanpa role CIMS ditolak. Pemegang role umum portal (`adm`, `kabag`, `mo`, `gm`, `director`) otomatis bisa masuk. | Keputusan |
+| BR-27 | Akses diizinkan jika salah satu role user ada di matriks (any-of); user tanpa role CIMS ditolak. Pemegang role umum portal (`adm`, `kabag`, `mo`, `gm`, `director`, `plan`, `spv`, `emp`) otomatis bisa masuk. | Keputusan |
 | BR-28 | `adm` dan `kabag` hanya melihat dan memproses data **departemennya sendiri = semua DepartmentID dengan ABRV dan Company yang sama** (mis. Kabag/adm QC melihat C500 dan D500); `mo` hanya grup MILL. | Keputusan |
 | BR-29 | User dengan beberapa role mendapat gabungan hak aksesnya. | Keputusan |
 | BR-30 | Approver tidak boleh meng-approve request yang ia buat sendiri. | Keputusan |
@@ -335,7 +340,7 @@ Kolom A mengikuti **default** tabel workflow (3.9); bila tabel diubah, hak appro
 
 ### 5.4 Input untuk `design-role` (serah-terima)
 
-- Role CIMS: `administrator`, `director`, `gm`, `civil`, `fat`, `mo`, `purchasing`, `kabag`, `adm`. Tambah `fat` (5) dan `purchasing` (6) ke `dbo.HierarchyLevel`; `mo` (6) sudah ada di seed.
+- Role CIMS: `administrator`, `director`, `gm`, `civil`, `fat`, `mo`, `purchasing`, `kabag`, `adm`, `plan`, `spv`, `emp` (`plan` dan `spv` setara `adm`; `emp` hanya lihat; lingkup data ketiganya sama dengan `adm`). Tambah `fat` (5) dan `purchasing` (6) ke `dbo.HierarchyLevel`; `mo` (6) sudah ada di seed.
 - Filter per action memakai daftar role any-of dari matriks 5.2; `AllowAllRoles` = semua role CIMS di atas.
 - Tambahan di luar rencana `design-role` saat ini:
   - lingkup data per ABRV + Company untuk `adm`/`kabag` dan grup MILL untuk `mo` (BR-28), serta filter Company (3.10), di stored procedure;
@@ -404,7 +409,7 @@ Background · Objective · Impact to operational · Risk if not approved · Expe
 | MD-08 | Pertanyaan Environment Assessment | Tabel CIMS | administrator | 12 pertanyaan default | Keputusan |
 | MD-09 | Jenis lampiran (format, ukuran) | Tabel CIMS | administrator | Lihat 6.4 | Keputusan |
 | MD-10 | Grup departemen (MILL, lingkup MO) | Tabel CIMS, mereferensikan `APP_Departments.DepartmentID` | administrator | Lihat 3.9 | Keputusan |
-| MD-11 | Kalender kerja: hari libur mingguan dan tanggal libur (per Company) | Tabel CIMS | administrator | Sabtu-Minggu; tanggal libur diisi per tahun | Keputusan |
+| MD-11 | Kalender kerja: hari libur mingguan dan tanggal libur (per Company) | Tabel CIMS | administrator | Minggu (Sabtu hari kerja); tanggal libur diisi per tahun | Keputusan |
 
 Modul **Customer** tetap disimpan sebagai acuan pola (dirujuk CLAUDE.md), disembunyikan dari menu setelah master pertama CIMS selesai. (Keputusan)
 

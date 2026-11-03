@@ -57,6 +57,38 @@ WHEN NOT MATCHED BY TARGET THEN
 GO
 
 /* ---------------------------------------------------------------------
+   2b. Role CIMS sesuai PRD 5.1 (T0-2): tambah fat (5) dan purchasing (6) bila belum ada,
+       lalu isi Description 12 role CIMS HANYA bila masih NULL (tidak menimpa perubahan administrator).
+       plan, spv, emp: role CIMS hanya-lihat (PRD RL-10..RL-12). komisaris dan creator tidak memberi akses CIMS.
+   --------------------------------------------------------------------- */
+MERGE dbo.HierarchyLevel AS t
+USING (VALUES (N'fat', 5), (N'purchasing', 6)) AS s ([Role], HierarchyLevel)
+   ON t.[Role] = s.[Role]
+WHEN NOT MATCHED BY TARGET THEN
+    INSERT ([Role], HierarchyLevel, Description)
+    VALUES (s.[Role], s.HierarchyLevel, NULL);
+GO
+
+UPDATE h
+SET    h.Description = d.Description
+FROM   dbo.HierarchyLevel h
+       JOIN (VALUES (N'administrator', N'Administrator Sistem'),
+                    (N'director',      N'Director'),
+                    (N'gm',            N'General Manager'),
+                    (N'civil',         N'Civil Department'),
+                    (N'fat',           N'Finance, Accounting & Tax'),
+                    (N'mo',            N'Manager Operational'),
+                    (N'purchasing',    N'Purchasing'),
+                    (N'kabag',         N'Kepala Bagian'),
+                    (N'adm',           N'Admin Departemen'),
+                    (N'plan',          N'Planner'),
+                    (N'spv',           N'Supervisor'),
+                    (N'emp',           N'Karyawan')
+            ) AS d ([Role], Description) ON d.[Role] = h.[Role]
+WHERE  h.Description IS NULL;
+GO
+
+/* ---------------------------------------------------------------------
    3. usp_Auth_GetUserRoles
       Memecah home..users.[Role] per ';', trim, JOIN ke dbo.HierarchyLevel.
       Role yang tidak ada di tabel diabaikan; role ganda dihitung sekali.
@@ -87,7 +119,7 @@ GO
 /* =====================================================================
    TEST (jalankan manual di DB dev, blok per blok)
 
-   -- 1) Seed: harus 12 baris, Description NULL
+   -- 1) Seed: harus 14 baris (12 + fat + purchasing); 12 role CIMS ber-Description; komisaris dan creator NULL
    SELECT [Role], HierarchyLevel, Description FROM dbo.HierarchyLevel ORDER BY HierarchyLevel;
 
    -- 2) Role user (ganti dengan username yang ada di home..users)

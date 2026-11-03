@@ -8,6 +8,10 @@ namespace CIMS.Models
         public string FullName { get; set; } = string.Empty;
         public string? JobTitle { get; set; }
         public string? CoCode { get; set; }
+        public int? DepartmentID { get; set; }
+
+        /// <summary>CoCode departemen (home..APP_Departments); normalnya sama dengan CoCode karyawan.</summary>
+        public string? DeptCoCode { get; set; }
         public string? DeptName { get; set; }
         public string? ABRV { get; set; }
 

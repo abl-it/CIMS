@@ -1,9 +1,11 @@
+using CIMS.Filters;
 using CIMS.Models;
 using CIMS.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CIMS.Controllers
 {
+    [RoleAuthorize(CimsRoles.Administrator)]
     public class CustomerController : Controller
     {
         private static readonly string[] AllowedSortBy = { "Code", "Name", "CreatedAt" };

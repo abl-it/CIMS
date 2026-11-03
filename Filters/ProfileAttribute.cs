@@ -7,7 +7,8 @@ namespace CIMS.Filters
 {
     /// <summary>
     /// Filter global: memuat CurrentUser sekali per request dari Session["Username"].
-    /// User yang belum ada di home..users diarahkan ke Home/NotAuthorized (403 JSON untuk AJAX).
+    /// Memuat role sekali per request. Default deny: user yang belum ada di home..users, gagal dimuat rolenya,
+    /// atau tidak punya satu pun role CIMS (CimsRoles.All) diarahkan ke Home/NotAuthorized (403 JSON untuk AJAX).
     /// </summary>
     public class ProfileAttribute : ActionFilterAttribute
     {
@@ -61,14 +62,24 @@ namespace CIMS.Filters
                 return;
             }
 
-            // Role hanya untuk tampilan: kegagalan memuat role tidak boleh memblokir akses.
+            // Default deny: gagal memuat role memblokir akses (dicatat sebagai error).
             try
             {
                 user.Roles = (await _authService.GetUserRolesAsync(user.Username, http.RequestAborted)).ToList();
             }
             catch (Exception ex) when (!http.RequestAborted.IsCancellationRequested)
             {
-                _logger.LogError(ex, "Gagal memuat role user {Username}.", user.Username);
+                _logger.LogError(ex, "Gagal memuat role user {Username}; akses ditolak.", user.Username);
+                context.Result = AccessDenied.For(http.Request);
+                return;
+            }
+
+            // Default deny: user tanpa satu pun role CIMS ditolak di seluruh aplikasi.
+            if (!CimsRoles.HasAny(user, CimsRoles.All))
+            {
+                _logger.LogWarning("User {Username} tidak punya role CIMS; akses ditolak.", user.Username);
+                context.Result = AccessDenied.For(http.Request);
+                return;
             }
 
             _currentUserService.CurrentUser = user;

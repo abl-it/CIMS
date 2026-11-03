@@ -7,8 +7,8 @@
               Script ini TIDAK mengubah hak akses.
    Catatan : PortalRole (home..users.Role) HANYA dimuat, TIDAK dipakai untuk keputusan akses
              apa pun (role CIMS ditentukan di Tahap B).
-             Query mengikuti project Training. ResignDate sengaja TIDAK
-             diperiksa (perilaku Training dipertahankan) - pertanyaan terbuka.
+             Karyawan resign (home..app_employees.ResignDate terisi dan <= waktu lokal sekarang)
+             ditolak: 0 baris (BR-31). Karyawan aktif: ResignDate = NULL.
    ===================================================================== */
 
 /* ---------------------------------------------------------------------
@@ -27,13 +27,16 @@ BEGIN
             e.FullName,
             e.JobTitle,
             e.CoCode,
+            e.DepartmentID,
+            ad.CoCode AS DeptCoCode,
             ad.DeptName,
             ad.ABRV,
             u.[Role] AS PortalRole
     FROM    home..users u
             JOIN home..app_employees e ON u.EmployeeCode = e.EmployeeCode
             LEFT JOIN home..APP_Departments ad ON ad.DepartmentID = e.DepartmentID
-    WHERE   u.Username = @Username;
+    WHERE   u.Username = @Username
+      AND   (e.ResignDate IS NULL OR e.ResignDate > SYSDATETIME());
 END
 GO
 
@@ -45,6 +48,13 @@ GO
 
    -- 2) User tidak ada -> 0 baris
    EXEC dbo.usp_Auth_GetUserByUsername @Username = N'tidak-ada-xyz';
+
+   -- 2b) Kolom baru: DepartmentID terisi; DeptCoCode sama dengan CoCode (bila berbeda, laporkan)
+   --     Resign (uji di DB dev, lalu kembalikan ke NULL):
+   --       UPDATE home..app_employees SET ResignDate = DATEADD(DAY, -1, GETDATE()) WHERE EmployeeCode = N'<kode>';
+   --       EXEC dbo.usp_Auth_GetUserByUsername @Username = N'<username-karyawan-itu>';   -- 0 baris
+   --       UPDATE home..app_employees SET ResignDate = DATEADD(DAY, 1, GETDATE())  WHERE EmployeeCode = N'<kode>';   -- masih 1 baris
+   --       UPDATE home..app_employees SET ResignDate = NULL WHERE EmployeeCode = N'<kode>';
 
    -- 3) Jika error "The server principal ... is not able to access the database 'home'
    --    under the current security context" / permission denied:

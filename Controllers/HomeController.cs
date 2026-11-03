@@ -1,3 +1,4 @@
+using CIMS.Filters;
 using CIMS.Models;
 using Microsoft.AspNetCore.Mvc;
 using System.Diagnostics;
@@ -15,11 +16,13 @@ namespace CIMS.Controllers
             _configuration = configuration;
         }
 
+        [AllowAllRoles]
         public IActionResult Index()
         {
             return View();
         }
 
+        [AllowAllRoles]
         public IActionResult Privacy()
         {
             return View();

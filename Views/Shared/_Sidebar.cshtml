@@ -4,11 +4,18 @@
     Enabled = false -> tampil nonaktif ("Segera hadir"), bukan link.
     Item dengan Children dirender sebagai tombol collapse (accordion); Controller/Action-nya diabaikan.
 *@
+@*
+    Roles = daftar role yang boleh melihat item (any-of); kosong = semua role CIMS. Hanya kosmetik:
+    otorisasi tetap di server ([RoleAuthorize]). Grup yang semua anaknya tersembunyi ikut disembunyikan.
+*@
+@using CIMS.Filters
+@using CIMS.Services
+@inject ICurrentUserService CurrentUserService
 @functions {
-    private record MenuItem(string Text, string? Icon, string? Controller, string? Action, bool Enabled, MenuItem[]? Children = null);
+    private record MenuItem(string Text, string? Icon, string? Controller, string? Action, bool Enabled, MenuItem[]? Children = null, string[]? Roles = null);
 
-    private static MenuItem Leaf(string text, string? icon, string controller, string action, bool enabled) =>
-        new(text, icon, controller, action, enabled);
+    private static MenuItem Leaf(string text, string? icon, string controller, string action, bool enabled, params string[] roles) =>
+        new(text, icon, controller, action, enabled, null, roles);
 
     private static MenuItem Group(string text, string icon, params MenuItem[] children) =>
         new(text, icon, null, null, false, children);
@@ -36,8 +43,16 @@
         Leaf("User Satisfaction", "bi-emoji-smile", "Survey", "Index", false),
         Leaf("Report", "bi-file-earmark-text", "Report", "Index", false),
         Group("Master Data", "bi-database",
-            Leaf("Customer", null, "Customer", "Index", true))
+            Leaf("Customer", null, "Customer", "Index", true, CimsRoles.Administrator))
     };
+
+    // Sembunyikan item yang tidak berhak; grup tanpa anak yang tersisa ikut disembunyikan.
+    var sidebarUser = CurrentUserService.CurrentUser;
+    bool CanSee(MenuItem m) => m.Roles is not { Length: > 0 } || CimsRoles.HasAny(sidebarUser, m.Roles);
+    menu = menu
+        .Select(m => m.Children is null ? m : m with { Children = m.Children.Where(CanSee).ToArray() })
+        .Where(m => m.Children is null ? CanSee(m) : m.Children.Length > 0)
+        .ToArray();
 
     var currentController = ViewContext.RouteData.Values["controller"]?.ToString() ?? string.Empty;
     var currentAction = ViewContext.RouteData.Values["action"]?.ToString() ?? string.Empty;

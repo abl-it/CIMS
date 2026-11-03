@@ -39,3 +39,5 @@ Pendamping `docs/PRD.md`.
 | 2026-11-02 | Civil ABL melayani NKM; alur NKM Kabag → Civil → Director (dinamis); lintas Company: administrator, civil, director, gm; nomor NKM berprefiks `NKM-`; lokasi dan workflow per Company | BR-57..BR-62 |
 | 2026-11-02 | Semua asumsi Lampiran A disetujui; BR-15 direvisi: tanggal mulai project dari schedule Civil, periode Preparation dari kontrak selesai sampai mulai project; go-live 15 Des; rollout ABL+NKM bersamaan. PRD FINAL v1.0 | BR-15, Lampiran A |
 | 2026-11-03 | Periode Preparation project in-house: dari selesainya management approval sampai tanggal mulai project. Tidak ada asumsi tersisa | BR-15 |
+| 2026-11-03 | Hari libur mingguan hanya Minggu; Sabtu adalah hari kerja (ABL dan NKM) | CF-07, MD-11, BR-64 |
+| 2026-11-03 | Role `plan`, `spv` setara `adm` (boleh membuat request); `emp` hanya lihat; lingkup data ketiganya = `adm` (ABRV + Company) | RL-10..RL-12, BR-01, BR-27, 5.2, 5.4 |

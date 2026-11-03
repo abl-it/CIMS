@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CIMS.Controllers
 {
-    [RoleAuthorize(CimsRoles.Administrator)]
+    [RoleAuthorize(CimsRoles.Administrator, CimsRoles.Civil)]
     public class CustomerController : Controller
     {
         private static readonly string[] AllowedSortBy = { "Code", "Name", "CreatedAt" };

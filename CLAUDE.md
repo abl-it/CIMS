@@ -159,7 +159,7 @@ SSO berbasis middleware (pola project Training); tidak ada ASP.NET Authenticatio
 - 12 role CIMS (PRD 5.1) di `Filters/CimsRoles` (`All`); `plan`/`spv` setara `adm`, `emp` hanya lihat. Semantik **any-of** (salah satu role cocok), case-insensitive, dibaca dari `ICurrentUserService` (tanpa query ulang).
 - **Default deny:** `ProfileAttribute` menolak user tanpa role di `CimsRoles.All` atau bila role gagal dimuat (kecuali `Home/NotAuthorized`, `Error`, `LogOut`); AJAX → 403 JSON `{ success:false, message:"Tidak berwenang" }`.
 - Atribut: `[RoleAuthorize(CimsRoles.X, ...)]` (MVC), `[RoleAuthorizeApi(...)]` (403 JSON), `[AllowAllRoles]` hanya untuk action read-only. Dilarang string role literal.
-- **Modul baru WAJIB menentukan role per action sesuai matriks PRD 5.2** (action tulis tidak boleh hanya `[AllowAllRoles]`). Customer = `administrator` saja.
+- **Modul baru WAJIB menentukan role per action sesuai matriks PRD 5.2** (action tulis tidak boleh hanya `[AllowAllRoles]`). Master Data (C) = `administrator` dan `civil` (matriks 5.2); Customer mengikuti itu.
 - Lingkup data: setiap SP list/detail transaksi wajib membatasi lewat `dbo.fn_User_AllowedDepartments(@Username)` (`Database/Scope.sql`). Hak approve dari langkah workflow (T2), bukan hardcode role.
 - Sidebar: `MenuItem.Roles` (kosong = semua role CIMS) hanya kosmetik; otorisasi tetap di server.
 

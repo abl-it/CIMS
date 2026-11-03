@@ -50,7 +50,7 @@ namespace CIMS.Filters
 
                 if (http.Request.IsAjaxRequest())
                 {
-                    context.Result = new JsonResult(new { success = false, message = "Anda tidak berwenang" })
+                    context.Result = new JsonResult(new { success = false, message = "Not authorized" })
                     {
                         StatusCode = StatusCodes.Status403Forbidden
                     };

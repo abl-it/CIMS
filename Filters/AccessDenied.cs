@@ -6,7 +6,7 @@ namespace CIMS.Filters
     /// <summary>Hasil penolakan akses: 403 JSON untuk AJAX/API, redirect ke Home/NotAuthorized untuk halaman MVC.</summary>
     internal static class AccessDenied
     {
-        public const string Message = "Tidak berwenang";
+        public const string Message = "Not authorized";
 
         public static IActionResult Json() =>
             new JsonResult(new { success = false, message = Message }) { StatusCode = StatusCodes.Status403Forbidden };

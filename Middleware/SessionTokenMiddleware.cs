@@ -89,7 +89,7 @@ namespace CIMS.Middleware
             if (context.Request.IsAjaxRequest())
             {
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                await context.Response.WriteAsJsonAsync(new { success = false, message = "Sesi berakhir" });
+                await context.Response.WriteAsJsonAsync(new { success = false, message = "Session expired" });
                 return;
             }
 

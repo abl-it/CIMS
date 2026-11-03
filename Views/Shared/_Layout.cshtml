@@ -12,7 +12,7 @@
 <body>
     <header class="app-header sticky-top">
         <button class="btn app-header-toggle d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#appSidebar"
-                aria-controls="appSidebar" aria-label="Buka menu">
+                aria-controls="appSidebar" aria-label="Open menu">
             <i class="bi bi-list" aria-hidden="true"></i>
         </button>
         <a class="app-brand" asp-area="" asp-controller="Home" asp-action="Index">
@@ -26,10 +26,10 @@
     <div class="app-shell">
         <aside class="app-sidebar-col">
             <nav id="appSidebar" class="offcanvas-lg offcanvas-start app-sidebar" tabindex="-1"
-                 aria-label="Menu utama" data-bs-scroll="false">
+                 aria-label="Main menu" data-bs-scroll="false">
                 <div class="offcanvas-header d-lg-none">
                     <span class="offcanvas-title fw-semibold">CIMS</span>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" data-bs-target="#appSidebar" aria-label="Tutup menu"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" data-bs-target="#appSidebar" aria-label="Close menu"></button>
                 </div>
                 <div class="offcanvas-body app-sidebar-body">
                     <partial name="_Sidebar" />

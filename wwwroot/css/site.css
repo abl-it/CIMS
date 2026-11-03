@@ -321,11 +321,13 @@ a.app-sidebar-link.active {
   text-decoration: underline;
 }
 
-.customer-card .customer-text {
+.customer-card .customer-text,
+.location-card .location-text {
   word-break: break-word;
 }
 
-.customer-detail dd {
+.customer-detail dd,
+.location-detail dd {
   word-break: break-word;
 }
 
@@ -420,7 +422,8 @@ a.app-sidebar-link.active {
 
 /* Mobile: card dirapatkan sedikit, tombol tidak dikecilkan */
 @media (max-width: 767.98px) {
-  .cims-compact .customer-card .card-body {
+  .cims-compact .customer-card .card-body,
+  .cims-compact .location-card .card-body {
     padding: var(--cims-space-3);
   }
 }

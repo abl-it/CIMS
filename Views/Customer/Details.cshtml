@@ -1,25 +1,28 @@
 @model Customer
 @{
-    ViewData["Title"] = "Detail Customer";
+    ViewData["Title"] = "Customer Details";
     ViewData["ContentWidth"] = "narrow";
     var toggleTo = !Model.IsActive;
+    // URL list asal (filter, sort, halaman); null = list tanpa filter.
+    var returnUrl = ViewData["ReturnUrl"] as string;
+    var backUrl = returnUrl ?? Url.Action("Index");
 }
 
 <div class="cims-page-header d-grid d-md-flex justify-content-md-between align-items-md-center gap-2">
-    <h1 class="h3 mb-0">Detail Customer</h1>
+    <h1 class="h3 mb-0">Customer Details</h1>
     <div class="d-grid d-md-flex gap-2">
-        <a asp-action="Index" class="btn btn-outline-secondary btn-lg"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Kembali</a>
-        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary btn-lg"><i class="bi bi-pencil-square me-1" aria-hidden="true"></i>Ubah</a>
+        <a href="@backUrl" class="btn btn-outline-secondary btn-lg"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Back</a>
+        <a asp-action="Edit" asp-route-id="@Model.Id" asp-route-returnUrl="@returnUrl" class="btn btn-primary btn-lg"><i class="bi bi-pencil-square me-1" aria-hidden="true"></i>Edit</a>
         <form asp-action="SetActive" method="post" class="d-grid"
-              data-confirm="@(Model.IsActive ? "Nonaktifkan customer ini?" : "Aktifkan customer ini?")"
-              data-confirm-title="@(Model.IsActive ? "Nonaktifkan Customer" : "Aktifkan Customer")"
-              data-confirm-ok="@(Model.IsActive ? "Nonaktifkan" : "Aktifkan")"
+              data-confirm="@(Model.IsActive ? "Deactivate this customer?" : "Activate this customer?")"
+              data-confirm-title="@(Model.IsActive ? "Deactivate Customer" : "Activate Customer")"
+              data-confirm-ok="@(Model.IsActive ? "Deactivate" : "Activate")"
               data-confirm-danger="@(Model.IsActive ? "true" : null)">
             <input type="hidden" name="id" value="@Model.Id" />
             <input type="hidden" name="isActive" value="@toggleTo.ToString().ToLowerInvariant()" />
-            <input type="hidden" name="returnUrl" value="@Url.Action("Details", new { id = Model.Id })" />
+            <input type="hidden" name="returnUrl" value="@Url.Action("Details", new { id = Model.Id, returnUrl })" />
             <button type="submit" class="btn btn-lg @(Model.IsActive ? "btn-outline-danger" : "btn-outline-success")">
-                <i class="bi @(Model.IsActive ? "bi-slash-circle" : "bi-check-circle") me-1" aria-hidden="true"></i>@(Model.IsActive ? "Nonaktifkan" : "Aktifkan")
+                <i class="bi @(Model.IsActive ? "bi-slash-circle" : "bi-check-circle") me-1" aria-hidden="true"></i>@(Model.IsActive ? "Deactivate" : "Activate")
             </button>
         </form>
     </div>
@@ -29,15 +32,15 @@
     <div class="card-body">
         <dl class="row mb-0 customer-detail">
             <div class="col-12 col-lg-6 cims-detail-item">
-                <dt>Kode</dt>
+                <dt>Code</dt>
                 <dd>@Model.Code</dd>
             </div>
             <div class="col-12 col-lg-6 cims-detail-item">
-                <dt>Nama</dt>
+                <dt>Name</dt>
                 <dd>@Model.Name</dd>
             </div>
             <div class="col-12 col-lg-6 cims-detail-item">
-                <dt>Telepon</dt>
+                <dt>Phone</dt>
                 <dd>@(string.IsNullOrEmpty(Model.Phone) ? "-" : Model.Phone)</dd>
             </div>
             <div class="col-12 col-lg-6 cims-detail-item">
@@ -45,7 +48,7 @@
                 <dd>@(string.IsNullOrEmpty(Model.Email) ? "-" : Model.Email)</dd>
             </div>
             <div class="col-12 cims-detail-item">
-                <dt>Alamat</dt>
+                <dt>Address</dt>
                 <dd>@(string.IsNullOrEmpty(Model.Address) ? "-" : Model.Address)</dd>
             </div>
             <div class="col-12 col-lg-6 cims-detail-item">
@@ -53,21 +56,21 @@
                 <dd>
                     @if (Model.IsActive)
                     {
-                        <span class="badge text-bg-success">Aktif</span>
+                        <span class="badge text-bg-success">Active</span>
                     }
                     else
                     {
-                        <span class="badge text-bg-secondary">Nonaktif</span>
+                        <span class="badge text-bg-secondary">Inactive</span>
                     }
                 </dd>
             </div>
             <div class="col-12 col-lg-6 cims-detail-item">
-                <dt>Dibuat</dt>
-                <dd>@Model.CreatedAt.ToString("dd MMM yyyy HH:mm")</dd>
+                <dt>Created</dt>
+                <dd>@Model.CreatedAt.ToString("dd MMM yyyy HH:mm", System.Globalization.CultureInfo.InvariantCulture)</dd>
             </div>
             <div class="col-12 col-lg-6 cims-detail-item">
-                <dt>Diperbarui</dt>
-                <dd>@(Model.UpdatedAt?.ToString("dd MMM yyyy HH:mm") ?? "-")</dd>
+                <dt>Updated</dt>
+                <dd>@(Model.UpdatedAt?.ToString("dd MMM yyyy HH:mm", System.Globalization.CultureInfo.InvariantCulture) ?? "-")</dd>
             </div>
         </dl>
     </div>

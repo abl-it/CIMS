@@ -70,6 +70,8 @@ Aturan:
 
 Semua halaman wajib tampil baik di desktop, tablet, dan mobile (mobile-first).
 
+**Bahasa UI: Inggris (WAJIB, semua modul).** Semua teks yang tampil ke user berbahasa Inggris: judul, label, tombol, menu sidebar, placeholder, `title`/`aria-label`, pesan `TempData`, `ErrorMessage`/`Display` di ViewModel, pesan JSON, `notify.js`, dan pesan `THROW` di stored procedure. Format tanggal memakai `CultureInfo.InvariantCulture` (nama bulan Inggris). Komentar kode, log, dan dokumen (CLAUDE.md, PRD, prompt) tetap berbahasa Indonesia.
+
 ### Dasar
 
 - `_Layout.cshtml` wajib memuat: `<meta name="viewport" content="width=device-width, initial-scale=1">`
@@ -126,7 +128,7 @@ App shell di `Views/Shared/_Layout.cshtml`: `<header>` sticky (logo CIMS, subjud
 
 - **Responsive:** >= lg sidebar tetap di kiri (lebar `--cims-sidebar-width`, compact: item ±36px, font 0.875rem, boleh scroll vertikal sendiri), hanya konten yang scroll; < lg sidebar menjadi offcanvas (`offcanvas-lg`) dengan item lebih besar (≥ ±44px) untuk sentuh. Offcanvas menutup hanya saat item daun (link tujuan) dipilih.
 - **Menu dua tingkat (maks. 2):** grup + submenu, accordion (`data-bs-parent`), grup berisi `<button>` collapse dengan `aria-expanded`/`aria-controls` dan chevron; item tanpa submenu adalah link biasa. Grup yang berisi item aktif terbuka otomatis dan ditandai aktif.
-- **Data menu: SATU tempat**, daftar `MenuItem` (teks, ikon, controller, action, enabled, children) di `Views/Shared/_Sidebar.cshtml`; markup tidak perlu disentuh. Item `enabled = false` tampil nonaktif (`disabled`, `aria-disabled`, tooltip "Segera hadir"; badge "Segera" hanya untuk item tingkat atas tanpa submenu), bukan link ke `#`.
+- **Data menu: SATU tempat**, daftar `MenuItem` (teks, ikon, controller, action, enabled, children) di `Views/Shared/_Sidebar.cshtml`; markup tidak perlu disentuh. Item `enabled = false` tampil nonaktif (`disabled`, `aria-disabled`, tooltip "Coming soon"; badge "Soon" hanya untuk item tingkat atas tanpa submenu), bukan link ke `#`.
 - Item aktif ditentukan dari controller/action pada `ViewContext.RouteData` (sub-halaman ikut aktif, mis. `/Customer/Edit/5`) dan diberi `aria-current="page"`.
 - **Modul baru WAJIB menambahkan item atau submenu di `_Sidebar.cshtml`** (satu baris; ubah `enabled` menjadi `true` saat halamannya siap).
 - Toast dan SweetAlert2 harus tampil di atas header (z-index); jangan menghapus toast container, `notify.js`, atau `_Notifications` dari layout.
@@ -144,7 +146,7 @@ Desktop dan tablet (>= 768px) compact; mobile (< 768px) tetap default Bootstrap 
 
 SSO berbasis middleware (pola project Training); tidak ada ASP.NET Authentication scheme dan tidak ada `[Authorize]`.
 
-- **Alur:** user login di portal → portal mengarahkan ke CIMS dengan `?token={sessionId}` → `Middleware/SessionTokenMiddleware` menukar sessionId ke JWT (`{SSO:InternalApi}/home/api/token`), memvalidasi (HS256, `SSO:JwtKey`), lalu menyimpan `JWT`, `Username`, `SessionID` di Session dan me-redirect ke URL tanpa `?token=`. Tanpa sesi → redirect ke `SSO:PublicLogin` (request AJAX: 401 JSON `{ success:false, message:"Sesi berakhir" }`).
+- **Alur:** user login di portal → portal mengarahkan ke CIMS dengan `?token={sessionId}` → `Middleware/SessionTokenMiddleware` menukar sessionId ke JWT (`{SSO:InternalApi}/home/api/token`), memvalidasi (HS256, `SSO:JwtKey`), lalu menyimpan `JWT`, `Username`, `SessionID` di Session dan me-redirect ke URL tanpa `?token=`. Tanpa sesi → redirect ke `SSO:PublicLogin` (request AJAX: 401 JSON `{ success:false, message:"Session expired" }`).
 - **Urutan pipeline:** `UseStaticFiles` → `UseRouting` → `UseSession` → `SessionTokenMiddleware` → `UseAuthorization`. Cookie sesi `.CIMS.Session`.
 - **Kunci JWT dilarang ada di repo/log/dokumen.** `SSO:JwtKey` kosong di `appsettings.json`; Development lewat User Secrets, Production lewat environment variable (`SSO__JwtKey`) atau file konfigurasi di server. Kosong di non-Development → aplikasi gagal start. Jangan mencatat sessionId, token, atau URL token ke log.
 - **Dev bypass:** `Auth:DevUsername` di `appsettings.Development.json`; hanya berlaku di Development dan bila terisi (kosong = alur SSO normal).
@@ -157,7 +159,7 @@ SSO berbasis middleware (pola project Training); tidak ada ASP.NET Authenticatio
 ## Otorisasi
 
 - 12 role CIMS (PRD 5.1) di `Filters/CimsRoles` (`All`); `plan`/`spv` setara `adm`, `emp` hanya lihat. Semantik **any-of** (salah satu role cocok), case-insensitive, dibaca dari `ICurrentUserService` (tanpa query ulang).
-- **Default deny:** `ProfileAttribute` menolak user tanpa role di `CimsRoles.All` atau bila role gagal dimuat (kecuali `Home/NotAuthorized`, `Error`, `LogOut`); AJAX → 403 JSON `{ success:false, message:"Tidak berwenang" }`.
+- **Default deny:** `ProfileAttribute` menolak user tanpa role di `CimsRoles.All` atau bila role gagal dimuat (kecuali `Home/NotAuthorized`, `Error`, `LogOut`); AJAX → 403 JSON `{ success:false, message:"Not authorized" }`.
 - Atribut: `[RoleAuthorize(CimsRoles.X, ...)]` (MVC), `[RoleAuthorizeApi(...)]` (403 JSON), `[AllowAllRoles]` hanya untuk action read-only. Dilarang string role literal.
 - **Modul baru WAJIB menentukan role per action sesuai matriks PRD 5.2** (action tulis tidak boleh hanya `[AllowAllRoles]`). Master Data (C) = `administrator` dan `civil` (matriks 5.2); Customer mengikuti itu.
 - Lingkup data: setiap SP list/detail transaksi wajib membatasi lewat `dbo.fn_User_AllowedDepartments(@Username)` (`Database/Scope.sql`). Hak approve dari langkah workflow (T2), bukan hardcode role.
@@ -237,5 +239,6 @@ Modul baru WAJIB mengikuti pola Customer berikut.
 - **PagedResult<T>:** `Items`, `TotalCount`, `PageNumber`, `PageSize`, `TotalPages`. `TotalCount` dari parameter OUTPUT SP.
 - **PRG + TempData:** POST valid → redirect; pesan lewat `TempData["Success"]` / `["Error"]`, ditampilkan lewat `_Notifications` (toast untuk sukses, SweetAlert2 untuk error). Semua POST memakai `[ValidateAntiForgeryToken]`; `returnUrl` hanya dipakai jika `Url.IsLocalUrl`.
 - **Pola list:** search (kode/nama), filter status (`bool?`), sort dengan whitelist kolom (SP dan Controller), `SortDir` ASC/DESC, paging server-side dengan `PageSize` dibatasi di Controller; `Page` melebihi total → redirect ke halaman terakhir; semua filter ikut terbawa di link sort/paging. Soft delete lewat `SetActive` (tanpa Delete).
+- **Kembali ke list asal (WAJIB; Customer dan Location):** link Tambah/Detail/Ubah di Index membawa `asp-route-returnUrl` = URL list saat ini (path + query). `Create`/`Edit`/`Details` menerima `returnUrl`, disaring `LocalOrNull` (`Url.IsLocalUrl`), diteruskan lewat `ViewData["ReturnUrl"]` dan hidden input di form. Setelah Save berhasil → `LocalRedirect(returnUrl)`; tanpa `returnUrl` → Details. Tombol Kembali/Batal memakai `returnUrl` bila ada. Filter, sort, dan halaman tidak boleh hilang setelah Create/Edit.
 - **Sidebar:** Customer terdaftar di `_Sidebar.cshtml` (grup "Master Data" > Customer) sebagai contoh; modul baru menambah item/submenu di sana.
 - **Pola view mobile-first:** tabel `d-none d-md-block` dalam `table-responsive` + card list `d-md-none`; kolom sekunder `d-none d-lg-table-cell`; form `form-label` di atas input, `col-12 col-md-6 col-lg-*`, `type` tel/email; kolom aksi tabel berupa tombol ikon; tombol aksi `d-grid d-md-flex justify-content-md-end`; `_ValidationScriptsPartial` di `@section Scripts`; URL via tag helper `asp-*`.

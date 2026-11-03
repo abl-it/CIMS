@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc.Filters;
 namespace CIMS.Filters
 {
     /// <summary>
-    /// Otorisasi role untuk endpoint AJAX/API: selalu 403 JSON { success:false, message:"Tidak berwenang" }.
+    /// Otorisasi role untuk endpoint AJAX/API: selalu 403 JSON { success:false, message:"Not authorized" }.
     /// Semantik any-of seperti <see cref="RoleAuthorizeAttribute"/>.
     /// </summary>
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = false)]

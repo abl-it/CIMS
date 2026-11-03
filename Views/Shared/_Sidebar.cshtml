@@ -1,7 +1,7 @@
 @*
     Menu aplikasi (maksimal 2 tingkat: grup + submenu) - SATU-SATUNYA tempat mendefinisikan menu sidebar.
     Modul baru: tambahkan satu baris MenuItem (atau satu submenu pada Children) di daftar "menu" di bawah.
-    Enabled = false -> tampil nonaktif ("Segera hadir"), bukan link.
+    Enabled = false -> tampil nonaktif ("Coming soon"), bukan link.
     Item dengan Children dirender sebagai tombol collapse (accordion); Controller/Action-nya diabaikan.
 *@
 @*
@@ -26,8 +26,8 @@
         Leaf("Home", "bi-house-door", "Home", "Index", true),
         Leaf("Dashboard", "bi-speedometer2", "Dashboard", "Index", false),
         Group("Request", "bi-inbox",
-            Leaf("Daftar Request", null, "Request", "Index", false),
-            Leaf("Buat Request", null, "Request", "Create", false)),
+            Leaf("Request List", null, "Request", "Index", false),
+            Leaf("Create Request", null, "Request", "Create", false)),
         Group("Project / Maintenance", "bi-tools",
             Leaf("CAPEX", null, "Project", "Capex", false),
             Leaf("OPEX", null, "Project", "Opex", false),
@@ -43,6 +43,7 @@
         Leaf("User Satisfaction", "bi-emoji-smile", "Survey", "Index", false),
         Leaf("Report", "bi-file-earmark-text", "Report", "Index", false),
         Group("Master Data", "bi-database",
+            Leaf("Location", null, "Location", "Index", true, CimsRoles.Administrator, CimsRoles.Civil),
             Leaf("Customer", null, "Customer", "Index", true, CimsRoles.Administrator, CimsRoles.Civil))
     };
 
@@ -100,7 +101,7 @@
                                     }
                                     else
                                     {
-                                        <span class="nav-link app-sidebar-link app-sidebar-sublink disabled" aria-disabled="true" title="Segera hadir">
+                                        <span class="nav-link app-sidebar-link app-sidebar-sublink disabled" aria-disabled="true" title="Coming soon">
                                             <span>@child.Text</span>
                                         </span>
                                     }
@@ -121,10 +122,10 @@
                 }
                 else
                 {
-                    <span class="nav-link app-sidebar-link disabled" aria-disabled="true" title="Segera hadir">
+                    <span class="nav-link app-sidebar-link disabled" aria-disabled="true" title="Coming soon">
                         <i class="bi @item.Icon" aria-hidden="true"></i>
                         <span>@item.Text</span>
-                        <span class="badge app-sidebar-badge ms-auto">Segera</span>
+                        <span class="badge app-sidebar-badge ms-auto">Soon</span>
                     </span>
                 }
             </li>

@@ -3,10 +3,17 @@
     var isEdit = Model.Id > 0;
     var action = isEdit ? "Edit" : "Create";
     var cancelAction = isEdit ? "Details" : "Index";
+    // URL list asal (filter, sort, halaman) dari Index; null = alur default.
+    var returnUrl = ViewData["ReturnUrl"] as string;
+    var cancelUrl = returnUrl ?? Url.Action(cancelAction, new { id = isEdit ? Model.Id : (int?)null });
 }
 
 <form id="customer-form" asp-controller="Customer" asp-action="@action" asp-route-id="@(isEdit ? Model.Id : (int?)null)" method="post" novalidate data-dirty-guard>
     <input type="hidden" asp-for="Id" />
+    @if (returnUrl != null)
+    {
+        <input type="hidden" name="returnUrl" value="@returnUrl" />
+    }
 
     <div class="row g-3">
         <div class="col-12 col-md-6 col-lg-4">
@@ -42,10 +49,10 @@
         </div>
         <div class="col-12">
             <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                <a asp-action="@cancelAction" asp-route-id="@(isEdit ? Model.Id : (int?)null)" class="btn btn-outline-secondary btn-lg"
-                   data-confirm="Perubahan yang belum disimpan akan hilang." data-confirm-title="Batalkan perubahan?"
-                   data-confirm-ok="Ya, batalkan" data-confirm-danger="true" data-confirm-if-dirty="#customer-form">Batal</a>
-                <button type="submit" class="btn btn-primary btn-lg">@(isEdit ? "Simpan Perubahan" : "Simpan")</button>
+                <a href="@cancelUrl" class="btn btn-outline-secondary btn-lg"
+                   data-confirm="Unsaved changes will be lost." data-confirm-title="Discard changes?"
+                   data-confirm-ok="Yes, discard" data-confirm-danger="true" data-confirm-if-dirty="#customer-form">Cancel</a>
+                <button type="submit" class="btn btn-primary btn-lg">@(isEdit ? "Save Changes" : "Save")</button>
             </div>
         </div>
     </div>

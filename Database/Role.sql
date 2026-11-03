@@ -72,18 +72,18 @@ GO
 UPDATE h
 SET    h.Description = d.Description
 FROM   dbo.HierarchyLevel h
-       JOIN (VALUES (N'administrator', N'Administrator Sistem'),
+       JOIN (VALUES (N'administrator', N'System Administrator'),
                     (N'director',      N'Director'),
                     (N'gm',            N'General Manager'),
                     (N'civil',         N'Civil Department'),
                     (N'fat',           N'Finance, Accounting & Tax'),
                     (N'mo',            N'Manager Operational'),
                     (N'purchasing',    N'Purchasing'),
-                    (N'kabag',         N'Kepala Bagian'),
-                    (N'adm',           N'Admin Departemen'),
+                    (N'kabag',         N'Department Head'),
+                    (N'adm',           N'Department Admin'),
                     (N'plan',          N'Planner'),
                     (N'spv',           N'Supervisor'),
-                    (N'emp',           N'Karyawan')
+                    (N'emp',           N'Employee')
             ) AS d ([Role], Description) ON d.[Role] = h.[Role]
 WHERE  h.Description IS NULL;
 GO
@@ -138,4 +138,14 @@ GO
 
    -- 6) Jika error "Invalid object name 'STRING_SPLIT'" / compatibility level < 130:
    --    laporkan; jangan ubah database tanpa persetujuan.
+
+   -- 7) SEKALI JALAN (UI berbahasa Inggris, 03-11-2026): ganti Description lama berbahasa Indonesia.
+   --    Hanya mengganti nilai seed lama; Description yang sudah diubah administrator ke nilai lain tidak disentuh.
+   UPDATE h SET h.Description = d.NewText
+   FROM   dbo.HierarchyLevel h
+          JOIN (VALUES (N'administrator', N'Administrator Sistem', N'System Administrator'),
+                       (N'kabag',         N'Kepala Bagian',        N'Section Head'),
+                       (N'adm',           N'Admin Departemen',     N'Department Admin'),
+                       (N'emp',           N'Karyawan',             N'Employee')
+               ) AS d ([Role], OldText, NewText) ON d.[Role] = h.[Role] AND h.Description = d.OldText;
    ===================================================================== */

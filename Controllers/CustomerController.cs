@@ -49,27 +49,37 @@ namespace CIMS.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> Details(int id, CancellationToken ct)
+        public async Task<IActionResult> Details(int id, string? returnUrl, CancellationToken ct)
         {
             var customer = await _customerService.GetByIdAsync(id, ct);
             if (customer == null) return NotFound();
+            ViewData["ReturnUrl"] = LocalOrNull(returnUrl);
             return View(customer);
         }
 
         [HttpGet]
-        public IActionResult Create() => View(new CustomerFormViewModel());
+        public IActionResult Create(string? returnUrl)
+        {
+            ViewData["ReturnUrl"] = LocalOrNull(returnUrl);
+            return View(new CustomerFormViewModel());
+        }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(CustomerFormViewModel model, CancellationToken ct)
+        public async Task<IActionResult> Create(CustomerFormViewModel model, string? returnUrl, CancellationToken ct)
         {
+            returnUrl = LocalOrNull(returnUrl);
+            ViewData["ReturnUrl"] = returnUrl;
             if (!ModelState.IsValid) return View(model);
 
             try
             {
                 var newId = await _customerService.InsertAsync(model.ToEntity(), ct);
-                TempData["Success"] = "Customer berhasil ditambahkan.";
-                return RedirectToAction(nameof(Details), new { id = newId });
+                TempData["Success"] = "Customer added successfully.";
+                // Kembali ke list asal (filter, sort, halaman tetap); tanpa returnUrl -> Details.
+                return returnUrl != null
+                    ? LocalRedirect(returnUrl)
+                    : RedirectToAction(nameof(Details), new { id = newId });
             }
             catch (CustomerDuplicateCodeException ex)
             {
@@ -84,25 +94,31 @@ namespace CIMS.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> Edit(int id, CancellationToken ct)
+        public async Task<IActionResult> Edit(int id, string? returnUrl, CancellationToken ct)
         {
             var customer = await _customerService.GetByIdAsync(id, ct);
             if (customer == null) return NotFound();
+            ViewData["ReturnUrl"] = LocalOrNull(returnUrl);
             return View(CustomerFormViewModel.FromEntity(customer));
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, CustomerFormViewModel model, CancellationToken ct)
+        public async Task<IActionResult> Edit(int id, CustomerFormViewModel model, string? returnUrl, CancellationToken ct)
         {
             if (id != model.Id) return BadRequest();
+            returnUrl = LocalOrNull(returnUrl);
+            ViewData["ReturnUrl"] = returnUrl;
             if (!ModelState.IsValid) return View(model);
 
             try
             {
                 await _customerService.UpdateAsync(model.ToEntity(), ct);
-                TempData["Success"] = "Customer berhasil diperbarui.";
-                return RedirectToAction(nameof(Details), new { id = model.Id });
+                TempData["Success"] = "Customer updated successfully.";
+                // Kembali ke list asal (filter, sort, halaman tetap); tanpa returnUrl -> Details.
+                return returnUrl != null
+                    ? LocalRedirect(returnUrl)
+                    : RedirectToAction(nameof(Details), new { id = model.Id });
             }
             catch (CustomerDuplicateCodeException ex)
             {
@@ -128,7 +144,7 @@ namespace CIMS.Controllers
             try
             {
                 await _customerService.SetActiveAsync(id, isActive, ct);
-                TempData["Success"] = isActive ? "Customer diaktifkan kembali." : "Customer dinonaktifkan.";
+                TempData["Success"] = isActive ? "Customer activated." : "Customer deactivated.";
             }
             catch (CustomerNotFoundException ex)
             {
@@ -141,5 +157,9 @@ namespace CIMS.Controllers
 
             return RedirectToAction(nameof(Index));
         }
+
+        /// <summary>returnUrl hanya dipakai bila lokal (cegah open redirect).</summary>
+        private string? LocalOrNull(string? returnUrl) =>
+            !string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl) ? returnUrl : null;
     }
 }

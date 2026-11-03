@@ -127,8 +127,8 @@ BEGIN
     SET @Email   = NULLIF(LTRIM(RTRIM(@Email)),   N'');
     SET @Address = NULLIF(LTRIM(RTRIM(@Address)), N'');
 
-    IF ISNULL(@Code, N'') = N'' THROW 50002, N'Kode customer wajib diisi.', 1;
-    IF ISNULL(@Name, N'') = N'' THROW 50002, N'Nama customer wajib diisi.', 1;
+    IF ISNULL(@Code, N'') = N'' THROW 50002, N'Customer code is required.', 1;
+    IF ISNULL(@Name, N'') = N'' THROW 50002, N'Customer name is required.', 1;
 
     BEGIN TRY
         INSERT INTO dbo.Customer (Code, Name, Phone, Email, Address, IsActive)
@@ -138,7 +138,7 @@ BEGIN
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() IN (2601, 2627)
-            THROW 50001, N'Kode customer sudah digunakan.', 1;
+            THROW 50001, N'Customer code is already in use.', 1;
         THROW;
     END CATCH
 END
@@ -166,8 +166,8 @@ BEGIN
     SET @Email   = NULLIF(LTRIM(RTRIM(@Email)),   N'');
     SET @Address = NULLIF(LTRIM(RTRIM(@Address)), N'');
 
-    IF ISNULL(@Code, N'') = N'' THROW 50002, N'Kode customer wajib diisi.', 1;
-    IF ISNULL(@Name, N'') = N'' THROW 50002, N'Nama customer wajib diisi.', 1;
+    IF ISNULL(@Code, N'') = N'' THROW 50002, N'Customer code is required.', 1;
+    IF ISNULL(@Name, N'') = N'' THROW 50002, N'Customer name is required.', 1;
 
     BEGIN TRY
         UPDATE dbo.Customer
@@ -181,11 +181,11 @@ BEGIN
         WHERE Id = @Id;
 
         IF @@ROWCOUNT = 0
-            THROW 50003, N'Data customer tidak ditemukan.', 1;
+            THROW 50003, N'Customer not found.', 1;
     END TRY
     BEGIN CATCH
         IF ERROR_NUMBER() IN (2601, 2627)
-            THROW 50001, N'Kode customer sudah digunakan.', 1;
+            THROW 50001, N'Customer code is already in use.', 1;
         THROW;
     END CATCH
 END
@@ -207,7 +207,7 @@ BEGIN
     WHERE Id = @Id;
 
     IF @@ROWCOUNT = 0
-        THROW 50003, N'Data customer tidak ditemukan.', 1;
+        THROW 50003, N'Customer not found.', 1;
 END
 GO
 

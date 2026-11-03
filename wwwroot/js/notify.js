@@ -36,7 +36,7 @@
         close.type = 'button';
         close.className = 'btn-close btn-close-white me-2 m-auto';
         close.setAttribute('data-bs-dismiss', 'toast');
-        close.setAttribute('aria-label', 'Tutup');
+        close.setAttribute('aria-label', 'Close');
 
         flex.appendChild(body);
         flex.appendChild(close);
@@ -50,9 +50,9 @@
     function error(message, title) {
         return Swal.fire({
             icon: 'error',
-            title: title || 'Terjadi kesalahan',
-            text: message || 'Terjadi kesalahan yang tidak diketahui.',
-            confirmButtonText: 'Tutup',
+            title: title || 'Something went wrong',
+            text: message || 'An unknown error occurred.',
+            confirmButtonText: 'Close',
             buttonsStyling: false,
             customClass: { confirmButton: 'btn btn-primary btn-lg' }
         });
@@ -62,11 +62,11 @@
         var o = options || {};
         return Swal.fire({
             icon: 'question',
-            title: o.title || 'Konfirmasi',
+            title: o.title || 'Confirm',
             text: o.text || '',
             showCancelButton: true,
-            confirmButtonText: o.confirmText || 'Ya',
-            cancelButtonText: o.cancelText || 'Batal',
+            confirmButtonText: o.confirmText || 'Yes',
+            cancelButtonText: o.cancelText || 'Cancel',
             reverseButtons: true,
             focusCancel: !!o.danger,
             buttonsStyling: false,
@@ -78,11 +78,11 @@
     }
 
     function statusMessage(status) {
-        if (status === 400) return 'Permintaan tidak valid.';
-        if (status === 401 || status === 403) return 'Anda tidak memiliki akses untuk aksi ini.';
-        if (status === 404) return 'Data atau halaman tidak ditemukan.';
-        if (status >= 500) return 'Terjadi kesalahan pada server. Silakan coba lagi.';
-        return 'Permintaan gagal (HTTP ' + status + ').';
+        if (status === 400) return 'Invalid request.';
+        if (status === 401 || status === 403) return 'You do not have access to this action.';
+        if (status === 404) return 'Data or page not found.';
+        if (status >= 500) return 'A server error occurred. Please try again.';
+        return 'Request failed (HTTP ' + status + ').';
     }
 
     // Terima Response (non-2xx) atau Error (kegagalan jaringan).
@@ -90,11 +90,11 @@
         if (typeof Response !== 'undefined' && responseOrError instanceof Response) {
             if (responseOrError.status === 401) {
                 // Sesi berakhir: setelah ditutup, muat ulang; middleware mengarahkan ke halaman login.
-                return error('Sesi Anda telah berakhir. Silakan login kembali.', 'Sesi berakhir')
+                return error('Your session has expired. Please sign in again.', 'Session expired')
                     .then(function () { window.location.reload(); });
             }
             if (responseOrError.status === 403) {
-                return error('Anda tidak memiliki wewenang untuk melakukan aksi ini.', 'Anda tidak berwenang');
+                return error('You are not authorized to perform this action.', 'Not authorized');
             }
 
             var message = statusMessage(responseOrError.status);
@@ -107,7 +107,7 @@
             } catch (e) { /* pakai pesan standar */ }
             return error(message);
         }
-        return error('Tidak dapat terhubung ke server. Periksa koneksi Anda lalu coba lagi.', 'Koneksi gagal');
+        return error('Unable to connect to the server. Check your connection and try again.', 'Connection failed');
     }
 
     window.notify = { success: success, error: error, confirm: confirmDialog, fetchError: fetchError };
@@ -115,9 +115,9 @@
     // ---- Konfirmasi deklaratif ----
     function optionsFrom(el) {
         return {
-            title: el.getAttribute('data-confirm-title') || 'Konfirmasi',
+            title: el.getAttribute('data-confirm-title') || 'Confirm',
             text: el.getAttribute('data-confirm'),
-            confirmText: el.getAttribute('data-confirm-ok') || 'Ya',
+            confirmText: el.getAttribute('data-confirm-ok') || 'Yes',
             danger: el.getAttribute('data-confirm-danger') === 'true'
         };
     }

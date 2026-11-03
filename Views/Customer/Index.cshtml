@@ -36,7 +36,7 @@
 
 <div class="cims-page-header d-grid d-md-flex justify-content-md-between align-items-md-center gap-2">
     <h1 class="h3 mb-0">Customer</h1>
-    <a asp-action="Create" class="btn btn-primary btn-lg"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Tambah Customer</a>
+    <a asp-action="Create" asp-route-returnUrl="@currentUrl" class="btn btn-primary btn-lg"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add Customer</a>
 </div>
 
 <form asp-action="Index" method="get" class="cims-filter row g-2">
@@ -44,26 +44,26 @@
     <input type="hidden" name="sortDir" value="@Model.SortDir" />
     <input type="hidden" name="pageSize" value="@Model.PageSize" />
     <div class="col-12 col-md">
-        <label for="search" class="form-label visually-hidden">Cari</label>
-        <input type="search" id="search" name="search" value="@Model.Search" class="form-control" placeholder="Cari kode atau nama" />
+        <label for="search" class="form-label visually-hidden">Search</label>
+        <input type="search" id="search" name="search" value="@Model.Search" class="form-control" placeholder="Search code or name" />
     </div>
     <div class="col-12 col-md-auto">
         <label for="isActive" class="form-label visually-hidden">Status</label>
         <select id="isActive" name="isActive" class="form-select">
-            <option value="" selected="@(!Model.IsActive.HasValue)">Semua status</option>
-            <option value="true" selected="@(Model.IsActive == true)">Aktif</option>
-            <option value="false" selected="@(Model.IsActive == false)">Nonaktif</option>
+            <option value="" selected="@(!Model.IsActive.HasValue)">All statuses</option>
+            <option value="true" selected="@(Model.IsActive == true)">Active</option>
+            <option value="false" selected="@(Model.IsActive == false)">Inactive</option>
         </select>
     </div>
     <div class="col-12 col-md-auto d-grid d-md-flex gap-2">
-        <button type="submit" class="btn btn-primary"><i class="bi bi-search me-1" aria-hidden="true"></i>Cari</button>
+        <button type="submit" class="btn btn-primary"><i class="bi bi-search me-1" aria-hidden="true"></i>Search</button>
         <a asp-action="Index" class="btn btn-outline-secondary"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a>
     </div>
 </form>
 
 @if (!result.Items.Any())
 {
-    <div class="alert alert-info" role="status">Tidak ada data customer.</div>
+    <div class="alert alert-info" role="status">No customers found.</div>
 }
 else
 {
@@ -73,12 +73,12 @@ else
             <table class="table table-hover align-middle mb-0">
                 <thead>
                     <tr>
-                        <th><a class="sort-link" asp-action="Index" asp-all-route-data='SortRoute("Code")'>Kode@(SortMark("Code"))</a></th>
-                        <th><a class="sort-link" asp-action="Index" asp-all-route-data='SortRoute("Name")'>Nama@(SortMark("Name"))</a></th>
-                        <th class="d-none d-lg-table-cell">Telepon</th>
+                        <th><a class="sort-link" asp-action="Index" asp-all-route-data='SortRoute("Code")'>Code@(SortMark("Code"))</a></th>
+                        <th><a class="sort-link" asp-action="Index" asp-all-route-data='SortRoute("Name")'>Name@(SortMark("Name"))</a></th>
+                        <th class="d-none d-lg-table-cell">Phone</th>
                         <th class="d-none d-lg-table-cell">Email</th>
                         <th class="cims-col-fit">Status</th>
-                        <th class="cims-col-fit text-end">Aksi</th>
+                        <th class="cims-col-fit text-end">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -92,30 +92,30 @@ else
                             <td class="cims-col-fit">
                                 @if (c.IsActive)
                                 {
-                                    <span class="badge text-bg-success">Aktif</span>
+                                    <span class="badge text-bg-success">Active</span>
                                 }
                                 else
                                 {
-                                    <span class="badge text-bg-secondary">Nonaktif</span>
+                                    <span class="badge text-bg-secondary">Inactive</span>
                                 }
                             </td>
                             <td class="cims-col-fit text-end">
                               <div class="d-inline-flex gap-1">
-                                <a asp-action="Details" asp-route-id="@c.Id" class="btn btn-outline-secondary cims-icon-btn"
-                                   title="Lihat detail" aria-label="Lihat detail @c.Name"><i class="bi bi-eye" aria-hidden="true"></i></a>
-                                <a asp-action="Edit" asp-route-id="@c.Id" class="btn btn-outline-primary cims-icon-btn"
-                                   title="Ubah" aria-label="Ubah @c.Name"><i class="bi bi-pencil-square" aria-hidden="true"></i></a>
+                                <a asp-action="Details" asp-route-id="@c.Id" asp-route-returnUrl="@currentUrl" class="btn btn-outline-secondary cims-icon-btn"
+                                   title="View details" aria-label="View details @c.Name"><i class="bi bi-eye" aria-hidden="true"></i></a>
+                                <a asp-action="Edit" asp-route-id="@c.Id" asp-route-returnUrl="@currentUrl" class="btn btn-outline-primary cims-icon-btn"
+                                   title="Edit" aria-label="Edit @c.Name"><i class="bi bi-pencil-square" aria-hidden="true"></i></a>
                                 <form asp-action="SetActive" method="post" class="d-inline"
-                                      data-confirm="@(c.IsActive ? "Nonaktifkan customer ini?" : "Aktifkan customer ini?")"
-                                      data-confirm-title="@(c.IsActive ? "Nonaktifkan Customer" : "Aktifkan Customer")"
-                                      data-confirm-ok="@(c.IsActive ? "Nonaktifkan" : "Aktifkan")"
+                                      data-confirm="@(c.IsActive ? "Deactivate this customer?" : "Activate this customer?")"
+                                      data-confirm-title="@(c.IsActive ? "Deactivate Customer" : "Activate Customer")"
+                                      data-confirm-ok="@(c.IsActive ? "Deactivate" : "Activate")"
                                       data-confirm-danger="@(c.IsActive ? "true" : null)">
                                     <input type="hidden" name="id" value="@c.Id" />
                                     <input type="hidden" name="isActive" value="@((!c.IsActive).ToString().ToLowerInvariant())" />
                                     <input type="hidden" name="returnUrl" value="@currentUrl" />
                                     <button type="submit" class="btn cims-icon-btn @(c.IsActive ? "btn-outline-danger" : "btn-outline-success")"
-                                            title="@(c.IsActive ? "Nonaktifkan" : "Aktifkan")"
-                                            aria-label="@(c.IsActive ? "Nonaktifkan" : "Aktifkan") @c.Name">
+                                            title="@(c.IsActive ? "Deactivate" : "Activate")"
+                                            aria-label="@(c.IsActive ? "Deactivate" : "Activate") @c.Name">
                                         <i class="bi @(c.IsActive ? "bi-slash-circle" : "bi-check-circle")" aria-hidden="true"></i>
                                     </button>
                                 </form>
@@ -131,10 +131,10 @@ else
     @* Mobile: card list *@
     <div class="d-md-none">
         <div class="d-flex justify-content-between align-items-center mb-2">
-            <span class="text-muted">Urutkan:</span>
-            <div class="btn-group" role="group" aria-label="Urutkan">
-                <a class="btn btn-outline-secondary @(Model.SortBy == "Code" ? "active" : "")" asp-action="Index" asp-all-route-data='SortRoute("Code")'>Kode@(SortMark("Code"))</a>
-                <a class="btn btn-outline-secondary @(Model.SortBy == "Name" ? "active" : "")" asp-action="Index" asp-all-route-data='SortRoute("Name")'>Nama@(SortMark("Name"))</a>
+            <span class="text-muted">Sort by:</span>
+            <div class="btn-group" role="group" aria-label="Sort">
+                <a class="btn btn-outline-secondary @(Model.SortBy == "Code" ? "active" : "")" asp-action="Index" asp-all-route-data='SortRoute("Code")'>Code@(SortMark("Code"))</a>
+                <a class="btn btn-outline-secondary @(Model.SortBy == "Name" ? "active" : "")" asp-action="Index" asp-all-route-data='SortRoute("Name")'>Name@(SortMark("Name"))</a>
             </div>
         </div>
         @foreach (var c in result.Items)
@@ -148,11 +148,11 @@ else
                         </div>
                         @if (c.IsActive)
                         {
-                            <span class="badge text-bg-success">Aktif</span>
+                            <span class="badge text-bg-success">Active</span>
                         }
                         else
                         {
-                            <span class="badge text-bg-secondary">Nonaktif</span>
+                            <span class="badge text-bg-secondary">Inactive</span>
                         }
                     </div>
                     @if (!string.IsNullOrEmpty(c.Phone) || !string.IsNullOrEmpty(c.Email))
@@ -164,19 +164,19 @@ else
                     }
                     <div class="d-grid gap-2 mt-3">
                         <div class="row g-2">
-                            <div class="col-6"><a asp-action="Details" asp-route-id="@c.Id" class="btn btn-outline-secondary w-100">Detail</a></div>
-                            <div class="col-6"><a asp-action="Edit" asp-route-id="@c.Id" class="btn btn-outline-primary w-100">Edit</a></div>
+                            <div class="col-6"><a asp-action="Details" asp-route-id="@c.Id" asp-route-returnUrl="@currentUrl" class="btn btn-outline-secondary w-100">Details</a></div>
+                            <div class="col-6"><a asp-action="Edit" asp-route-id="@c.Id" asp-route-returnUrl="@currentUrl" class="btn btn-outline-primary w-100">Edit</a></div>
                         </div>
                         <form asp-action="SetActive" method="post" class="d-grid"
-                              data-confirm="@(c.IsActive ? "Nonaktifkan customer ini?" : "Aktifkan customer ini?")"
-                              data-confirm-title="@(c.IsActive ? "Nonaktifkan Customer" : "Aktifkan Customer")"
-                              data-confirm-ok="@(c.IsActive ? "Nonaktifkan" : "Aktifkan")"
+                              data-confirm="@(c.IsActive ? "Deactivate this customer?" : "Activate this customer?")"
+                              data-confirm-title="@(c.IsActive ? "Deactivate Customer" : "Activate Customer")"
+                              data-confirm-ok="@(c.IsActive ? "Deactivate" : "Activate")"
                               data-confirm-danger="@(c.IsActive ? "true" : null)">
                             <input type="hidden" name="id" value="@c.Id" />
                             <input type="hidden" name="isActive" value="@((!c.IsActive).ToString().ToLowerInvariant())" />
                             <input type="hidden" name="returnUrl" value="@currentUrl" />
                             <button type="submit" class="btn @(c.IsActive ? "btn-outline-danger" : "btn-outline-success")">
-                                @(c.IsActive ? "Nonaktifkan" : "Aktifkan")
+                                @(c.IsActive ? "Deactivate" : "Activate")
                             </button>
                         </form>
                     </div>
@@ -186,13 +186,13 @@ else
     </div>
 
     <div class="cims-list-footer d-flex flex-column flex-md-row justify-content-md-between align-items-md-center gap-2">
-        <div class="text-muted small">Menampilkan @firstItem–@lastItem dari @result.TotalCount</div>
+        <div class="text-muted small">Showing @firstItem–@lastItem of @result.TotalCount</div>
         @if (result.TotalPages > 1)
         {
-            <nav aria-label="Navigasi halaman">
+            <nav aria-label="Pagination">
                 <ul class="pagination pagination-sm mb-0 flex-wrap">
                     <li class="page-item @(result.PageNumber <= 1 ? "disabled" : "")">
-                        <a class="page-link" asp-action="Index" asp-all-route-data="RouteFor(result.PageNumber - 1)">Sebelumnya</a>
+                        <a class="page-link" asp-action="Index" asp-all-route-data="RouteFor(result.PageNumber - 1)">Previous</a>
                     </li>
                     @for (var p = pageStart; p <= pageEnd; p++)
                     {
@@ -201,7 +201,7 @@ else
                         </li>
                     }
                     <li class="page-item @(result.PageNumber >= result.TotalPages ? "disabled" : "")">
-                        <a class="page-link" asp-action="Index" asp-all-route-data="RouteFor(result.PageNumber + 1)">Berikutnya</a>
+                        <a class="page-link" asp-action="Index" asp-all-route-data="RouteFor(result.PageNumber + 1)">Next</a>
                     </li>
                 </ul>
             </nav>

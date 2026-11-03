@@ -18,31 +18,31 @@ namespace CIMS.Models
     {
         public int Id { get; set; }
 
-        [Display(Name = "Kode")]
-        [Required(ErrorMessage = "{0} wajib diisi.")]
-        [StringLength(20, ErrorMessage = "{0} maksimal {1} karakter.")]
+        [Display(Name = "Code")]
+        [Required(ErrorMessage = "{0} is required.")]
+        [StringLength(20, ErrorMessage = "{0} must be at most {1} characters.")]
         public string Code { get; set; } = string.Empty;
 
-        [Display(Name = "Nama")]
-        [Required(ErrorMessage = "{0} wajib diisi.")]
-        [StringLength(100, ErrorMessage = "{0} maksimal {1} karakter.")]
+        [Display(Name = "Name")]
+        [Required(ErrorMessage = "{0} is required.")]
+        [StringLength(100, ErrorMessage = "{0} must be at most {1} characters.")]
         public string Name { get; set; } = string.Empty;
 
-        [Display(Name = "Telepon")]
-        [Phone(ErrorMessage = "Format {0} tidak valid.")]
-        [StringLength(20, ErrorMessage = "{0} maksimal {1} karakter.")]
+        [Display(Name = "Phone")]
+        [Phone(ErrorMessage = "{0} format is invalid.")]
+        [StringLength(20, ErrorMessage = "{0} must be at most {1} characters.")]
         public string? Phone { get; set; }
 
         [Display(Name = "Email")]
-        [EmailAddress(ErrorMessage = "Format {0} tidak valid.")]
-        [StringLength(100, ErrorMessage = "{0} maksimal {1} karakter.")]
+        [EmailAddress(ErrorMessage = "{0} format is invalid.")]
+        [StringLength(100, ErrorMessage = "{0} must be at most {1} characters.")]
         public string? Email { get; set; }
 
-        [Display(Name = "Alamat")]
-        [StringLength(250, ErrorMessage = "{0} maksimal {1} karakter.")]
+        [Display(Name = "Address")]
+        [StringLength(250, ErrorMessage = "{0} must be at most {1} characters.")]
         public string? Address { get; set; }
 
-        [Display(Name = "Aktif")]
+        [Display(Name = "Active")]
         public bool IsActive { get; set; } = true;
 
         public Customer ToEntity() => new()

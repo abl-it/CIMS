@@ -1,0 +1,19 @@
+@model SurveyTemplateItemFormViewModel
+@{
+    ViewData["Title"] = "Add Survey Item";
+    ViewData["ContentWidth"] = "narrow";
+}
+
+<div class="cims-page-header">
+    <h1 class="h3 mb-0">Add Survey Item</h1>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <partial name="_SurveyTemplateItemForm" model="Model" />
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

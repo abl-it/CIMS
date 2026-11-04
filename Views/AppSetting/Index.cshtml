@@ -1,0 +1,102 @@
+@model AppSettingListViewModel
+@{
+    ViewData["Title"] = "Settings";
+    var currentUrl = Context.Request.Path + Context.Request.QueryString;
+    var culture = System.Globalization.CultureInfo.InvariantCulture;
+}
+
+<div class="cims-page-header">
+    <h1 class="h3 mb-0">Settings</h1>
+</div>
+
+<p class="text-muted small">
+    Time limits and status thresholds. "All companies" applies unless a company has its own value.
+    Holidays come from the portal holiday calendar.
+</p>
+
+<form asp-action="Index" method="get" class="cims-filter row g-2">
+    <div class="col-12 col-md-auto">
+        <label for="coCode" class="form-label visually-hidden">Company</label>
+        <select id="coCode" name="coCode" class="form-select">
+            <option value="" selected="@(string.IsNullOrEmpty(Model.CoCode))">All rows</option>
+            @foreach (var c in AppSetting.CoCodes)
+            {
+                <option value="@c" selected="@(Model.CoCode == c)">@AppSetting.CompanyText(c)</option>
+            }
+        </select>
+    </div>
+    <div class="col-12 col-md-auto d-grid d-md-flex gap-2">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-funnel me-1" aria-hidden="true"></i>Filter</button>
+        <a asp-action="Index" class="btn btn-outline-secondary"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a>
+    </div>
+</form>
+
+@if (!Model.Items.Any())
+{
+    <div class="alert alert-info" role="status">No settings found.</div>
+}
+else
+{
+    @* Desktop / tablet: tabel *@
+    <div class="d-none d-md-block">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Setting</th>
+                        <th class="cims-col-fit">Company</th>
+                        <th class="cims-col-fit text-end">Value</th>
+                        <th class="d-none d-lg-table-cell cims-col-fit">Updated</th>
+                        <th class="cims-col-fit text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var s in Model.Items)
+                    {
+                        <tr>
+                            <td>
+                                <div class="fw-semibold">@s.Label</div>
+                                <div class="text-muted small setting-text">@s.Description</div>
+                            </td>
+                            <td class="cims-col-fit">@s.CompanyLabel</td>
+                            <td class="cims-col-fit text-end">@s.SettingValue <span class="text-muted small">@s.Unit</span></td>
+                            <td class="d-none d-lg-table-cell cims-col-fit small">
+                                @(s.UpdatedAt?.ToString("dd MMM yyyy HH:mm", culture) ?? "-")@(string.IsNullOrEmpty(s.UpdatedBy) ? "" : $" by {s.UpdatedBy}")
+                            </td>
+                            <td class="cims-col-fit text-end">
+                                <a asp-action="Edit" asp-route-coCode="@s.CoCode" asp-route-settingKey="@s.SettingKey" asp-route-returnUrl="@currentUrl"
+                                   class="btn btn-outline-primary cims-icon-btn"
+                                   title="Edit" aria-label="Edit @s.Label (@s.CompanyLabel)"><i class="bi bi-pencil-square" aria-hidden="true"></i></a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @* Mobile: card list *@
+    <div class="d-md-none">
+        @foreach (var s in Model.Items)
+        {
+            <div class="card setting-card mb-2">
+                <div class="card-body">
+                    <div class="setting-text">
+                        <div class="text-muted small">@s.CompanyLabel</div>
+                        <div class="fw-semibold">@s.Label</div>
+                        <div class="text-muted small">@s.Description</div>
+                    </div>
+                    <div class="fs-5 mt-2">@s.SettingValue <span class="text-muted small">@s.Unit</span></div>
+                    <div class="d-grid mt-3">
+                        <a asp-action="Edit" asp-route-coCode="@s.CoCode" asp-route-settingKey="@s.SettingKey" asp-route-returnUrl="@currentUrl"
+                           class="btn btn-outline-primary">Edit</a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="cims-list-footer">
+        <div class="text-muted small">@Model.Items.Count setting(s)</div>
+    </div>
+}

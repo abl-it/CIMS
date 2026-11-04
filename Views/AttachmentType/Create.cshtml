@@ -1,0 +1,19 @@
+@model AttachmentTypeFormViewModel
+@{
+    ViewData["Title"] = "Add Attachment Type";
+    ViewData["ContentWidth"] = "narrow";
+}
+
+<div class="cims-page-header">
+    <h1 class="h3 mb-0">Add Attachment Type</h1>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <partial name="_AttachmentTypeForm" model="Model" />
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

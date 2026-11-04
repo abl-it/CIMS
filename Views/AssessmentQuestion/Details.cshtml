@@ -1,0 +1,66 @@
+@model AssessmentQuestion
+@{
+    ViewData["Title"] = "Question Details";
+    ViewData["ContentWidth"] = "narrow";
+    var toggleTo = !Model.IsActive;
+    // URL list asal (filter, sort, halaman); null = list tanpa filter.
+    var returnUrl = ViewData["ReturnUrl"] as string;
+    var backUrl = returnUrl ?? Url.Action("Index");
+    var culture = System.Globalization.CultureInfo.InvariantCulture;
+}
+
+<div class="cims-page-header d-grid d-md-flex justify-content-md-between align-items-md-center gap-2">
+    <h1 class="h3 mb-0">Question Details</h1>
+    <div class="d-grid d-md-flex gap-2">
+        <a href="@backUrl" class="btn btn-outline-secondary btn-lg"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Back</a>
+        <a asp-action="Edit" asp-route-id="@Model.Id" asp-route-returnUrl="@returnUrl" class="btn btn-primary btn-lg"><i class="bi bi-pencil-square me-1" aria-hidden="true"></i>Edit</a>
+        <form asp-action="SetActive" method="post" class="d-grid"
+              data-confirm="@(Model.IsActive ? "Deactivate this question?" : "Activate this question?")"
+              data-confirm-title="@(Model.IsActive ? "Deactivate Question" : "Activate Question")"
+              data-confirm-ok="@(Model.IsActive ? "Deactivate" : "Activate")"
+              data-confirm-danger="@(Model.IsActive ? "true" : null)">
+            <input type="hidden" name="id" value="@Model.Id" />
+            <input type="hidden" name="isActive" value="@toggleTo.ToString().ToLowerInvariant()" />
+            <input type="hidden" name="returnUrl" value="@Url.Action("Details", new { id = Model.Id, returnUrl })" />
+            <button type="submit" class="btn btn-lg @(Model.IsActive ? "btn-outline-danger" : "btn-outline-success")">
+                <i class="bi @(Model.IsActive ? "bi-slash-circle" : "bi-check-circle") me-1" aria-hidden="true"></i>@(Model.IsActive ? "Deactivate" : "Activate")
+            </button>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <dl class="row mb-0 assessment-detail">
+            <div class="col-12 cims-detail-item">
+                <dt>Question</dt>
+                <dd>@Model.QuestionText</dd>
+            </div>
+            <div class="col-12 col-lg-6 cims-detail-item">
+                <dt>Sort order</dt>
+                <dd>@Model.SortOrder</dd>
+            </div>
+            <div class="col-12 col-lg-6 cims-detail-item">
+                <dt>Status</dt>
+                <dd>
+                    @if (Model.IsActive)
+                    {
+                        <span class="badge text-bg-success">Active</span>
+                    }
+                    else
+                    {
+                        <span class="badge text-bg-secondary">Inactive</span>
+                    }
+                </dd>
+            </div>
+            <div class="col-12 col-lg-6 cims-detail-item">
+                <dt>Created</dt>
+                <dd>@Model.CreatedAt.ToString("dd MMM yyyy HH:mm", culture)@(string.IsNullOrEmpty(Model.CreatedBy) ? "" : $" by {Model.CreatedBy}")</dd>
+            </div>
+            <div class="col-12 col-lg-6 cims-detail-item">
+                <dt>Updated</dt>
+                <dd>@(Model.UpdatedAt?.ToString("dd MMM yyyy HH:mm", culture) ?? "-")@(string.IsNullOrEmpty(Model.UpdatedBy) ? "" : $" by {Model.UpdatedBy}")</dd>
+            </div>
+        </dl>
+    </div>
+</div>

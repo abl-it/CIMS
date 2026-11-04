@@ -42,6 +42,10 @@ builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<ILocationService, LocationService>();
+builder.Services.AddScoped<IAttachmentTypeService, AttachmentTypeService>();
+builder.Services.AddScoped<IAssessmentQuestionService, AssessmentQuestionService>();
+builder.Services.AddScoped<ISurveyTemplateItemService, SurveyTemplateItemService>();
+builder.Services.AddScoped<IAppSettingService, AppSettingService>();
 
 var app = builder.Build();
 

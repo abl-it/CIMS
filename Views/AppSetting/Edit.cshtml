@@ -1,0 +1,75 @@
+@model AppSettingFormViewModel
+@{
+    ViewData["Title"] = "Edit Setting";
+    ViewData["ContentWidth"] = "narrow";
+    // URL list asal (filter Company); null = list tanpa filter.
+    var returnUrl = ViewData["ReturnUrl"] as string;
+    var cancelUrl = returnUrl ?? Url.Action("Index");
+    var culture = System.Globalization.CultureInfo.InvariantCulture;
+    // Keyboard angka di mobile; validasi tipe dan rentang tetap di server (SP).
+    var inputType = Model.ValueType is "INT" or "DECIMAL" ? "number" : "text";
+    var step = Model.ValueType == "DECIMAL" ? "0.01" : "1";
+}
+
+<div class="cims-page-header">
+    <h1 class="h3 mb-0">Edit Setting</h1>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <dl class="row setting-detail">
+            <div class="col-12 cims-detail-item">
+                <dt>Setting</dt>
+                <dd>@Model.Label</dd>
+            </div>
+            <div class="col-12 cims-detail-item">
+                <dt>Description</dt>
+                <dd>@(string.IsNullOrEmpty(Model.Description) ? "-" : Model.Description)</dd>
+            </div>
+            <div class="col-12 col-lg-6 cims-detail-item">
+                <dt>Company</dt>
+                <dd>@Model.CompanyLabel</dd>
+            </div>
+            <div class="col-12 col-lg-6 cims-detail-item">
+                <dt>Updated</dt>
+                <dd>@(Model.UpdatedAt?.ToString("dd MMM yyyy HH:mm", culture) ?? "-")@(string.IsNullOrEmpty(Model.UpdatedBy) ? "" : $" by {Model.UpdatedBy}")</dd>
+            </div>
+        </dl>
+
+        <form id="setting-form" asp-action="Edit" method="post" novalidate data-dirty-guard>
+            <input type="hidden" asp-for="CoCode" />
+            <input type="hidden" asp-for="SettingKey" />
+            @if (returnUrl != null)
+            {
+                <input type="hidden" name="returnUrl" value="@returnUrl" />
+            }
+
+            <div class="row g-3">
+                <div class="col-12 col-md-6">
+                    <label asp-for="SettingValue" class="form-label"></label>
+                    <div class="input-group">
+                        <input asp-for="SettingValue" type="@inputType" step="@(inputType == "number" ? step : null)"
+                               class="form-control" autocomplete="off" />
+                        @if (!string.IsNullOrEmpty(Model.Unit))
+                        {
+                            <span class="input-group-text">@Model.Unit</span>
+                        }
+                    </div>
+                    <span asp-validation-for="SettingValue" class="text-danger"></span>
+                </div>
+                <div class="col-12">
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="@cancelUrl" class="btn btn-outline-secondary btn-lg"
+                           data-confirm="Unsaved changes will be lost." data-confirm-title="Discard changes?"
+                           data-confirm-ok="Yes, discard" data-confirm-danger="true" data-confirm-if-dirty="#setting-form">Cancel</a>
+                        <button type="submit" class="btn btn-primary btn-lg">Save Changes</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

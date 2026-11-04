@@ -41,3 +41,5 @@ Pendamping `docs/PRD.md`.
 | 2026-11-03 | Periode Preparation project in-house: dari selesainya management approval sampai tanggal mulai project. Tidak ada asumsi tersisa | BR-15 |
 | 2026-11-03 | Hari libur mingguan hanya Minggu; Sabtu adalah hari kerja (ABL dan NKM) | CF-07, MD-11, BR-64 |
 | 2026-11-03 | Role `plan`, `spv` setara `adm` (boleh membuat request); `emp` hanya lihat; lingkup data ketiganya = `adm` (ABRV + Company) | RL-10..RL-12, BR-01, BR-27, 5.2, 5.4 |
+| 2026-11-04 | Tanggal libur = gabungan `home..APP_Holidays` (portal, semua Company) + libur tambahan per Company (`WorkCalendarHoliday`) | CF-07, MD-11, BR-64 |
+| 2026-11-04 | Halaman Settings (administrator saja): ubah nilai 5 key AppSetting (batas Emergency, ambang jadwal/biaya); key dan override tetap via SQL | BR-38, CF-02, CF-08 |

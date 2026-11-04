@@ -135,6 +135,8 @@ GO
 
 /* ---------------------------------------------------------------------
    4b. TABLE dbo.WorkCalendarHoliday  (MD-11, CF-07)  tanpa seed
+       Libur TAMBAHAN per Company. Libur umum diambil dari home..APP_Holidays
+       (milik portal, berlaku semua Company); keduanya digabung di fungsi hari kerja.
    --------------------------------------------------------------------- */
 IF OBJECT_ID(N'dbo.WorkCalendarHoliday', N'U') IS NULL
 BEGIN
@@ -206,11 +208,11 @@ GO
 -- 5d. AppSetting (CoCode '*')
 MERGE dbo.AppSetting AS t
 USING (VALUES
-        ('*', 'EMERGENCY_FOLLOWUP_WORKDAYS', N'3',   'INT',     N'Batas approval susulan Emergency, hari kerja (BR-65)'),
-        ('*', 'SCHEDULE_ONTRACK_MIN_DEV',    N'-5',  'DECIMAL', N'Deviasi progress minimum On Track, poin % (BR-68)'),
-        ('*', 'SCHEDULE_SLIGHT_MIN_DEV',     N'-15', 'DECIMAL', N'Deviasi minimum Slightly Delay; di bawahnya Delay (BR-68)'),
-        ('*', 'COST_ONTRACK_MAX_PCT',        N'100', 'DECIMAL', N'Rasio actual/estimasi maksimum On Track (BR-69)'),
-        ('*', 'COST_ATRISK_MAX_PCT',         N'110', 'DECIMAL', N'Rasio maksimum At Risk; di atasnya Over Budget (BR-69)')
+        ('*', 'EMERGENCY_FOLLOWUP_WORKDAYS', N'3',   'INT',     N'Emergency follow-up approval limit, working days'),
+        ('*', 'SCHEDULE_ONTRACK_MIN_DEV',    N'-5',  'DECIMAL', N'Minimum progress deviation for On Track, % points'),
+        ('*', 'SCHEDULE_SLIGHT_MIN_DEV',     N'-15', 'DECIMAL', N'Minimum deviation for Slightly Delay; below it is Delay, % points'),
+        ('*', 'COST_ONTRACK_MAX_PCT',        N'100', 'DECIMAL', N'Maximum actual/estimate ratio for On Track, %'),
+        ('*', 'COST_ATRISK_MAX_PCT',         N'110', 'DECIMAL', N'Maximum ratio for At Risk; above it is Over Budget, %')
       ) AS s (CoCode, SettingKey, SettingValue, ValueType, Description)
    ON t.CoCode = s.CoCode AND t.SettingKey = s.SettingKey
 WHEN NOT MATCHED BY TARGET THEN
@@ -245,6 +247,10 @@ BEGIN
     IF EXISTS (SELECT 1 FROM dbo.WorkCalendarWeekend WHERE CoCode = @CoCode AND IsoDayOfWeek = @Iso)
         RETURN 0;
     IF EXISTS (SELECT 1 FROM dbo.WorkCalendarHoliday WHERE CoCode = @CoCode AND HolidayDate = @Date)
+        RETURN 0;
+    -- Libur portal (semua Company); HolidayDate DATETIME -> bandingkan per rentang hari
+    IF EXISTS (SELECT 1 FROM home..APP_Holidays
+               WHERE  HolidayDate >= @Date AND HolidayDate < DATEADD(DAY, 1, @Date))
         RETURN 0;
 
     RETURN 1;
@@ -285,15 +291,24 @@ BEGIN
         WHERE  w.CoCode = @CoCode
     );
 
+    -- Tanggal libur = gabungan (UNION, tanpa duplikat) libur portal home..APP_Holidays (semua Company)
+    -- dan libur tambahan per Company dbo.WorkCalendarHoliday; yang jatuh di hari libur mingguan tidak dihitung lagi.
     DECLARE @Holiday INT =
     (
         SELECT COUNT(*)
-        FROM   dbo.WorkCalendarHoliday h
-        WHERE  h.CoCode = @CoCode
-          AND  h.HolidayDate > @F AND h.HolidayDate <= @T
-          AND  NOT EXISTS (SELECT 1
+        FROM   (
+                   SELECT CAST(p.HolidayDate AS DATE) AS HolidayDate
+                   FROM   home..APP_Holidays p
+                   WHERE  p.HolidayDate >= DATEADD(DAY, 1, @F) AND p.HolidayDate < DATEADD(DAY, 1, @T)
+                   UNION
+                   SELECT c.HolidayDate
+                   FROM   dbo.WorkCalendarHoliday c
+                   WHERE  c.CoCode = @CoCode
+                     AND  c.HolidayDate > @F AND c.HolidayDate <= @T
+               ) h
+        WHERE  NOT EXISTS (SELECT 1
                            FROM   dbo.WorkCalendarWeekend w
-                           WHERE  w.CoCode = h.CoCode
+                           WHERE  w.CoCode = @CoCode
                              AND  w.IsoDayOfWeek = (DATEDIFF(DAY, '19000101', h.HolidayDate) % 7) + 1)
     );
 
@@ -389,6 +404,8 @@ GO
    EXEC dbo.usp_AppSetting_Get 'ABL', 'TIDAK_ADA';   -- 0 baris
 
    -- 7) Jumat 2026-11-06 -> Selasa 2026-11-10 = 3 (Sabtu, Senin, Selasa; Minggu libur)
+   --    Hasil berkurang bila home..APP_Holidays berisi tanggal 07/09/10-11-2026; cek dulu:
+   SELECT * FROM home..APP_Holidays WHERE HolidayDate >= '2026-11-07' AND HolidayDate < '2026-11-11';
    SELECT dbo.fn_WorkingDaysBetween('ABL', '2026-11-06', '2026-11-10') AS Hasil;   -- 3
    INSERT dbo.WorkCalendarHoliday (CoCode, HolidayDate, Description) VALUES ('ABL', '2026-11-09', N'Uji');
    SELECT dbo.fn_WorkingDaysBetween('ABL', '2026-11-06', '2026-11-10') AS Hasil;   -- 2
@@ -409,4 +426,15 @@ GO
    --   (jalankan ulang Config.sql)
    EXEC dbo.usp_AppSetting_Get 'ABL', 'EMERGENCY_FOLLOWUP_WORKDAYS';   -- masih 5
    UPDATE dbo.AppSetting SET SettingValue = N'3' WHERE CoCode = '*' AND SettingKey = 'EMERGENCY_FOLLOWUP_WORKDAYS';   -- kembalikan
+
+   -- 10) Libur portal (home..APP_Holidays, semua Company) + gabungan tanpa duplikat
+   --     Ambil satu tanggal libur portal di hari kerja (Senin-Sabtu), mis. @H:
+   DECLARE @H DATE = (SELECT TOP (1) CAST(HolidayDate AS DATE) FROM home..APP_Holidays
+                      WHERE (DATEDIFF(DAY, '19000101', HolidayDate) % 7) + 1 <> 7 ORDER BY HolidayDate DESC);
+   SELECT @H AS LiburPortal,
+          dbo.fn_IsWorkingDay('ABL', @H) AS ABL, dbo.fn_IsWorkingDay('NKM', @H) AS NKM;          -- 0, 0
+   SELECT dbo.fn_WorkingDaysBetween('ABL', DATEADD(DAY, -1, @H), @H) AS Hasil;                     -- 0
+   INSERT dbo.WorkCalendarHoliday (CoCode, HolidayDate, Description) VALUES ('ABL', @H, N'Duplicate test');
+   SELECT dbo.fn_WorkingDaysBetween('ABL', DATEADD(DAY, -1, @H), @H) AS Hasil;                     -- tetap 0 (tidak dobel)
+   DELETE dbo.WorkCalendarHoliday WHERE CoCode = 'ABL' AND HolidayDate = @H;
    ===================================================================== */

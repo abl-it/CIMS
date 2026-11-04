@@ -157,7 +157,7 @@ Rantai approval BAPP juga **alur default** di tabel workflow (3.9). MO tidak iku
 | BR-24 | **Satu ABRV = satu Kabag.** Kabag yang berwenang = pemegang role `kabag` pada ABRV (dan Company) yang sama dengan departemen requester. Contoh: QC C500 dan D500 di-approve Kabag QC yang sama; berlaku juga ENG (C300/D300), UTL (C400/D400), MO (C600/D600), WH-LOG (A400/B200). Bila ternyata ada lebih dari satu, yang approve pertama berlaku. | Keputusan |
 | BR-25 | Emergency maintenance dibuat CIVIL atas nama departemen peminta dan boleh dieksekusi sebelum approval; approval Kabag dan GM wajib menyusul dalam **3 hari kerja** (CF-02). | Keputusan |
 | BR-26 | Preventive maintenance dibuat manual oleh CIVIL sebagai work order tanpa approval (MVP); jadwal berulang di fase berikutnya. | Keputusan |
-| BR-64 | Batas waktu berbasis **hari kerja** dihitung dengan mengecualikan hari libur mingguan dan tanggal libur dari tabel kalender (MD-11), per Company. | Keputusan |
+| BR-64 | Batas waktu berbasis **hari kerja** dihitung dengan mengecualikan hari libur mingguan dan tanggal libur (gabungan libur portal `home..APP_Holidays` untuk semua Company dan libur tambahan per Company di tabel kalender MD-11). | Keputusan |
 | BR-50 | Request dari departemen Mill wajib disetujui MO setelah Kabag dan sebelum CIVIL. MO dapat Approve, Revise (ke adm), atau Reject. | Keputusan |
 | BR-51 | Departemen Mill dan departemen yang menjadi lingkup MO disimpan di tabel grup departemen (bukan hardcode), sehingga dapat diubah saat struktur organisasi berubah. | Keputusan (tabel = sesuai prinsip workflow dinamis) |
 
@@ -195,7 +195,7 @@ ST-07 tidak dipakai (digabung ke ST-06 sejak v0.6).
 | ID | Kunci | Isi | Nilai awal |
 |---|---|---|---|
 | CF-02 | Batas approval susulan Emergency | `dbo.AppSetting` (nilai + satuan) | 3 hari kerja (Keputusan, BR-65) |
-| CF-07 | Hari libur mingguan dan tanggal libur | Tabel kalender kerja MD-11 (per Company) | Minggu (Sabtu hari kerja) + libur nasional |
+| CF-07 | Hari libur mingguan dan tanggal libur | Libur mingguan: tabel MD-11 (per Company). Tanggal libur: `home..APP_Holidays` (portal, semua Company) + libur tambahan per Company (MD-11) | Minggu (Sabtu hari kerja) + libur nasional |
 | CF-03 | Format dan ukuran lampiran | Tabel jenis lampiran (6.5) | Lihat 6.5 (Keputusan) |
 | CF-04 | Path penyimpanan lampiran | `appsettings.json`: `FileStorage:RealizationAttachmentsPath` = `D:\APP_DATA\CIMSAttachments` | Keputusan |
 | CF-05 | Grup departemen (Mill, lingkup MO) | Tabel grup departemen (3.9) | Lihat 3.9 |
@@ -247,7 +247,7 @@ Catatan: di NKM tidak ada langkah MO dan GM; Director meng-approve semua kategor
 | ID | Aturan | Status |
 |---|---|---|
 | BR-37 | Saat request di-Submit (dan saat BAPP diterbitkan), langkah approval yang berlaku di-snapshot ke request. Perubahan tabel workflow/grup hanya berlaku untuk request/BAPP baru. | Keputusan |
-| BR-38 | Perubahan tabel workflow dan grup departemen hanya oleh `administrator`, tercatat (oleh, waktu). MVP lewat script SQL; halaman pengaturan di fase berikutnya. | Keputusan |
+| BR-38 | Perubahan tabel workflow dan grup departemen hanya oleh `administrator`, tercatat (oleh, waktu). MVP lewat script SQL; halaman pengaturan di fase berikutnya. **Pengecualian:** nilai `AppSetting` yang sudah ada (CF-02, CF-08) diubah lewat halaman Settings oleh `administrator`; menambah key/override per Company tetap lewat SQL. | Keputusan |
 | BR-39 | Satu langkah = satu role. Approve oleh siapa pun pemegang role tersebut dalam lingkupnya; yang pertama berlaku. | Keputusan |
 | BR-52 | Langkah yang kondisinya tidak terpenuhi (mis. MO untuk departemen non-Mill, Director untuk non-CAPEX) dilewati otomatis dan tidak dimasukkan ke snapshot. | Keputusan |
 | BR-53 | Jika Civil mengubah kategori setelah snapshot (mis. OPEX → CAPEX), langkah management approval disusun ulang dari tabel saat request dikirim ke management (bukan saat Submit), agar Director ikut bila menjadi CAPEX. | Keputusan (direkomendasikan) |
@@ -324,7 +324,8 @@ Kolom A mengikuti **default** tabel workflow (3.9); bila tabel diubah, hak appro
 | Survei: isi | - | C (D) | R (G) | R | - | - | R | R | R |
 | Dashboard dan Report | R (D) | R (D) | R (G) | R | - | R | R | R | R |
 | Master Data | - | - | - | C | - | - | R | R | C |
-| Konfigurasi (workflow, grup dept, AppSetting, template) | - | - | - | - | - | - | - | - | via SQL |
+| Konfigurasi (workflow, grup dept, template) | - | - | - | - | - | - | - | - | via SQL |
+| Settings: nilai AppSetting (CF-02, CF-08) | - | - | - | - | - | - | - | - | C |
 
 ### 5.3 Aturan akses
 
@@ -409,7 +410,7 @@ Background · Objective · Impact to operational · Risk if not approved · Expe
 | MD-08 | Pertanyaan Environment Assessment | Tabel CIMS | administrator | 12 pertanyaan default | Keputusan |
 | MD-09 | Jenis lampiran (format, ukuran) | Tabel CIMS | administrator | Lihat 6.4 | Keputusan |
 | MD-10 | Grup departemen (MILL, lingkup MO) | Tabel CIMS, mereferensikan `APP_Departments.DepartmentID` | administrator | Lihat 3.9 | Keputusan |
-| MD-11 | Kalender kerja: hari libur mingguan dan tanggal libur (per Company) | Tabel CIMS | administrator | Minggu (Sabtu hari kerja); tanggal libur diisi per tahun | Keputusan |
+| MD-11 | Kalender kerja: hari libur mingguan dan libur tambahan (per Company) | Tabel CIMS; libur umum dari `home..APP_Holidays` (portal) | administrator (libur umum: pengelola portal) | Minggu (Sabtu hari kerja); libur umum dari portal | Keputusan |
 
 Modul **Customer** tetap disimpan sebagai acuan pola (dirujuk CLAUDE.md), disembunyikan dari menu setelah master pertama CIMS selesai. (Keputusan)
 

@@ -44,7 +44,11 @@
         Leaf("Report", "bi-file-earmark-text", "Report", "Index", false),
         Group("Master Data", "bi-database",
             Leaf("Location", null, "Location", "Index", true, CimsRoles.Administrator, CimsRoles.Civil),
-            Leaf("Customer", null, "Customer", "Index", true, CimsRoles.Administrator, CimsRoles.Civil))
+            Leaf("Attachment Type", null, "AttachmentType", "Index", true, CimsRoles.Administrator, CimsRoles.Civil),
+            Leaf("Environment Assessment", null, "AssessmentQuestion", "Index", true, CimsRoles.Administrator, CimsRoles.Civil),
+            Leaf("Survey Template", null, "SurveyTemplateItem", "Index", true, CimsRoles.Administrator, CimsRoles.Civil),
+            Leaf("Customer", null, "Customer", "Index", true, CimsRoles.Administrator, CimsRoles.Civil)),
+        Leaf("Settings", "bi-gear", "AppSetting", "Index", true, CimsRoles.Administrator)
     };
 
     // Sembunyikan item yang tidak berhak; grup tanpa anak yang tersisa ikut disembunyikan.

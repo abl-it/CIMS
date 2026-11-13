@@ -1,5 +1,6 @@
 using CIMS.Filters;
 using CIMS.Models;
+using CIMS.Services;
 using Microsoft.AspNetCore.Mvc;
 using System.Diagnostics;
 
@@ -9,17 +10,20 @@ namespace CIMS.Controllers
     {
         private readonly ILogger<HomeController> _logger;
         private readonly IConfiguration _configuration;
+        private readonly IUserTaskService _taskService;
 
-        public HomeController(ILogger<HomeController> logger, IConfiguration configuration)
+        public HomeController(ILogger<HomeController> logger, IConfiguration configuration, IUserTaskService taskService)
         {
             _logger = logger;
             _configuration = configuration;
+            _taskService = taskService;
         }
 
+        /// <summary>Dashboard: shortcut Tugas Saya per jenis (FR-01).</summary>
         [AllowAllRoles]
-        public IActionResult Index()
+        public async Task<IActionResult> Index(CancellationToken ct)
         {
-            return View();
+            return View(new HomeIndexViewModel { TaskSummary = await _taskService.GetSummaryAsync(ct) });
         }
 
         [AllowAllRoles]

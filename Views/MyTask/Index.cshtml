@@ -1,0 +1,111 @@
+@model UserTaskListViewModel
+@{
+    ViewData["Title"] = "My Tasks";
+    var culture = System.Globalization.CultureInfo.InvariantCulture;
+    // URL halaman ini (dengan filter) untuk tombol Back di Details
+    var currentUrl = Context.Request.Path + Context.Request.QueryString;
+
+    int CountOf(string type) => Model.Summary.FirstOrDefault(s => s.TaskType == type)?.TaskCount ?? 0;
+    // Filter: jenis yang punya tugas, ditambah jenis yang sedang dipilih walau sudah 0
+    var filterTypes = UserTaskType.All.Where(t => CountOf(t) > 0 || t == Model.Type).ToList();
+
+    string TaskDetail(UserTaskItem t) => t.TaskType == UserTaskType.Approval && !string.IsNullOrEmpty(t.RoleCode)
+        ? $"{(string.IsNullOrEmpty(t.RoleName) ? t.RoleCode : t.RoleName)} · step {t.StepOrder}"
+        : RequestStatus.Label(t.Status);
+}
+
+<div class="cims-page-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <h1 class="h3 mb-0">My Tasks</h1>
+    <span class="text-muted">@Model.Total pending</span>
+</div>
+
+@if (Model.Total > 0 || Model.Type != null)
+{
+    <nav class="mytask-filter mb-3" aria-label="Filter tasks by type">
+        <ul class="nav nav-pills flex-wrap gap-1">
+            <li class="nav-item">
+                <a class="nav-link @(Model.Type == null ? "active" : "")" asp-action="Index"
+                   aria-current="@(Model.Type == null ? "page" : null)">All <span class="badge text-bg-light">@Model.Total</span></a>
+            </li>
+            @foreach (var t in filterTypes)
+            {
+                var active = Model.Type == t;
+                <li class="nav-item">
+                    <a class="nav-link @(active ? "active" : "")" asp-action="Index" asp-route-type="@t"
+                       aria-current="@(active ? "page" : null)">
+                        <i class="bi @UserTaskType.Icon(t) me-1" aria-hidden="true"></i>@UserTaskType.Label(t)
+                        <span class="badge text-bg-light">@CountOf(t)</span>
+                    </a>
+                </li>
+            }
+        </ul>
+    </nav>
+}
+
+@if (!Model.Items.Any())
+{
+    <div class="alert alert-info" role="status">
+        @(Model.Type == null ? "You have no pending tasks." : "No pending tasks of this type.")
+    </div>
+}
+else
+{
+    @* Desktop / tablet: tabel *@
+    <div class="d-none d-md-block">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th class="cims-col-fit">Task</th>
+                        <th class="cims-col-fit">Request No.</th>
+                        <th>Title</th>
+                        <th class="d-none d-lg-table-cell cims-col-fit">Requester</th>
+                        <th class="cims-col-fit">Waiting since</th>
+                        <th class="cims-col-fit text-end">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var t in Model.Items)
+                    {
+                        <tr>
+                            <td class="cims-col-fit">
+                                <div><i class="bi @UserTaskType.Icon(t.TaskType) me-1" aria-hidden="true"></i>@UserTaskType.Label(t.TaskType)</div>
+                                <div class="text-muted small">@TaskDetail(t)</div>
+                            </td>
+                            <td class="cims-col-fit">@(t.RequestNo ?? "-")</td>
+                            <td>
+                                <div class="request-text">@t.Title</div>
+                                <div class="text-muted small">@t.Category · @t.ABRV @t.CoCode</div>
+                            </td>
+                            <td class="d-none d-lg-table-cell cims-col-fit">@(t.RequesterName ?? "-")</td>
+                            <td class="cims-col-fit">@(t.TaskSince?.ToString("dd MMM yyyy HH:mm", culture) ?? "-")</td>
+                            <td class="cims-col-fit text-end">
+                                <a asp-controller="Request" asp-action="Details" asp-route-id="@t.RequestId" asp-route-returnUrl="@currentUrl"
+                                   class="btn btn-outline-primary" aria-label="@UserTaskType.ActionText(t.TaskType) @t.Title">@UserTaskType.ActionText(t.TaskType)</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @* Mobile: card list *@
+    <div class="d-md-none">
+        @foreach (var t in Model.Items)
+        {
+            <div class="card request-card mb-2">
+                <div class="card-body">
+                    <div class="text-muted small"><i class="bi @UserTaskType.Icon(t.TaskType) me-1" aria-hidden="true"></i>@UserTaskType.Label(t.TaskType) · @TaskDetail(t)</div>
+                    <div class="fw-semibold request-text">@t.Title</div>
+                    <div class="text-muted small">@(t.RequestNo ?? "No number yet") · @t.Category · @t.ABRV @t.CoCode</div>
+                    <div class="text-muted small">Waiting since @(t.TaskSince?.ToString("dd MMM yyyy HH:mm", culture) ?? "-")</div>
+                    <div class="d-grid mt-2">
+                        <a asp-controller="Request" asp-action="Details" asp-route-id="@t.RequestId" asp-route-returnUrl="@currentUrl"
+                           class="btn btn-outline-primary">@UserTaskType.ActionText(t.TaskType)</a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}

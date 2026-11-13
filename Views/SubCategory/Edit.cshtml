@@ -1,0 +1,19 @@
+@model SubCategoryFormViewModel
+@{
+    ViewData["Title"] = "Edit Sub-category";
+    ViewData["ContentWidth"] = "narrow";
+}
+
+<div class="cims-page-header">
+    <h1 class="h3 mb-0">Edit Sub-category</h1>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <partial name="_SubCategoryForm" model="Model" />
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -46,6 +46,12 @@ builder.Services.AddScoped<IAttachmentTypeService, AttachmentTypeService>();
 builder.Services.AddScoped<IAssessmentQuestionService, AssessmentQuestionService>();
 builder.Services.AddScoped<ISurveyTemplateItemService, SurveyTemplateItemService>();
 builder.Services.AddScoped<IAppSettingService, AppSettingService>();
+builder.Services.AddScoped<ISubCategoryService, SubCategoryService>();
+builder.Services.Configure<FileStorageOptions>(builder.Configuration.GetSection(FileStorageOptions.SectionName));
+builder.Services.AddScoped<IRequestLookupService, RequestLookupService>();
+builder.Services.AddScoped<IRequestService, RequestService>();
+builder.Services.AddScoped<IRequestAttachmentService, RequestAttachmentService>();
+builder.Services.AddScoped<IUserTaskService, UserTaskService>();
 
 var app = builder.Build();
 
@@ -62,6 +68,16 @@ if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Home/Error");
 }
 app.UseStaticFiles();
+
+// Kultur tetap en-US (UI Inggris): angka desimal dari form (input type=number, titik desimal) terbaca sama
+// di semua server, tidak bergantung pada regional setting Windows (mis. id-ID memakai koma desimal).
+var appCulture = new System.Globalization.CultureInfo("en-US");
+app.UseRequestLocalization(new RequestLocalizationOptions
+{
+    DefaultRequestCulture = new Microsoft.AspNetCore.Localization.RequestCulture(appCulture),
+    SupportedCultures = new[] { appCulture },
+    SupportedUICultures = new[] { appCulture }
+});
 
 app.UseRouting();
 

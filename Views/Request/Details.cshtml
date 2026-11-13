@@ -1,0 +1,428 @@
+@model RequestDetailsViewModel
+@{
+    var r = Model.Request;
+    ViewData["Title"] = "Request Details";
+    ViewData["ContentWidth"] = "narrow";
+    // URL list asal (filter, sort, halaman); null = list tanpa filter.
+    var returnUrl = ViewData["ReturnUrl"] as string;
+    var backUrl = returnUrl ?? Url.Action("Index");
+    var culture = System.Globalization.CultureInfo.InvariantCulture;
+
+    string Text(string? value) => string.IsNullOrWhiteSpace(value) ? "-" : value;
+    string Size(long bytes) => bytes >= 1048576
+        ? (bytes / 1048576d).ToString("0.0", culture) + " MB"
+        : Math.Max(1, bytes / 1024).ToString(culture) + " KB";
+
+    bool IsMandatory(AttachmentType t) => r.Category switch
+    {
+        "CAPEX" => t.IsMandatoryCapex,
+        "OPEX" => t.IsMandatoryOpex,
+        "LVE" => t.IsMandatoryLve,
+        _ => false
+    };
+    var missingMandatory = Model.AttachmentTypes
+        .Where(t => IsMandatory(t) && !Model.Attachments.Any(a => a.AttachmentTypeId == t.Id))
+        .Select(t => t.Name)
+        .ToList();
+}
+
+<div class="cims-page-header d-grid d-md-flex justify-content-md-between align-items-md-center gap-2">
+    <div class="d-flex flex-wrap align-items-center gap-2">
+        <h1 class="h3 mb-0">Request Details</h1>
+        <span class="badge @RequestStatus.BadgeClass(r.Status)">@RequestStatus.Label(r.Status)</span>
+    </div>
+    <div class="d-grid d-md-flex gap-2">
+        <a href="@backUrl" class="btn btn-outline-secondary btn-lg"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Back</a>
+        @if (Model.CanEdit)
+        {
+            <a asp-action="Edit" asp-route-id="@r.Id" asp-route-returnUrl="@returnUrl" class="btn btn-outline-primary btn-lg"><i class="bi bi-pencil-square me-1" aria-hidden="true"></i>Edit</a>
+            @* Submit / Resubmit (FR-04, BR-07); kelengkapan dicek di SP *@
+            <form asp-action="Submit" method="post" class="d-grid"
+                  data-confirm="@(r.Status == RequestStatus.Returned ? "Resubmit this request for approval?" : "Submit this request for approval? It cannot be edited while waiting for approval.")"
+                  data-confirm-title="@(r.Status == RequestStatus.Returned ? "Resubmit Request" : "Submit Request")"
+                  data-confirm-ok="Submit">
+                <input type="hidden" name="id" value="@r.Id" />
+                <input type="hidden" name="returnUrl" value="@returnUrl" />
+                <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-send me-1" aria-hidden="true"></i>@(r.Status == RequestStatus.Returned ? "Resubmit" : "Submit")</button>
+            </form>
+        }
+    </div>
+</div>
+
+@* Approval langkah aktif (T2-3): hanya untuk user yang berhak (fn_User_ActionableSteps); validasi akhir di SP *@
+@if (Model.ActionableStep is { } act)
+{
+    <div class="card mb-3 border-info request-approval">
+        <div class="card-header fw-semibold">Your Approval</div>
+        <div class="card-body">
+            <p class="mb-3">
+                @act.PointLabel · step @act.StepOrder: <span class="fw-semibold">@(string.IsNullOrEmpty(act.RoleName) ? act.RoleCode : act.RoleName)</span>
+                @if (act.StartedAt.HasValue)
+                {
+                    <span class="text-muted small">(waiting since @act.StartedAt.Value.ToString("dd MMM yyyy HH:mm", culture))</span>
+                }
+            </p>
+            <form asp-action="ApprovalAct" method="post" id="approvalForm">
+                <input type="hidden" name="id" value="@r.Id" />
+                <input type="hidden" name="stepId" value="@act.Id" />
+                <input type="hidden" name="returnUrl" value="@returnUrl" />
+                <div class="mb-3">
+                    <label for="approvalRemarks" class="form-label">Remarks</label>
+                    <textarea id="approvalRemarks" name="remarks" class="form-control" rows="3" maxlength="1000"
+                              aria-describedby="approvalRemarksHelp approvalRemarksError"></textarea>
+                    <div id="approvalRemarksHelp" class="form-text">Optional for approval; required for revision or rejection.</div>
+                    <div id="approvalRemarksError" class="invalid-feedback">Remarks are required to revise or reject.</div>
+                </div>
+                <div class="d-grid d-md-flex justify-content-md-end gap-2">
+                    @if (act.AllowReject)
+                    {
+                        <button type="submit" name="approvalAction" value="@ApprovalAction.Reject" class="btn btn-outline-danger btn-lg"
+                                data-requires-remarks="true"
+                                data-confirm="Reject this request? This is final." data-confirm-title="Reject Request"
+                                data-confirm-ok="Reject" data-confirm-danger="true">
+                            <i class="bi bi-x-octagon me-1" aria-hidden="true"></i>Reject
+                        </button>
+                    }
+                    @if (act.ReviseTo == "REQUESTER")
+                    {
+                        <button type="submit" name="approvalAction" value="@ApprovalAction.Revise" class="btn btn-outline-warning btn-lg"
+                                data-requires-remarks="true"
+                                data-confirm="Return this request to the requester for revision?" data-confirm-title="Revise Request"
+                                data-confirm-ok="Revise">
+                            <i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Revise
+                        </button>
+                    }
+                    <button type="submit" name="approvalAction" value="@ApprovalAction.Approve" class="btn btn-success btn-lg"
+                            data-confirm="Approve this request?" data-confirm-title="Approve Request" data-confirm-ok="Approve">
+                        <i class="bi bi-check2-circle me-1" aria-hidden="true"></i>Approve
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+@* (i) Preliminary Data *@
+<div class="card mb-3">
+    <div class="card-header fw-semibold">Preliminary Data</div>
+    <div class="card-body">
+        <dl class="row mb-0 request-detail">
+            <div class="col-12 cims-detail-item">
+                <dt>Request title</dt>
+                <dd>@r.Title</dd>
+            </div>
+            <div class="col-12 col-md-6 cims-detail-item">
+                <dt>Request number</dt>
+                <dd>@(r.RequestNo ?? "Generated on submit")</dd>
+            </div>
+            <div class="col-12 col-md-6 cims-detail-item">
+                <dt>Company</dt>
+                <dd>@r.CoCode</dd>
+            </div>
+            <div class="col-12 col-md-6 cims-detail-item">
+                <dt>Requesting department</dt>
+                <dd>@Text(r.DeptName)@(string.IsNullOrEmpty(r.ABRV) ? "" : $" ({r.ABRV})")</dd>
+            </div>
+            <div class="col-12 col-md-6 cims-detail-item">
+                <dt>Requester</dt>
+                <dd>@Text(r.RequesterName)</dd>
+            </div>
+            <div class="col-12 col-md-6 cims-detail-item">
+                <dt>Budget classification</dt>
+                <dd>@r.Category@(string.IsNullOrEmpty(r.SubCategoryName) ? "" : $" · {r.SubCategoryName}")</dd>
+            </div>
+            <div class="col-12 col-md-6 cims-detail-item">
+                <dt>Budget remarks</dt>
+                <dd>@Text(ProjectRequest.BudgetRemarksLabel(r.BudgetRemarks))</dd>
+            </div>
+            <div class="col-12 col-md-6 cims-detail-item">
+                <dt>PIC of project</dt>
+                <dd>@Text(r.PicName)@(string.IsNullOrEmpty(r.PicEmployeeCode) ? "" : $" ({r.PicEmployeeCode})")</dd>
+            </div>
+            <div class="col-12 col-md-6 cims-detail-item">
+                <dt>Cost center</dt>
+                <dd>@Text(r.CostCenterName)</dd>
+            </div>
+            <div class="col-12 col-md-6 cims-detail-item">
+                <dt>Location</dt>
+                <dd>@Text(r.LocationName)</dd>
+            </div>
+            <div class="col-12 col-md-6 cims-detail-item">
+                <dt>Target completion</dt>
+                <dd>@(r.TargetCompletionDate?.ToString("dd MMM yyyy", culture) ?? "-")</dd>
+            </div>
+            <div class="col-12 col-md-6 cims-detail-item">
+                <dt>Section area</dt>
+                <dd>
+                    @if (r.AreaSize.HasValue)
+                    {
+                        @($"{r.AreaLength?.ToString("0.##", culture)} × {r.AreaWidth?.ToString("0.##", culture)} m = {r.AreaSize.Value.ToString("#,0.##", culture)} m²")
+                    }
+                    else
+                    {
+                        @("-")
+                    }
+                </dd>
+            </div>
+            <div class="col-12 col-md-6 cims-detail-item">
+                <dt>Budget expectation</dt>
+                <dd>@(r.BudgetExpectation.HasValue ? "IDR " + r.BudgetExpectation.Value.ToString("#,0", culture) : "-")</dd>
+            </div>
+            <div class="col-12 col-md-6 cims-detail-item">
+                <dt>Created</dt>
+                <dd>@r.CreatedAt.ToString("dd MMM yyyy HH:mm", culture)@(string.IsNullOrEmpty(r.CreatedBy) ? "" : $" by {r.CreatedBy}")</dd>
+            </div>
+            <div class="col-12 col-md-6 cims-detail-item">
+                <dt>Updated</dt>
+                <dd>@(r.UpdatedAt?.ToString("dd MMM yyyy HH:mm", culture) ?? "-")@(string.IsNullOrEmpty(r.UpdatedBy) ? "" : $" by {r.UpdatedBy}")</dd>
+            </div>
+        </dl>
+    </div>
+</div>
+
+@* (ii) Business Justification *@
+<div class="card mb-3">
+    <div class="card-header fw-semibold">Business Justification</div>
+    <div class="card-body">
+        <dl class="row mb-0 request-detail">
+            <div class="col-12 cims-detail-item"><dt>Background</dt><dd class="request-multiline">@Text(r.Background)</dd></div>
+            <div class="col-12 cims-detail-item"><dt>Objective</dt><dd class="request-multiline">@Text(r.Objective)</dd></div>
+            <div class="col-12 cims-detail-item"><dt>Impact to operational</dt><dd class="request-multiline">@Text(r.OperationalImpact)</dd></div>
+            <div class="col-12 cims-detail-item"><dt>Risk if not approved</dt><dd class="request-multiline">@Text(r.RiskIfNotApproved)</dd></div>
+            <div class="col-12 cims-detail-item"><dt>Expected benefits</dt><dd class="request-multiline">@Text(r.ExpectedBenefits)</dd></div>
+            <div class="col-12 cims-detail-item"><dt>Alternatives</dt><dd class="request-multiline">@Text(r.Alternatives)</dd></div>
+            <div class="col-12 cims-detail-item"><dt>Special request / note</dt><dd class="request-multiline">@Text(r.SpecialNote)</dd></div>
+            @if (r.Category == "CAPEX")
+            {
+                <div class="col-12 col-md-4 cims-detail-item">
+                    <dt>Expected ROI</dt>
+                    <dd>@(r.ExpectedRoiPercent.HasValue ? r.ExpectedRoiPercent.Value.ToString("0.##", culture) + " %" : "-")</dd>
+                </div>
+                <div class="col-12 col-md-8 cims-detail-item"><dt>ROI explanation</dt><dd class="request-multiline">@Text(r.RoiExplanation)</dd></div>
+            }
+        </dl>
+    </div>
+</div>
+
+@* (iii) Environment Assessment *@
+<div class="card mb-3">
+    <div class="card-header fw-semibold">Environment Assessment</div>
+    <div class="card-body">
+        @if (!Model.Assessment.Any())
+        {
+            <p class="text-muted mb-0">No assessment answers.</p>
+        }
+        else
+        {
+            <ol class="list-unstyled mb-0 request-assessment">
+                @for (var i = 0; i < Model.Assessment.Count; i++)
+                {
+                    var a = Model.Assessment[i];
+                    <li class="request-assessment-item d-flex justify-content-between align-items-start gap-3">
+                        <span class="request-text">@(i + 1). @a.QuestionText</span>
+                        @if (a.Answer == true)
+                        {
+                            <span class="badge text-bg-success">Yes</span>
+                        }
+                        else if (a.Answer == false)
+                        {
+                            <span class="badge text-bg-secondary">No</span>
+                        }
+                        else
+                        {
+                            <span class="badge text-bg-light border">Not answered</span>
+                        }
+                    </li>
+                }
+            </ol>
+        }
+    </div>
+</div>
+
+@* (iv) Additional Information *@
+<div class="card mb-3">
+    <div class="card-header fw-semibold">Additional Information</div>
+    <div class="card-body">
+        <p class="mb-0 request-multiline">@Text(r.AdditionalInfo)</p>
+    </div>
+</div>
+
+@* Lampiran (BR-42..BR-46) *@
+<div class="card mb-3">
+    <div class="card-header fw-semibold">Attachments</div>
+    <div class="card-body">
+        @if (Model.CanEdit && missingMandatory.Count > 0)
+        {
+            <p class="small text-warning-emphasis">Required before submit: @string.Join(", ", missingMandatory).</p>
+        }
+
+        @if (!Model.Attachments.Any())
+        {
+            <p class="text-muted">No attachments.</p>
+        }
+        else
+        {
+            <ul class="list-group mb-3">
+                @foreach (var att in Model.Attachments)
+                {
+                    <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
+                        <div class="request-text">
+                            <div class="text-muted small">@att.AttachmentTypeName</div>
+                            <a asp-action="DownloadAttachment" asp-route-id="@att.Id">@att.OriginalFileName</a>
+                            <div class="text-muted small">@Size(att.FileSizeBytes) · @att.CreatedAt.ToString("dd MMM yyyy HH:mm", culture)@(string.IsNullOrEmpty(att.CreatedBy) ? "" : $" by {att.CreatedBy}")</div>
+                        </div>
+                        @if (Model.CanEdit)
+                        {
+                            <form asp-action="DeactivateAttachment" method="post"
+                                  data-confirm="Remove this attachment?" data-confirm-title="Remove Attachment"
+                                  data-confirm-ok="Remove" data-confirm-danger="true">
+                                <input type="hidden" name="id" value="@r.Id" />
+                                <input type="hidden" name="attachmentId" value="@att.Id" />
+                                <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                <button type="submit" class="btn btn-outline-danger cims-icon-btn" title="Remove" aria-label="Remove @att.OriginalFileName">
+                                    <i class="bi bi-trash" aria-hidden="true"></i>
+                                </button>
+                            </form>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+
+        @if (Model.CanEdit && Model.AttachmentTypes.Any())
+        {
+            <form asp-action="UploadAttachment" method="post" enctype="multipart/form-data" class="row g-2 align-items-end">
+                <input type="hidden" name="id" value="@r.Id" />
+                <input type="hidden" name="returnUrl" value="@returnUrl" />
+                <div class="col-12 col-md-5">
+                    <label for="attachmentTypeId" class="form-label">Attachment type</label>
+                    <select id="attachmentTypeId" name="attachmentTypeId" class="form-select" required>
+                        @foreach (var t in Model.AttachmentTypes)
+                        {
+                            <option value="@t.Id">@t.Name (@t.AllowedExtensions, max @t.MaxSizeMB MB)@(IsMandatory(t) ? " – required" : "")</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-12 col-md-5">
+                    <label for="file" class="form-label">File</label>
+                    <input id="file" name="file" type="file" class="form-control" required />
+                </div>
+                <div class="col-12 col-md-2 d-grid">
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-upload me-1" aria-hidden="true"></i>Upload</button>
+                </div>
+            </form>
+        }
+    </div>
+</div>
+
+@* Langkah approval (snapshot BR-37; ronde terakhir per titik) *@
+<div class="card mb-3">
+    <div class="card-header fw-semibold">Approval Steps</div>
+    <div class="card-body">
+        @if (!Model.ApprovalSteps.Any())
+        {
+            <p class="text-muted mb-0">Approval steps are set when the request is submitted.</p>
+        }
+        else
+        {
+            foreach (var group in Model.ApprovalSteps.GroupBy(s => s.Point))
+            {
+                <h2 class="h6 request-step-point">@group.First().PointLabel</h2>
+                <ol class="list-group list-group-numbered mb-3">
+                    @foreach (var s in group.OrderBy(s => s.StepOrder))
+                    {
+                        <li class="list-group-item d-flex justify-content-between align-items-start gap-2@(s.IsCurrent ? " request-step-current" : "")"
+                            aria-current="@(s.IsCurrent ? "step" : null)">
+                            <div class="ms-2 me-auto request-text">
+                                <div class="fw-semibold">@(string.IsNullOrEmpty(s.RoleName) ? s.RoleCode : s.RoleName)</div>
+                                @if (s.ActedAt.HasValue)
+                                {
+                                    <div class="text-muted small">@s.ActedAt.Value.ToString("dd MMM yyyy HH:mm", culture)@(string.IsNullOrEmpty(s.ActedBy) ? "" : $" by {s.ActedBy}")</div>
+                                }
+                                else if (s.IsCurrent && s.StartedAt.HasValue)
+                                {
+                                    <div class="text-muted small">Waiting since @s.StartedAt.Value.ToString("dd MMM yyyy HH:mm", culture)</div>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(s.Remarks))
+                                {
+                                    <div class="small request-multiline">@s.Remarks</div>
+                                }
+                            </div>
+                            <span class="badge @s.StatusBadgeClass">@s.StatusLabel</span>
+                        </li>
+                    }
+                </ol>
+            }
+        }
+    </div>
+</div>
+
+@* Riwayat aksi (terbaru di atas) *@
+<div class="card mb-3">
+    <div class="card-header fw-semibold"><i class="bi bi-clock-history me-1" aria-hidden="true"></i>Workflow History</div>
+    <div class="card-body">
+        @if (!Model.History.Any())
+        {
+            <p class="text-muted mb-0">No history yet.</p>
+        }
+        else
+        {
+            <ol class="list-unstyled mb-0 request-timeline">
+                @foreach (var h in Model.History)
+                {
+                    <li class="request-timeline-item">
+                        <span class="request-timeline-icon @h.ActionBadgeClass"><i class="bi @h.ActionIcon" aria-hidden="true"></i></span>
+                        @* Satu baris: aksi, status asal -> tujuan, waktu, pelaku; catatan hanya bila ada *@
+                        <div class="d-flex flex-wrap align-items-center gap-1">
+                            <span class="badge @h.ActionBadgeClass"><i class="bi @h.ActionIcon me-1" aria-hidden="true"></i>@h.ActionLabel</span>
+                            @if (!string.IsNullOrEmpty(h.FromStatus))
+                            {
+                                <span class="badge request-status-chip">@RequestStatus.Label(h.FromStatus)</span>
+                            }
+                            @if (!string.IsNullOrEmpty(h.ToStatus))
+                            {
+                                <i class="bi bi-arrow-right text-muted" aria-label="to"></i>
+                                <span class="badge request-status-chip">@RequestStatus.Label(h.ToStatus)</span>
+                            }
+                            <span class="text-muted request-text">
+                                @h.ActionAt.ToString("dd MMM yyyy HH:mm", culture) ·
+                                <span class="fw-semibold text-body">@(string.IsNullOrEmpty(h.ActionByName) ? h.ActionBy : h.ActionByName)</span>
+                            </span>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(h.Remarks))
+                        {
+                            <div class="text-muted request-multiline"><span class="fw-semibold">Remarks:</span> @h.Remarks</div>
+                        }
+                    </li>
+                }
+            </ol>
+        }
+    </div>
+</div>
+
+@* Pembatalan (BR-09): alasan wajib; validasi akhir di SP *@
+@if (Model.CanCancel)
+{
+    <div class="card mb-3 border-danger-subtle">
+        <div class="card-header fw-semibold">Cancel Request</div>
+        <div class="card-body">
+            <form asp-action="Cancel" method="post"
+                  data-confirm="Cancel this request? This cannot be undone." data-confirm-title="Cancel Request"
+                  data-confirm-ok="Cancel Request" data-confirm-danger="true">
+                <input type="hidden" name="id" value="@r.Id" />
+                <input type="hidden" name="returnUrl" value="@returnUrl" />
+                <div class="mb-3">
+                    <label for="reason" class="form-label">Cancellation reason</label>
+                    <textarea id="reason" name="reason" class="form-control" rows="3" maxlength="1000" required></textarea>
+                </div>
+                <div class="d-grid d-md-flex justify-content-md-end">
+                    <button type="submit" class="btn btn-outline-danger btn-lg"><i class="bi bi-x-circle me-1" aria-hidden="true"></i>Cancel Request</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script src="~/js/request-approval.js" asp-append-version="true"></script>
+}

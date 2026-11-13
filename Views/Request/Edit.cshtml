@@ -1,0 +1,17 @@
+@model RequestFormViewModel
+@{
+    ViewData["Title"] = "Edit Request";
+    ViewData["ContentWidth"] = "narrow";
+}
+
+<div class="cims-page-header d-flex flex-wrap align-items-center gap-2">
+    <h1 class="h3 mb-0">Edit Request</h1>
+    <span class="badge @RequestStatus.BadgeClass(Model.Status)">@RequestStatus.Label(Model.Status)</span>
+</div>
+
+<partial name="_RequestForm" model="Model" />
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/request-form.js" asp-append-version="true"></script>
+}

@@ -1,0 +1,12 @@
+@model int
+@* Badge jumlah Tugas Saya di header (FR-02); angka sama dengan halaman My Tasks *@
+@{
+    var label = Model == 1 ? "My Tasks: 1 pending task" : $"My Tasks: {Model} pending tasks";
+}
+<a class="btn app-task-link" asp-controller="MyTask" asp-action="Index" title="My Tasks" aria-label="@label">
+    <i class="bi bi-bell" aria-hidden="true"></i>
+    @if (Model > 0)
+    {
+        <span class="badge rounded-pill text-bg-danger app-task-count" aria-hidden="true">@(Model > 99 ? "99+" : Model.ToString())</span>
+    }
+</a>

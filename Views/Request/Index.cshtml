@@ -1,0 +1,206 @@
+@model RequestListViewModel
+@{
+    ViewData["Title"] = "Request List";
+    var result = Model.Result;
+    var currentUrl = Context.Request.Path + Context.Request.QueryString;
+    var culture = System.Globalization.CultureInfo.InvariantCulture;
+
+    // Route values untuk link sort/paging; semua filter ikut terbawa ("" = semua Company).
+    Dictionary<string, string?> RouteFor(int page, string? sortBy = null, string? sortDir = null)
+    {
+        var d = new Dictionary<string, string?>
+        {
+            ["sortBy"] = sortBy ?? Model.SortBy,
+            ["sortDir"] = sortDir ?? Model.SortDir,
+            ["page"] = page.ToString(),
+            ["pageSize"] = Model.PageSize.ToString()
+        };
+        if (Model.ShowCompanyFilter) d["coCode"] = Model.CoCode ?? string.Empty;
+        if (!string.IsNullOrWhiteSpace(Model.Search)) d["search"] = Model.Search;
+        if (!string.IsNullOrWhiteSpace(Model.Category)) d["category"] = Model.Category;
+        if (!string.IsNullOrWhiteSpace(Model.Status)) d["status"] = Model.Status;
+        return d;
+    }
+
+    Dictionary<string, string?> SortRoute(string column)
+    {
+        var dir = Model.SortBy == column && Model.SortDir == "DESC" ? "ASC" : "DESC";
+        return RouteFor(1, column, dir);
+    }
+
+    string SortMark(string column) =>
+        Model.SortBy == column ? (Model.SortDir == "ASC" ? " ▲" : " ▼") : "";
+
+    var firstItem = result.TotalCount == 0 ? 0 : (result.PageNumber - 1) * result.PageSize + 1;
+    var lastItem = Math.Min(result.PageNumber * result.PageSize, result.TotalCount);
+    var pageStart = Math.Max(1, result.PageNumber - 2);
+    var pageEnd = Math.Min(result.TotalPages, result.PageNumber + 2);
+}
+
+<div class="cims-page-header d-grid d-md-flex justify-content-md-between align-items-md-center gap-2">
+    <h1 class="h3 mb-0">Request List</h1>
+    @if (Model.CanCreate)
+    {
+        <a asp-action="Create" asp-route-returnUrl="@currentUrl" class="btn btn-primary btn-lg"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Create Request</a>
+    }
+</div>
+
+<form asp-action="Index" method="get" class="cims-filter row g-2">
+    <input type="hidden" name="sortBy" value="@Model.SortBy" />
+    <input type="hidden" name="sortDir" value="@Model.SortDir" />
+    <input type="hidden" name="pageSize" value="@Model.PageSize" />
+    <div class="col-12 col-md">
+        <label for="search" class="form-label visually-hidden">Search</label>
+        <input type="search" id="search" name="search" value="@Model.Search" class="form-control" placeholder="Search title or request no." />
+    </div>
+    @if (Model.ShowCompanyFilter)
+    {
+        <div class="col-12 col-md-auto">
+            <label for="coCode" class="form-label visually-hidden">Company</label>
+            <select id="coCode" name="coCode" class="form-select">
+                <option value="" selected="@(string.IsNullOrEmpty(Model.CoCode))">All companies</option>
+                <option value="ABL" selected="@(Model.CoCode == "ABL")">ABL</option>
+                <option value="NKM" selected="@(Model.CoCode == "NKM")">NKM</option>
+            </select>
+        </div>
+    }
+    <div class="col-12 col-md-auto">
+        <label for="category" class="form-label visually-hidden">Category</label>
+        <select id="category" name="category" class="form-select">
+            <option value="" selected="@(string.IsNullOrEmpty(Model.Category))">All categories</option>
+            @foreach (var c in ProjectRequest.Categories)
+            {
+                <option value="@c" selected="@(Model.Category == c)">@c</option>
+            }
+        </select>
+    </div>
+    <div class="col-12 col-md-auto">
+        <label for="status" class="form-label visually-hidden">Status</label>
+        <select id="status" name="status" class="form-select">
+            <option value="" selected="@(string.IsNullOrEmpty(Model.Status))">All statuses</option>
+            @foreach (var s in RequestStatus.All)
+            {
+                <option value="@s.Key" selected="@(Model.Status == s.Key)">@s.Value</option>
+            }
+        </select>
+    </div>
+    <div class="col-12 col-md-auto d-grid d-md-flex gap-2">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-search me-1" aria-hidden="true"></i>Search</button>
+        <a asp-action="Index" class="btn btn-outline-secondary"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a>
+    </div>
+</form>
+
+@if (!result.Items.Any())
+{
+    <div class="alert alert-info" role="status">No requests found.</div>
+}
+else
+{
+    @* Desktop / tablet: tabel *@
+    <div class="d-none d-md-block">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th class="cims-col-fit"><a class="sort-link" asp-action="Index" asp-all-route-data='SortRoute("RequestNo")'>Request No.@(SortMark("RequestNo"))</a></th>
+                        <th><a class="sort-link" asp-action="Index" asp-all-route-data='SortRoute("Title")'>Title@(SortMark("Title"))</a></th>
+                        <th class="cims-col-fit"><a class="sort-link" asp-action="Index" asp-all-route-data='SortRoute("Category")'>Category@(SortMark("Category"))</a></th>
+                        <th class="d-none d-lg-table-cell cims-col-fit">Department</th>
+                        <th class="d-none d-lg-table-cell cims-col-fit"><a class="sort-link" asp-action="Index" asp-all-route-data='SortRoute("CreatedAt")'>Created@(SortMark("CreatedAt"))</a></th>
+                        <th class="cims-col-fit"><a class="sort-link" asp-action="Index" asp-all-route-data='SortRoute("Status")'>Status@(SortMark("Status"))</a></th>
+                        <th class="cims-col-fit text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in result.Items)
+                    {
+                        <tr>
+                            <td class="cims-col-fit">@(r.RequestNo ?? "-")</td>
+                            <td>
+                                <div class="request-text">@r.Title</div>
+                                <div class="text-muted small d-lg-none">@r.ABRV · @r.CoCode</div>
+                            </td>
+                            <td class="cims-col-fit">
+                                <div>@r.Category</div>
+                                @if (!string.IsNullOrEmpty(r.SubCategoryName))
+                                {
+                                    <div class="text-muted small">@r.SubCategoryName</div>
+                                }
+                            </td>
+                            <td class="d-none d-lg-table-cell cims-col-fit">@r.ABRV <span class="text-muted small">@r.CoCode</span></td>
+                            <td class="d-none d-lg-table-cell cims-col-fit">@r.CreatedAt.ToString("dd MMM yyyy", culture)</td>
+                            <td class="cims-col-fit"><span class="badge @RequestStatus.BadgeClass(r.Status)">@RequestStatus.Label(r.Status)</span></td>
+                            <td class="cims-col-fit text-end">
+                                <div class="d-inline-flex gap-1">
+                                    <a asp-action="Details" asp-route-id="@r.Id" asp-route-returnUrl="@currentUrl" class="btn btn-outline-secondary cims-icon-btn"
+                                       title="View details" aria-label="View details @r.Title"><i class="bi bi-eye" aria-hidden="true"></i></a>
+                                    @if (Model.CanCreate && RequestStatus.IsEditable(r.Status))
+                                    {
+                                        <a asp-action="Edit" asp-route-id="@r.Id" asp-route-returnUrl="@currentUrl" class="btn btn-outline-primary cims-icon-btn"
+                                           title="Edit" aria-label="Edit @r.Title"><i class="bi bi-pencil-square" aria-hidden="true"></i></a>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @* Mobile: card list *@
+    <div class="d-md-none">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted">Sort by:</span>
+            <div class="btn-group" role="group" aria-label="Sort">
+                <a class="btn btn-outline-secondary @(Model.SortBy == "CreatedAt" ? "active" : "")" asp-action="Index" asp-all-route-data='SortRoute("CreatedAt")'>Created@(SortMark("CreatedAt"))</a>
+                <a class="btn btn-outline-secondary @(Model.SortBy == "Title" ? "active" : "")" asp-action="Index" asp-all-route-data='SortRoute("Title")'>Title@(SortMark("Title"))</a>
+            </div>
+        </div>
+        @foreach (var r in result.Items)
+        {
+            <div class="card request-card mb-2">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start gap-2">
+                        <div class="request-text">
+                            <div class="text-muted small">@(r.RequestNo ?? "No number yet") · @r.Category · @r.ABRV @r.CoCode</div>
+                            <div class="fw-semibold">@r.Title</div>
+                            <div class="text-muted small">Created @r.CreatedAt.ToString("dd MMM yyyy", culture)</div>
+                        </div>
+                        <span class="badge @RequestStatus.BadgeClass(r.Status)">@RequestStatus.Label(r.Status)</span>
+                    </div>
+                    <div class="row g-2 mt-2">
+                        <div class="col"><a asp-action="Details" asp-route-id="@r.Id" asp-route-returnUrl="@currentUrl" class="btn btn-outline-secondary w-100">Details</a></div>
+                        @if (Model.CanCreate && RequestStatus.IsEditable(r.Status))
+                        {
+                            <div class="col"><a asp-action="Edit" asp-route-id="@r.Id" asp-route-returnUrl="@currentUrl" class="btn btn-outline-primary w-100">Edit</a></div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="cims-list-footer d-flex flex-column flex-md-row justify-content-md-between align-items-md-center gap-2">
+        <div class="text-muted small">Showing @firstItem–@lastItem of @result.TotalCount</div>
+        @if (result.TotalPages > 1)
+        {
+            <nav aria-label="Pagination">
+                <ul class="pagination pagination-sm mb-0 flex-wrap">
+                    <li class="page-item @(result.PageNumber <= 1 ? "disabled" : "")">
+                        <a class="page-link" asp-action="Index" asp-all-route-data="RouteFor(result.PageNumber - 1)">Previous</a>
+                    </li>
+                    @for (var p = pageStart; p <= pageEnd; p++)
+                    {
+                        <li class="page-item @(p == result.PageNumber ? "active" : "")">
+                            <a class="page-link" asp-action="Index" asp-all-route-data="RouteFor(p)">@p</a>
+                        </li>
+                    }
+                    <li class="page-item @(result.PageNumber >= result.TotalPages ? "disabled" : "")">
+                        <a class="page-link" asp-action="Index" asp-all-route-data="RouteFor(result.PageNumber + 1)">Next</a>
+                    </li>
+                </ul>
+            </nav>
+        }
+    </div>
+}

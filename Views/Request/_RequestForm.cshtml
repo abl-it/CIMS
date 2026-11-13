@@ -1,0 +1,253 @@
+@model RequestFormViewModel
+@{
+    var isEdit = Model.Id > 0;
+    var action = isEdit ? "Edit" : "Create";
+    var cancelAction = isEdit ? "Details" : "Index";
+    // URL list asal (filter, sort, halaman) dari Index; null = alur default.
+    var returnUrl = ViewData["ReturnUrl"] as string;
+    var cancelUrl = returnUrl ?? Url.Action(cancelAction, new { id = isEdit ? Model.Id : (int?)null });
+}
+
+<form id="request-form" asp-controller="Request" asp-action="@action" asp-route-id="@(isEdit ? Model.Id : (int?)null)" method="post" novalidate data-dirty-guard>
+    <input type="hidden" asp-for="Id" />
+    @if (returnUrl != null)
+    {
+        <input type="hidden" name="returnUrl" value="@returnUrl" />
+    }
+
+    @* (i) Preliminary Data *@
+    <div class="card mb-3">
+        <div class="card-header fw-semibold">Preliminary Data</div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-12 col-md-6 col-lg-4">
+                    <label class="form-label" for="requestNoDisplay">Request number</label>
+                    <input id="requestNoDisplay" class="form-control" value="@(Model.RequestNo ?? "Generated on submit")" readonly />
+                </div>
+                <div class="col-12 col-md-6 col-lg-4">
+                    <label class="form-label" for="companyDisplay">Company</label>
+                    <input id="companyDisplay" class="form-control" value="@Model.CoCode" readonly />
+                </div>
+                <div class="col-12 col-md-6 col-lg-4">
+                    <label class="form-label" for="departmentDisplay">Requesting department</label>
+                    <input id="departmentDisplay" class="form-control" value="@Model.DeptName@(string.IsNullOrEmpty(Model.ABRV) ? "" : $" ({Model.ABRV})")" readonly />
+                </div>
+
+                <div class="col-12">
+                    <label asp-for="Title" class="form-label"></label>
+                    <input asp-for="Title" class="form-control" autocomplete="off" />
+                    <span asp-validation-for="Title" class="text-danger"></span>
+                </div>
+
+                <div class="col-12 col-md-6 col-lg-4">
+                    <label asp-for="Category" class="form-label"></label>
+                    <select asp-for="Category" class="form-select" data-request-category>
+                        <option value="">-- Select --</option>
+                        @foreach (var c in ProjectRequest.Categories)
+                        {
+                            <option value="@c" selected="@(Model.Category == c)">@c</option>
+                        }
+                    </select>
+                    <span asp-validation-for="Category" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-md-6 col-lg-4">
+                    <label asp-for="SubCategoryId" class="form-label"></label>
+                    <select asp-for="SubCategoryId" class="form-select" data-request-subcategory>
+                        <option value="">-- Select --</option>
+                        @foreach (var s in Model.SubCategories)
+                        {
+                            <option value="@s.Id" data-category="@s.Category" selected="@(Model.SubCategoryId == s.Id)">@s.Name</option>
+                        }
+                    </select>
+                    <span asp-validation-for="SubCategoryId" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-md-6 col-lg-4">
+                    <label asp-for="BudgetRemarks" class="form-label"></label>
+                    <select asp-for="BudgetRemarks" class="form-select">
+                        <option value="">-- Select --</option>
+                        @foreach (var b in ProjectRequest.BudgetRemarksOptions)
+                        {
+                            <option value="@b.Key" selected="@(Model.BudgetRemarks == b.Key)">@b.Value</option>
+                        }
+                    </select>
+                    <span asp-validation-for="BudgetRemarks" class="text-danger"></span>
+                </div>
+
+                <div class="col-12 col-md-6 col-lg-4">
+                    <label asp-for="PicEmployeeCode" class="form-label"></label>
+                    <select asp-for="PicEmployeeCode" class="form-select">
+                        <option value="">-- Select --</option>
+                        @foreach (var e in Model.Employees)
+                        {
+                            <option value="@e.EmployeeCode" selected="@(Model.PicEmployeeCode == e.EmployeeCode)">@e.FullName (@e.EmployeeCode)</option>
+                        }
+                    </select>
+                    <span asp-validation-for="PicEmployeeCode" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-md-6 col-lg-4">
+                    <label asp-for="SubDepartmentID" class="form-label"></label>
+                    <select asp-for="SubDepartmentID" class="form-select">
+                        <option value="">-- Select --</option>
+                        @foreach (var cc in Model.CostCenters)
+                        {
+                            <option value="@cc.SubDepartmentID" selected="@(Model.SubDepartmentID == cc.SubDepartmentID)">@cc.SubDepartmentName</option>
+                        }
+                    </select>
+                    <span asp-validation-for="SubDepartmentID" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-md-6 col-lg-4">
+                    <label asp-for="LocationId" class="form-label"></label>
+                    <select asp-for="LocationId" class="form-select">
+                        <option value="">-- Select --</option>
+                        @foreach (var l in Model.Locations)
+                        {
+                            <option value="@l.Id" selected="@(Model.LocationId == l.Id)">@l.Name</option>
+                        }
+                    </select>
+                    <span asp-validation-for="LocationId" class="text-danger"></span>
+                </div>
+
+                <div class="col-12 col-md-6 col-lg-4">
+                    <label asp-for="TargetCompletionDate" class="form-label"></label>
+                    <input asp-for="TargetCompletionDate" type="date" class="form-control" />
+                    <span asp-validation-for="TargetCompletionDate" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-md-6 col-lg-4">
+                    <label asp-for="BudgetExpectation" class="form-label"></label>
+                    @* Format tanpa ".00": jquery-validation menolak nilai berdesimal pada step="1" *@
+                    <input asp-for="BudgetExpectation" asp-format="{0:0.##}" type="number" min="0" step="1" inputmode="numeric" class="form-control" />
+                    <span asp-validation-for="BudgetExpectation" class="text-danger"></span>
+                </div>
+
+                <div class="col-12 col-md-4">
+                    <label asp-for="AreaLength" class="form-label"></label>
+                    <input asp-for="AreaLength" type="number" min="0" step="0.01" inputmode="decimal" class="form-control" data-area-length />
+                    <span asp-validation-for="AreaLength" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label asp-for="AreaWidth" class="form-label"></label>
+                    <input asp-for="AreaWidth" type="number" min="0" step="0.01" inputmode="decimal" class="form-control" data-area-width />
+                    <span asp-validation-for="AreaWidth" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label" for="areaSizeDisplay">Section area (m²)</label>
+                    <input id="areaSizeDisplay" class="form-control" readonly data-area-size />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* (ii) Business Justification *@
+    <div class="card mb-3">
+        <div class="card-header fw-semibold">Business Justification</div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-12 col-lg-6">
+                    <label asp-for="Background" class="form-label"></label>
+                    <textarea asp-for="Background" class="form-control" rows="3"></textarea>
+                    <span asp-validation-for="Background" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-lg-6">
+                    <label asp-for="Objective" class="form-label"></label>
+                    <textarea asp-for="Objective" class="form-control" rows="3"></textarea>
+                    <span asp-validation-for="Objective" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-lg-6">
+                    <label asp-for="OperationalImpact" class="form-label"></label>
+                    <textarea asp-for="OperationalImpact" class="form-control" rows="3"></textarea>
+                    <span asp-validation-for="OperationalImpact" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-lg-6">
+                    <label asp-for="RiskIfNotApproved" class="form-label"></label>
+                    <textarea asp-for="RiskIfNotApproved" class="form-control" rows="3"></textarea>
+                    <span asp-validation-for="RiskIfNotApproved" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-lg-6">
+                    <label asp-for="ExpectedBenefits" class="form-label"></label>
+                    <textarea asp-for="ExpectedBenefits" class="form-control" rows="3"></textarea>
+                    <span asp-validation-for="ExpectedBenefits" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-lg-6">
+                    <label asp-for="Alternatives" class="form-label"></label>
+                    <textarea asp-for="Alternatives" class="form-control" rows="3"></textarea>
+                    <span asp-validation-for="Alternatives" class="text-danger"></span>
+                </div>
+                <div class="col-12">
+                    <label asp-for="SpecialNote" class="form-label"></label>
+                    <textarea asp-for="SpecialNote" class="form-control" rows="2"></textarea>
+                    <div class="form-text">Optional.</div>
+                    <span asp-validation-for="SpecialNote" class="text-danger"></span>
+                </div>
+            </div>
+
+            @* Khusus CAPEX (BR-42); disembunyikan untuk OPEX/LVE oleh request-form.js *@
+            <div class="row g-3 mt-1" data-capex-only>
+                <div class="col-12">
+                    <div class="form-text fw-semibold">CAPEX only: expected ROI. Attach the ROI calculation (PDF, approved by end user) after saving the draft.</div>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label asp-for="ExpectedRoiPercent" class="form-label"></label>
+                    <input asp-for="ExpectedRoiPercent" type="number" step="0.01" inputmode="decimal" class="form-control" />
+                    <span asp-validation-for="ExpectedRoiPercent" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-md-8">
+                    <label asp-for="RoiExplanation" class="form-label"></label>
+                    <textarea asp-for="RoiExplanation" class="form-control" rows="2"></textarea>
+                    <span asp-validation-for="RoiExplanation" class="text-danger"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* (iii) Environment Assessment *@
+    <div class="card mb-3">
+        <div class="card-header fw-semibold">Environment Assessment</div>
+        <div class="card-body">
+            @if (!Model.Answers.Any())
+            {
+                <p class="text-muted mb-0">No assessment questions are configured.</p>
+            }
+            else
+            {
+                <ol class="list-unstyled mb-0 request-assessment">
+                    @for (var i = 0; i < Model.Answers.Count; i++)
+                    {
+                        var a = Model.Answers[i];
+                        <li class="request-assessment-item">
+                            <input type="hidden" name="Answers[@i].QuestionId" value="@a.QuestionId" />
+                            <div class="request-text" id="q-@a.QuestionId">@(i + 1). @a.QuestionText</div>
+                            <div class="d-flex gap-3" role="radiogroup" aria-labelledby="q-@a.QuestionId">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="Answers[@i].Answer" id="q@(a.QuestionId)-yes" value="true" checked="@(a.Answer == true)" />
+                                    <label class="form-check-label" for="q@(a.QuestionId)-yes">Yes</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="Answers[@i].Answer" id="q@(a.QuestionId)-no" value="false" checked="@(a.Answer == false)" />
+                                    <label class="form-check-label" for="q@(a.QuestionId)-no">No</label>
+                                </div>
+                            </div>
+                        </li>
+                    }
+                </ol>
+            }
+        </div>
+    </div>
+
+    @* (iv) Additional Information *@
+    <div class="card mb-3">
+        <div class="card-header fw-semibold">Additional Information</div>
+        <div class="card-body">
+            <label asp-for="AdditionalInfo" class="form-label"></label>
+            <textarea asp-for="AdditionalInfo" class="form-control" rows="3"></textarea>
+            <div class="form-text">Optional. The area photo (required) is uploaded on the request details page after saving the draft.</div>
+            <span asp-validation-for="AdditionalInfo" class="text-danger"></span>
+        </div>
+    </div>
+
+    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+        <a href="@cancelUrl" class="btn btn-outline-secondary btn-lg"
+           data-confirm="Unsaved changes will be lost." data-confirm-title="Discard changes?"
+           data-confirm-ok="Yes, discard" data-confirm-danger="true" data-confirm-if-dirty="#request-form">Cancel</a>
+        <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-save me-1" aria-hidden="true"></i>Save Draft</button>
+    </div>
+</form>

@@ -43,3 +43,5 @@ Pendamping `docs/PRD.md`.
 | 2026-11-03 | Role `plan`, `spv` setara `adm` (boleh membuat request); `emp` hanya lihat; lingkup data ketiganya = `adm` (ABRV + Company) | RL-10..RL-12, BR-01, BR-27, 5.2, 5.4 |
 | 2026-11-04 | Tanggal libur = gabungan `home..APP_Holidays` (portal, semua Company) + libur tambahan per Company (`WorkCalendarHoliday`) | CF-07, MD-11, BR-64 |
 | 2026-11-04 | Halaman Settings (administrator saja): ubah nilai 5 key AppSetting (batas Emergency, ambang jadwal/biaya); key dan override tetap via SQL | BR-38, CF-02, CF-08 |
+| 2026-11-04 | T2 dipecah: T2-1 Draft, T2-2 Submit, T2-3 Approval REQUEST, T2-4 List + Tugas Saya. Save Draft minimal (Title + kategori); kelengkapan penuh dicek saat Submit. Resubmit setelah revisi: nomor tetap, langkah approval di-snapshot ulang dari tabel | 9.1, BR-04, BR-37, BR-41 |
+| 2026-11-04 | PIC disimpan dengan `EmployeeCode` (unik); cost center = `APP_SubDepartments.SubDepartmentID` milik `DepartmentID` requester | 6.1, BR-40 |

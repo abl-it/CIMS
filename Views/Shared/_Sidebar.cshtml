@@ -24,10 +24,13 @@
     var menu = new[]
     {
         Leaf("Home", "bi-house-door", "Home", "Index", true),
+        Leaf("My Tasks", "bi-bell", "MyTask", "Index", true),
         Leaf("Dashboard", "bi-speedometer2", "Dashboard", "Index", false),
         Group("Request", "bi-inbox",
-            Leaf("Request List", null, "Request", "Index", false),
-            Leaf("Create Request", null, "Request", "Create", false)),
+            Leaf("Request List", null, "Request", "Index", true,
+                CimsRoles.Adm, CimsRoles.Plan, CimsRoles.Spv, CimsRoles.Emp, CimsRoles.Kabag, CimsRoles.Mo,
+                CimsRoles.Civil, CimsRoles.Gm, CimsRoles.Director, CimsRoles.Administrator),
+            Leaf("Create Request", null, "Request", "Create", true, CimsRoles.Adm, CimsRoles.Plan, CimsRoles.Spv)),
         Group("Project / Maintenance", "bi-tools",
             Leaf("CAPEX", null, "Project", "Capex", false),
             Leaf("OPEX", null, "Project", "Opex", false),
@@ -43,6 +46,7 @@
         Leaf("User Satisfaction", "bi-emoji-smile", "Survey", "Index", false),
         Leaf("Report", "bi-file-earmark-text", "Report", "Index", false),
         Group("Master Data", "bi-database",
+            Leaf("Sub-category", null, "SubCategory", "Index", true, CimsRoles.Administrator, CimsRoles.Civil),
             Leaf("Location", null, "Location", "Index", true, CimsRoles.Administrator, CimsRoles.Civil),
             Leaf("Attachment Type", null, "AttachmentType", "Index", true, CimsRoles.Administrator, CimsRoles.Civil),
             Leaf("Environment Assessment", null, "AssessmentQuestion", "Index", true, CimsRoles.Administrator, CimsRoles.Civil),

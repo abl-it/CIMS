@@ -51,5 +51,24 @@ namespace CIMS.Services
         /// <exception cref="RequestInvalidStateException">SP error 50074 (termasuk sudah diproses approver lain).</exception>
         /// <exception cref="RequestNotAuthorizedException">SP error 50075.</exception>
         Task<string> ApprovalActAsync(int id, int stepId, string action, string? remarks, CancellationToken ct = default);
+
+        /// <summary>Ubah kategori / sub-kategori saat Feasibility oleh Civil (BR-02); kategori berubah -> nomor baru (BR-54).</summary>
+        /// <returns>Nomor request setelah perubahan.</returns>
+        /// <exception cref="RequestValidationException">SP error 50072.</exception>
+        /// <exception cref="RequestNotFoundException">SP error 50073.</exception>
+        /// <exception cref="RequestInvalidStateException">SP error 50074.</exception>
+        /// <exception cref="RequestNotAuthorizedException">SP error 50075 (bukan Civil).</exception>
+        Task<string?> ChangeCategoryAsync(int id, string category, int subCategoryId, string? reason, CancellationToken ct = default);
+
+        /// <summary>Keputusan Feasibility oleh Civil: FEASIBLE | REVISE | REJECT (lihat <see cref="FeasibilityDecision"/>).</summary>
+        /// <returns>Status request yang baru.</returns>
+        /// <exception cref="RequestValidationException">SP error 50072 (termasuk lampiran wajib belum lengkap).</exception>
+        /// <exception cref="RequestNotFoundException">SP error 50073.</exception>
+        /// <exception cref="RequestInvalidStateException">SP error 50074.</exception>
+        /// <exception cref="RequestNotAuthorizedException">SP error 50075 (bukan Civil).</exception>
+        Task<string> FeasibilityDecideAsync(int id, string decision, string? remarks, CancellationToken ct = default);
+
+        /// <summary>Log perubahan kategori (BR-02), terbaru di atas.</summary>
+        Task<IReadOnlyList<CategoryChangeItem>> GetCategoryChangesAsync(int requestId, CancellationToken ct = default);
     }
 }

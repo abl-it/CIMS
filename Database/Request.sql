@@ -85,6 +85,16 @@ BEGIN
 END
 GO
 
+/* MIGRASI T3-2 (Keputusan 13-11-2026, BR-05, BR-12): nilai BOQ total (IDR) diisi Civil di Document Preparation,
+   wajib sebelum dikirim ke management. Hanya menambah kolom nullable; data lama tidak berubah. */
+IF COL_LENGTH(N'dbo.ProjectRequest', N'BoqTotal') IS NULL
+BEGIN
+    ALTER TABLE dbo.ProjectRequest ADD
+        BoqTotal  DECIMAL(18, 2) NULL
+            CONSTRAINT CK_ProjectRequest_BoqTotal CHECK (BoqTotal IS NULL OR BoqTotal > 0);
+END
+GO
+
 IF NOT EXISTS (SELECT 1 FROM sys.indexes
                WHERE name = N'UX_ProjectRequest_RequestNo' AND object_id = OBJECT_ID(N'dbo.ProjectRequest'))
 BEGIN
@@ -495,6 +505,7 @@ BEGIN
             r.AreaLength, r.AreaWidth, r.AreaSize, r.BudgetExpectation,
             r.Background, r.Objective, r.OperationalImpact, r.RiskIfNotApproved, r.ExpectedBenefits,
             r.Alternatives, r.SpecialNote, r.ExpectedRoiPercent, r.RoiExplanation, r.AdditionalInfo,
+            r.BoqTotal,
             r.SubmittedAt, r.CreatedAt, r.CreatedBy, r.UpdatedAt, r.UpdatedBy
     FROM    dbo.ProjectRequest r
             LEFT JOIN home..APP_Departments d     ON d.DepartmentID = r.DepartmentID
@@ -585,7 +596,9 @@ BEGIN
     WHERE  (@CoCode   IS NULL OR r.CoCode   = @CoCode)
       AND  (@Category IS NULL OR r.Category = @Category)
       AND  (@Status   IS NULL OR r.Status   = @Status)
-      AND  (@Search   IS NULL OR r.Title LIKE N'%' + @Search + N'%' OR r.RequestNo LIKE '%' + @Search + '%')
+      AND  (@Search   IS NULL OR r.Title LIKE N'%' + @Search + N'%' OR r.RequestNo LIKE '%' + @Search + '%'
+            -- BR-54: nomor lama (sebelum ganti kategori) tetap bisa dicari
+            OR EXISTS (SELECT 1 FROM dbo.RequestNoHistory nh WHERE nh.RequestId = r.Id AND nh.RequestNo LIKE '%' + @Search + '%'))
     OPTION (RECOMPILE);
 
     SELECT  r.Id, r.CoCode, r.RequestNo, r.Title, r.Category, sc.Name AS SubCategoryName, r.Status,
@@ -599,7 +612,8 @@ BEGIN
     WHERE   (@CoCode   IS NULL OR r.CoCode   = @CoCode)
       AND   (@Category IS NULL OR r.Category = @Category)
       AND   (@Status   IS NULL OR r.Status   = @Status)
-      AND   (@Search   IS NULL OR r.Title LIKE N'%' + @Search + N'%' OR r.RequestNo LIKE '%' + @Search + '%')
+      AND   (@Search   IS NULL OR r.Title LIKE N'%' + @Search + N'%' OR r.RequestNo LIKE '%' + @Search + '%'
+             OR EXISTS (SELECT 1 FROM dbo.RequestNoHistory nh WHERE nh.RequestId = r.Id AND nh.RequestNo LIKE '%' + @Search + '%'))
     ORDER BY
         CASE WHEN @SortBy = N'CreatedAt' AND @SortDir = N'ASC'  THEN r.CreatedAt END ASC,
         CASE WHEN @SortBy = N'CreatedAt' AND @SortDir = N'DESC' THEN r.CreatedAt END DESC,
@@ -626,7 +640,8 @@ GO
    13. usp_RequestAttachment_Insert
        File sudah ditulis aplikasi ke disk; SP memvalidasi ulang (lingkup, status, jenis,
        ekstensi, ukuran) lalu mencatat metadata. Bila SP gagal, aplikasi menghapus file yang baru ditulis.
-       T2: hanya jenis tahap REQUEST, saat status DRAFT / RETURNED.
+       Jenis tahap REQUEST: status DRAFT / RETURNED (requester; T2), atau FEASIBILITY oleh role civil
+       (mis. lampiran ROI setelah Civil mengubah kategori ke CAPEX; T3-1, BR-42).
    --------------------------------------------------------------------- */
 CREATE OR ALTER PROCEDURE dbo.usp_RequestAttachment_Insert
     @RequestId         INT,
@@ -660,8 +675,11 @@ BEGIN
         THROW 50072, N'Attachment type is invalid.', 1;
     IF @Stage <> 'REQUEST'
         THROW 50072, N'This attachment type cannot be uploaded at this stage.', 1;
-    IF @Status NOT IN ('DRAFT', 'RETURNED')
-        THROW 50074, N'Attachments can only be changed while the request is a draft or returned.', 1;
+    IF NOT (@Status IN ('DRAFT', 'RETURNED')
+            OR (@Status = 'FEASIBILITY'
+                AND EXISTS (SELECT 1 FROM home..users u CROSS APPLY STRING_SPLIT(u.[Role], N';') s
+                            WHERE u.Username = @Username AND LTRIM(RTRIM(s.value)) = N'civil')))
+        THROW 50074, N'Attachments cannot be changed at the current request status.', 1;
 
     SET @OriginalFileName = LTRIM(RTRIM(@OriginalFileName));
     IF ISNULL(@OriginalFileName, N'') = N'' OR ISNULL(@RelativePath, N'') = N''
@@ -751,8 +769,13 @@ BEGIN
 
     IF @Status IS NULL
         THROW 50073, N'Attachment not found.', 1;
-    IF @Stage <> 'REQUEST' OR @Status NOT IN ('DRAFT', 'RETURNED')
-        THROW 50074, N'Attachments can only be changed while the request is a draft or returned.', 1;
+    -- Aturan sama dengan Insert: REQUEST saat DRAFT/RETURNED, atau FEASIBILITY oleh civil (T3-1)
+    IF @Stage <> 'REQUEST'
+       OR NOT (@Status IN ('DRAFT', 'RETURNED')
+               OR (@Status = 'FEASIBILITY'
+                   AND EXISTS (SELECT 1 FROM home..users u CROSS APPLY STRING_SPLIT(u.[Role], N';') s
+                               WHERE u.Username = @Username AND LTRIM(RTRIM(s.value)) = N'civil')))
+        THROW 50074, N'Attachments cannot be changed at the current request status.', 1;
 
     UPDATE dbo.RequestAttachment
     SET    IsActive  = 0,

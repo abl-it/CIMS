@@ -202,6 +202,57 @@ namespace CIMS.Services
             }
         }
 
+        public async Task<string?> ChangeCategoryAsync(int id, string category, int subCategoryId, string? reason, CancellationToken ct = default)
+        {
+            var p = new DynamicParameters();
+            p.Add("@Id", id, DbType.Int32);
+            p.Add("@Username", Username, DbType.String);
+            p.Add("@Category", category, DbType.AnsiString);
+            p.Add("@SubCategoryId", subCategoryId, DbType.Int32);
+            p.Add("@Reason", reason, DbType.String);
+
+            return await QuerySingleValueAsync<string?>("dbo.usp_Request_ChangeCategory", p, ct);
+        }
+
+        public async Task<string> FeasibilityDecideAsync(int id, string decision, string? remarks, CancellationToken ct = default)
+        {
+            var p = new DynamicParameters();
+            p.Add("@Id", id, DbType.Int32);
+            p.Add("@Username", Username, DbType.String);
+            p.Add("@Decision", decision, DbType.AnsiString);
+            p.Add("@Remarks", remarks, DbType.String);
+
+            return (await QuerySingleValueAsync<string>("dbo.usp_Request_FeasibilityDecide", p, ct))!;
+        }
+
+        public async Task<IReadOnlyList<CategoryChangeItem>> GetCategoryChangesAsync(int requestId, CancellationToken ct = default)
+        {
+            var p = new DynamicParameters();
+            p.Add("@RequestId", requestId, DbType.Int32);
+            p.Add("@Username", Username, DbType.String);
+
+            using var conn = _connectionFactory.CreateConnection();
+            return (await conn.QueryAsync<CategoryChangeItem>(new CommandDefinition(
+                "dbo.usp_Request_GetCategoryChanges", p, commandType: CommandType.StoredProcedure, cancellationToken: ct))).AsList();
+        }
+
+        /// <summary>Jalankan SP yang mengembalikan satu nilai (satu baris, satu kolom); error SP diterjemahkan.</summary>
+        private async Task<T?> QuerySingleValueAsync<T>(string procedure, DynamicParameters parameters, CancellationToken ct)
+        {
+            try
+            {
+                using var conn = _connectionFactory.CreateConnection();
+                return await conn.QuerySingleAsync<T>(new CommandDefinition(
+                    procedure, parameters, commandType: CommandType.StoredProcedure, cancellationToken: ct));
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                var mapped = Translate(ex, procedure, _logger);
+                if (ReferenceEquals(mapped, ex)) throw;
+                throw mapped;
+            }
+        }
+
         /// <summary>Username pelaku; SP memakai ini untuk lingkup data dan audit.</summary>
         private string Username => _currentUserService.CurrentUser?.Username
             ?? throw new InvalidOperationException("CurrentUser belum dimuat.");
@@ -240,7 +291,7 @@ namespace CIMS.Services
                         logger.LogWarning(ex, "{Procedure}: status request tidak mengizinkan aksi.", procedure);
                         return new RequestInvalidStateException(sql.Message, ex);
                     case ErrNotAuthorized:
-                        logger.LogWarning(ex, "{Procedure}: user tidak berhak memproses langkah approval.", procedure);
+                        logger.LogWarning(ex, "{Procedure}: user tidak berhak melakukan aksi ini.", procedure);
                         return new RequestNotAuthorizedException(sql.Message, ex);
                 }
             }

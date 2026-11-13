@@ -45,3 +45,7 @@ Pendamping `docs/PRD.md`.
 | 2026-11-04 | Halaman Settings (administrator saja): ubah nilai 5 key AppSetting (batas Emergency, ambang jadwal/biaya); key dan override tetap via SQL | BR-38, CF-02, CF-08 |
 | 2026-11-04 | T2 dipecah: T2-1 Draft, T2-2 Submit, T2-3 Approval REQUEST, T2-4 List + Tugas Saya. Save Draft minimal (Title + kategori); kelengkapan penuh dicek saat Submit. Resubmit setelah revisi: nomor tetap, langkah approval di-snapshot ulang dari tabel | 9.1, BR-04, BR-37, BR-41 |
 | 2026-11-04 | PIC disimpan dengan `EmployeeCode` (unik); cost center = `APP_SubDepartments.SubDepartmentID` milik `DepartmentID` requester | 6.1, BR-40 |
+| 2026-11-13 | Tugas Saya "Request di-Revise/Reject" hanya untuk pembuat request (`RequesterUsername`), bukan semua adm/plan/spv departemen | 7.1, FR-01 |
+| 2026-11-13 | T3 dipecah: T3-1 Feasibility (Yes/Revise/Reject, ubah kategori + renumber), T3-2 Document Preparation + kirim ke management, T3-3 Management approval GM/Director | 9.1, 3.1 |
+| 2026-11-13 | Civil mengisi nilai "BOQ total (IDR)" di Document Preparation, wajib sebelum dikirim ke management (dasar plan cost in-house) | BR-05, BR-12 |
+| 2026-11-13 | Civil boleh mengubah kategori ke CAPEX saat Feasibility; Civil boleh mengunggah lampiran ROI; lampiran wajib kategori baru harus lengkap sebelum Feasibility = Yes. ROI dikosongkan bila kategori bukan CAPEX lagi | BR-02, BR-42, BR-54 |

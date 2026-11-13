@@ -47,8 +47,9 @@ namespace CIMS.Services
             // Validasi awal sebelum menulis file; SP memvalidasi ulang saat mencatat metadata.
             var request = await _requestService.GetByIdAsync(requestId, ct)
                 ?? throw new RequestNotFoundException("Request not found.");
-            if (!RequestStatus.IsEditable(request.Status))
-                throw new RequestInvalidStateException("Attachments can only be changed while the request is a draft or returned.");
+            // Draft/Returned (requester) atau Feasibility (Civil, mis. lampiran ROI); role dicek ulang di SP.
+            if (!RequestStatus.IsEditable(request.Status) && request.Status != RequestStatus.Feasibility)
+                throw new RequestInvalidStateException("Attachments cannot be changed at the current request status.");
 
             var types = await _lookupService.GetAttachmentTypesByStageAsync(StageRequest, ct);
             var type = types.FirstOrDefault(t => t.Id == attachmentTypeId)

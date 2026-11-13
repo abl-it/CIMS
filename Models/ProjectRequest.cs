@@ -79,6 +79,42 @@ namespace CIMS.Models
         };
     }
 
+    /// <summary>Keputusan Feasibility oleh Civil (usp_Request_FeasibilityDecide; PRD 3.1 langkah 4).</summary>
+    public static class FeasibilityDecision
+    {
+        public const string Feasible = "FEASIBLE";
+        public const string Revise = "REVISE";
+        public const string Reject = "REJECT";
+
+        public static bool IsValid(string? code) => code is Feasible or Revise or Reject;
+
+        public static string SuccessMessage(string code) => code switch
+        {
+            Feasible => "Request marked as feasible.",
+            Revise => "Request returned to the requester for revision.",
+            Reject => "Request rejected.",
+            _ => "Done."
+        };
+    }
+
+    /// <summary>Log perubahan kategori / sub-kategori oleh Civil (usp_Request_GetCategoryChanges; BR-02, BR-54).</summary>
+    public class CategoryChangeItem
+    {
+        public int Id { get; set; }
+        public string OldCategory { get; set; } = string.Empty;
+        public string NewCategory { get; set; } = string.Empty;
+        public string? OldSubCategoryName { get; set; }
+        public string? NewSubCategoryName { get; set; }
+        public string? OldRequestNo { get; set; }
+        public string? NewRequestNo { get; set; }
+        public string Reason { get; set; } = string.Empty;
+        public string ChangedBy { get; set; } = string.Empty;
+        public string? ChangedByName { get; set; }
+        public DateTime ChangedAt { get; set; }
+
+        public bool IsRenumbered => !string.Equals(OldRequestNo, NewRequestNo, StringComparison.Ordinal);
+    }
+
     /// <summary>Langkah approval (snapshot, ronde terakhir per titik) dari usp_Request_GetApprovalSteps.</summary>
     public class ApprovalStepItem
     {
@@ -150,6 +186,8 @@ namespace CIMS.Models
             "APPROVE" => "Approved",
             "REVISE" => "Revised",
             "REJECT" => "Rejected",
+            "FEASIBLE" => "Feasible",
+            "CATEGORY_CHANGE" => "Category changed",
             _ => Action
         };
 
@@ -161,6 +199,8 @@ namespace CIMS.Models
             "REVISE" => "bi-arrow-counterclockwise",
             "REJECT" => "bi-x-lg",
             "CANCEL" => "bi-slash-circle",
+            "FEASIBLE" => "bi-clipboard-check",
+            "CATEGORY_CHANGE" => "bi-tag",
             _ => "bi-dot"
         };
 
@@ -168,9 +208,10 @@ namespace CIMS.Models
         public string ActionBadgeClass => Action switch
         {
             "SUBMIT" or "RESUBMIT" => "text-bg-primary",
-            "APPROVE" => "text-bg-success",
+            "APPROVE" or "FEASIBLE" => "text-bg-success",
             "REVISE" => "text-bg-warning",
             "REJECT" => "text-bg-danger",
+            "CATEGORY_CHANGE" => "text-bg-info",
             _ => "text-bg-secondary"
         };
     }

@@ -62,7 +62,7 @@
                     <span class="text-muted small">(waiting since @act.StartedAt.Value.ToString("dd MMM yyyy HH:mm", culture))</span>
                 }
             </p>
-            <form asp-action="ApprovalAct" method="post" id="approvalForm">
+            <form asp-action="ApprovalAct" method="post" id="approvalForm" data-remarks-form>
                 <input type="hidden" name="id" value="@r.Id" />
                 <input type="hidden" name="stepId" value="@act.Id" />
                 <input type="hidden" name="returnUrl" value="@returnUrl" />
@@ -96,6 +96,83 @@
                             data-confirm="Approve this request?" data-confirm-title="Approve Request" data-confirm-ok="Approve">
                         <i class="bi bi-check2-circle me-1" aria-hidden="true"></i>Approve
                     </button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+@* Feasibility oleh Civil (T3-1; PRD 3.1 langkah 4, BR-02, BR-54); validasi akhir di SP *@
+@if (Model.CanDecideFeasibility)
+{
+    <div class="card mb-3 border-info">
+        <div class="card-header fw-semibold"><i class="bi bi-clipboard-check me-1" aria-hidden="true"></i>Feasibility</div>
+        <div class="card-body">
+            <form asp-action="FeasibilityDecide" method="post" id="feasibilityForm" data-remarks-form>
+                <input type="hidden" name="id" value="@r.Id" />
+                <input type="hidden" name="returnUrl" value="@returnUrl" />
+                <div class="mb-3">
+                    <label for="feasibilityRemarks" class="form-label">Remarks</label>
+                    <textarea id="feasibilityRemarks" name="remarks" class="form-control" rows="3" maxlength="1000"
+                              aria-describedby="feasibilityRemarksHelp feasibilityRemarksError"></textarea>
+                    <div id="feasibilityRemarksHelp" class="form-text">Optional when feasible; required for revision or rejection. Required attachments must be complete before marking feasible.</div>
+                    <div id="feasibilityRemarksError" class="invalid-feedback">Remarks are required to revise or reject.</div>
+                </div>
+                <div class="d-grid d-md-flex justify-content-md-end gap-2">
+                    <button type="submit" name="decision" value="@FeasibilityDecision.Reject" class="btn btn-outline-danger btn-lg"
+                            data-requires-remarks="true"
+                            data-confirm="Reject this request? This is final." data-confirm-title="Reject Request"
+                            data-confirm-ok="Reject" data-confirm-danger="true">
+                        <i class="bi bi-x-octagon me-1" aria-hidden="true"></i>Reject
+                    </button>
+                    <button type="submit" name="decision" value="@FeasibilityDecision.Revise" class="btn btn-outline-warning btn-lg"
+                            data-requires-remarks="true"
+                            data-confirm="Return this request to the requester for revision? It will go through department approval again after resubmission."
+                            data-confirm-title="Revise Request" data-confirm-ok="Revise">
+                        <i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Revise
+                    </button>
+                    <button type="submit" name="decision" value="@FeasibilityDecision.Feasible" class="btn btn-success btn-lg"
+                            data-confirm="Mark this request as feasible and continue to document preparation?"
+                            data-confirm-title="Feasible" data-confirm-ok="Feasible">
+                        <i class="bi bi-check2-circle me-1" aria-hidden="true"></i>Feasible
+                    </button>
+                </div>
+            </form>
+
+            <hr />
+
+            @* Ubah kategori / sub-kategori (BR-02); kategori berubah -> nomor baru (BR-54) *@
+            <h2 class="h6">Change budget classification</h2>
+            <form asp-action="ChangeCategory" method="post" id="categoryChangeForm" class="row g-2"
+                  data-confirm="Change the budget classification? If the classification changes, the request number will change too."
+                  data-confirm-title="Change Classification" data-confirm-ok="Change">
+                <input type="hidden" name="id" value="@r.Id" />
+                <input type="hidden" name="returnUrl" value="@returnUrl" />
+                <div class="col-12 col-md-6">
+                    <label for="changeCategory" class="form-label">Budget classification</label>
+                    <select id="changeCategory" name="category" class="form-select" required data-cascade-category>
+                        @foreach (var c in ProjectRequest.Categories)
+                        {
+                            <option value="@c" selected="@(r.Category == c)">@c</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-12 col-md-6">
+                    <label for="changeSubCategory" class="form-label">Sub-category</label>
+                    <select id="changeSubCategory" name="subCategoryId" class="form-select" required data-cascade-subcategory>
+                        <option value="">-- Select --</option>
+                        @foreach (var s in Model.SubCategories)
+                        {
+                            <option value="@s.Id" data-category="@s.Category" selected="@(r.SubCategoryId == s.Id)">@s.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-12">
+                    <label for="changeReason" class="form-label">Reason</label>
+                    <textarea id="changeReason" name="reason" class="form-control" rows="2" maxlength="1000" required></textarea>
+                </div>
+                <div class="col-12 d-grid d-md-flex justify-content-md-end">
+                    <button type="submit" class="btn btn-outline-primary btn-lg"><i class="bi bi-tag me-1" aria-hidden="true"></i>Change Classification</button>
                 </div>
             </form>
         </div>
@@ -251,9 +328,9 @@
 <div class="card mb-3">
     <div class="card-header fw-semibold">Attachments</div>
     <div class="card-body">
-        @if (Model.CanEdit && missingMandatory.Count > 0)
+        @if (Model.CanManageAttachments && missingMandatory.Count > 0)
         {
-            <p class="small text-warning-emphasis">Required before submit: @string.Join(", ", missingMandatory).</p>
+            <p class="small text-warning-emphasis">Required before @(Model.CanDecideFeasibility ? "marking feasible" : "submit"): @string.Join(", ", missingMandatory).</p>
         }
 
         @if (!Model.Attachments.Any())
@@ -271,7 +348,7 @@
                             <a asp-action="DownloadAttachment" asp-route-id="@att.Id">@att.OriginalFileName</a>
                             <div class="text-muted small">@Size(att.FileSizeBytes) · @att.CreatedAt.ToString("dd MMM yyyy HH:mm", culture)@(string.IsNullOrEmpty(att.CreatedBy) ? "" : $" by {att.CreatedBy}")</div>
                         </div>
-                        @if (Model.CanEdit)
+                        @if (Model.CanManageAttachments)
                         {
                             <form asp-action="DeactivateAttachment" method="post"
                                   data-confirm="Remove this attachment?" data-confirm-title="Remove Attachment"
@@ -289,7 +366,7 @@
             </ul>
         }
 
-        @if (Model.CanEdit && Model.AttachmentTypes.Any())
+        @if (Model.CanManageAttachments && Model.AttachmentTypes.Any())
         {
             <form asp-action="UploadAttachment" method="post" enctype="multipart/form-data" class="row g-2 align-items-end">
                 <input type="hidden" name="id" value="@r.Id" />
@@ -314,6 +391,38 @@
         }
     </div>
 </div>
+
+@* Log perubahan kategori (BR-02), terbaru di atas *@
+@if (Model.CategoryChanges.Any())
+{
+    <div class="card mb-3">
+        <div class="card-header fw-semibold"><i class="bi bi-tag me-1" aria-hidden="true"></i>Classification Changes</div>
+        <div class="card-body">
+            <ol class="list-unstyled mb-0 request-timeline">
+                @foreach (var c in Model.CategoryChanges)
+                {
+                    <li class="request-timeline-item">
+                        <span class="request-timeline-icon text-bg-info"><i class="bi bi-tag" aria-hidden="true"></i></span>
+                        <div class="d-flex flex-wrap align-items-center gap-1">
+                            <span class="badge request-status-chip">@c.OldCategory · @Text(c.OldSubCategoryName)</span>
+                            <i class="bi bi-arrow-right text-muted" aria-label="to"></i>
+                            <span class="badge request-status-chip">@c.NewCategory · @Text(c.NewSubCategoryName)</span>
+                            <span class="text-muted request-text">
+                                @c.ChangedAt.ToString("dd MMM yyyy HH:mm", culture) ·
+                                <span class="fw-semibold text-body">@(string.IsNullOrEmpty(c.ChangedByName) ? c.ChangedBy : c.ChangedByName)</span>
+                            </span>
+                        </div>
+                        @if (c.IsRenumbered)
+                        {
+                            <div class="text-muted request-text">Request no.: @Text(c.OldRequestNo) → @Text(c.NewRequestNo)</div>
+                        }
+                        <div class="text-muted request-multiline"><span class="fw-semibold">Reason:</span> @c.Reason</div>
+                    </li>
+                }
+            </ol>
+        </div>
+    </div>
+}
 
 @* Langkah approval (snapshot BR-37; ronde terakhir per titik) *@
 <div class="card mb-3">

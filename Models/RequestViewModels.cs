@@ -214,5 +214,17 @@ namespace CIMS.Models
 
         /// <summary>Langkah approval yang boleh diproses user ini (T2-3); null = tombol approval tidak tampil.</summary>
         public ApprovalStepItem? ActionableStep { get; set; }
+
+        /// <summary>Civil dan status Feasibility (T3-1): keputusan Feasibility dan ubah kategori; validasi akhir di SP.</summary>
+        public bool CanDecideFeasibility { get; set; }
+
+        /// <summary>Boleh upload/hapus lampiran tahap REQUEST: requester (Draft/Returned) atau Civil (Feasibility).</summary>
+        public bool CanManageAttachments { get; set; }
+
+        /// <summary>Sub-kategori aktif semua kategori (form ubah kategori); hanya dimuat bila CanDecideFeasibility.</summary>
+        public IReadOnlyList<SubCategory> SubCategories { get; set; } = Array.Empty<SubCategory>();
+
+        /// <summary>Log perubahan kategori (BR-02), terbaru di atas.</summary>
+        public IReadOnlyList<CategoryChangeItem> CategoryChanges { get; set; } = Array.Empty<CategoryChangeItem>();
     }
 }

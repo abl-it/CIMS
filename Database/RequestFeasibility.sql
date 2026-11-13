@@ -312,7 +312,7 @@ GO
    Prasyarat: Request.sql sudah dijalankan ulang; ada request berstatus FEASIBILITY
    (mis. Id 3 PM-OPX-11-26-002) dan user civil.
 
-   DECLARE @Id INT = 3, @Civil NVARCHAR(100) = N'<user civil>', @Bukan NVARCHAR(100) = N'marisi';
+   DECLARE @Id INT = 3, @Civil NVARCHAR(100) = N'users1', @Bukan NVARCHAR(100) = N'marisi';
 
    -- 1) Bukan civil -> 50075; alasan kosong / sub-kategori tidak cocok kategori -> 50072
    DECLARE @Sub INT = (SELECT TOP (1) Id FROM dbo.SubCategory WHERE Category = 'CAPEX' AND IsActive = 1 ORDER BY SortOrder);

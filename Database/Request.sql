@@ -642,6 +642,7 @@ GO
        ekstensi, ukuran) lalu mencatat metadata. Bila SP gagal, aplikasi menghapus file yang baru ditulis.
        Jenis tahap REQUEST: status DRAFT / RETURNED (requester; T2), atau FEASIBILITY oleh role civil
        (mis. lampiran ROI setelah Civil mengubah kategori ke CAPEX; T3-1, BR-42).
+       Jenis tahap DOCUMENT (BOQ, Drawing; BR-05): status DOC_PREPARATION oleh role civil (T3-2).
    --------------------------------------------------------------------- */
 CREATE OR ALTER PROCEDURE dbo.usp_RequestAttachment_Insert
     @RequestId         INT,
@@ -673,12 +674,15 @@ BEGIN
 
     IF @Stage IS NULL
         THROW 50072, N'Attachment type is invalid.', 1;
-    IF @Stage <> 'REQUEST'
+    IF @Stage NOT IN ('REQUEST', 'DOCUMENT')
         THROW 50072, N'This attachment type cannot be uploaded at this stage.', 1;
-    IF NOT (@Status IN ('DRAFT', 'RETURNED')
-            OR (@Status = 'FEASIBILITY'
-                AND EXISTS (SELECT 1 FROM home..users u CROSS APPLY STRING_SPLIT(u.[Role], N';') s
-                            WHERE u.Username = @Username AND LTRIM(RTRIM(s.value)) = N'civil')))
+
+    DECLARE @IsCivil BIT = CASE WHEN EXISTS (SELECT 1 FROM home..users u CROSS APPLY STRING_SPLIT(u.[Role], N';') s
+                                             WHERE u.Username = @Username AND LTRIM(RTRIM(s.value)) = N'civil')
+                                THEN 1 ELSE 0 END;
+    -- REQUEST: DRAFT/RETURNED, atau FEASIBILITY oleh civil (T3-1) · DOCUMENT (BOQ, Drawing): DOC_PREPARATION oleh civil (T3-2)
+    IF NOT (   (@Stage = 'REQUEST'  AND (@Status IN ('DRAFT', 'RETURNED') OR (@Status = 'FEASIBILITY' AND @IsCivil = 1)))
+            OR (@Stage = 'DOCUMENT' AND @Status = 'DOC_PREPARATION' AND @IsCivil = 1))
         THROW 50074, N'Attachments cannot be changed at the current request status.', 1;
 
     SET @OriginalFileName = LTRIM(RTRIM(@OriginalFileName));
@@ -769,12 +773,13 @@ BEGIN
 
     IF @Status IS NULL
         THROW 50073, N'Attachment not found.', 1;
-    -- Aturan sama dengan Insert: REQUEST saat DRAFT/RETURNED, atau FEASIBILITY oleh civil (T3-1)
-    IF @Stage <> 'REQUEST'
-       OR NOT (@Status IN ('DRAFT', 'RETURNED')
-               OR (@Status = 'FEASIBILITY'
-                   AND EXISTS (SELECT 1 FROM home..users u CROSS APPLY STRING_SPLIT(u.[Role], N';') s
-                               WHERE u.Username = @Username AND LTRIM(RTRIM(s.value)) = N'civil')))
+    -- Aturan sama dengan Insert: REQUEST saat DRAFT/RETURNED, atau FEASIBILITY oleh civil (T3-1);
+    -- DOCUMENT saat DOC_PREPARATION oleh civil (T3-2)
+    DECLARE @IsCivil BIT = CASE WHEN EXISTS (SELECT 1 FROM home..users u CROSS APPLY STRING_SPLIT(u.[Role], N';') s
+                                             WHERE u.Username = @Username AND LTRIM(RTRIM(s.value)) = N'civil')
+                                THEN 1 ELSE 0 END;
+    IF NOT (   (@Stage = 'REQUEST'  AND (@Status IN ('DRAFT', 'RETURNED') OR (@Status = 'FEASIBILITY' AND @IsCivil = 1)))
+            OR (@Stage = 'DOCUMENT' AND @Status = 'DOC_PREPARATION' AND @IsCivil = 1))
         THROW 50074, N'Attachments cannot be changed at the current request status.', 1;
 
     UPDATE dbo.RequestAttachment

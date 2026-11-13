@@ -12,6 +12,7 @@
          REJECTED    : request REJECTED milik requester -> informasi; hilang setelah Details dibuka
                        (dbo.RequestTaskRead).
          FEASIBILITY : request FEASIBILITY -> role civil (lingkup Civil = ABL dan NKM, BR-59).
+         DOC_PREPARATION : request DOC_PREPARATION -> role civil (BOQ, Drawing, kirim ke management; T3-2).
          PLANNING    : request PLANNING -> role civil (aktif setelah management approval, T3).
        Jenis lain (TOR -> purchasing, BAPP, survei) ditambah di modulnya (T4/T6).
      - TaskSince = sejak kapan tugas menunggu (StartedAt langkah, atau waktu status terakhir dari history).
@@ -101,11 +102,11 @@ RETURN
 
     UNION ALL
 
-    -- Pekerjaan Civil (Feasibility / Planning)
+    -- Pekerjaan Civil (Feasibility / Document Preparation (T3-2) / Planning)
     SELECT  pr.Status, pr.Id, NULL,
             (SELECT MAX(h.ActionAt) FROM dbo.ApprovalHistory h WHERE h.RequestId = pr.Id AND h.ToStatus = pr.Status)
     FROM    dbo.ProjectRequest pr
-    WHERE   pr.Status IN ('FEASIBILITY', 'PLANNING')
+    WHERE   pr.Status IN ('FEASIBILITY', 'DOC_PREPARATION', 'PLANNING')
       AND   EXISTS (SELECT 1 FROM r WHERE r.RoleCode = N'civil')
       AND   pr.DepartmentID IN (SELECT DepartmentID FROM scope)
 );
@@ -123,7 +124,7 @@ BEGIN
     SELECT  t.TaskType, COUNT(*) AS TaskCount
     FROM    dbo.fn_User_Tasks(@Username) t
     GROUP BY t.TaskType
-    ORDER BY CHARINDEX(',' + t.TaskType + ',', ',APPROVAL,REVISE,REJECTED,FEASIBILITY,PLANNING,');
+    ORDER BY CHARINDEX(',' + t.TaskType + ',', ',APPROVAL,REVISE,REJECTED,FEASIBILITY,DOC_PREPARATION,PLANNING,');
 END
 GO
 

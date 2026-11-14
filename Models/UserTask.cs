@@ -7,10 +7,11 @@ namespace CIMS.Models
         public const string Revise = "REVISE";
         public const string Rejected = "REJECTED";
         public const string Feasibility = "FEASIBILITY";
+        public const string DocPreparation = "DOC_PREPARATION";
         public const string Planning = "PLANNING";
 
         /// <summary>Urutan tampil (sama dengan usp_Task_GetSummary).</summary>
-        public static readonly string[] All = { Approval, Revise, Rejected, Feasibility, Planning };
+        public static readonly string[] All = { Approval, Revise, Rejected, Feasibility, DocPreparation, Planning };
 
         public static bool IsValid(string? code) => code != null && All.Contains(code);
 
@@ -20,6 +21,7 @@ namespace CIMS.Models
             Revise => "Returned for revision",
             Rejected => "Rejected",
             Feasibility => "Feasibility",
+            DocPreparation => "Document preparation",
             Planning => "Planning",
             _ => code ?? string.Empty
         };
@@ -39,6 +41,7 @@ namespace CIMS.Models
             Revise => "bi-arrow-counterclockwise",
             Rejected => "bi-x-octagon",
             Feasibility => "bi-clipboard-check",
+            DocPreparation => "bi-file-earmark-ruled",
             Planning => "bi-calendar3",
             _ => "bi-list-task"
         };

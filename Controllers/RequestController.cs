@@ -120,8 +120,12 @@ namespace CIMS.Controllers
             var isRequester = CimsRoles.HasAny(AppUser, RequesterRoles);
             var canEdit = RequestStatus.IsEditable(request.Status) && isRequester;
             // Feasibility oleh Civil (T3-1); SP memvalidasi ulang role dan status.
-            var canDecideFeasibility = request.Status == RequestStatus.Feasibility && CimsRoles.HasAny(AppUser, CivilRoles);
-            var canManageAttachments = canEdit || canDecideFeasibility;
+            var isCivil = CimsRoles.HasAny(AppUser, CivilRoles);
+            var canDecideFeasibility = request.Status == RequestStatus.Feasibility && isCivil;
+            // Document Preparation oleh Civil (T3-2): BOQ/Drawing, BOQ total, kirim ke management.
+            var canPrepareDocuments = request.Status == RequestStatus.DocPreparation && isCivil;
+            var canManageAttachments = canEdit || canDecideFeasibility || canPrepareDocuments;
+            var attachmentStage = canManageAttachments ? RequestAttachmentService.StageForStatus(request.Status) : null;
             var steps = await _requestService.GetApprovalStepsAsync(id, ct);
 
             return View(new RequestDetailsViewModel
@@ -129,8 +133,9 @@ namespace CIMS.Controllers
                 Request = request,
                 Assessment = await _requestService.GetAssessmentAsync(id, ct),
                 Attachments = await _attachmentService.ListAsync(id, ct),
-                AttachmentTypes = canManageAttachments ? await _lookupService.GetAttachmentTypesByStageAsync("REQUEST", ct) : Array.Empty<AttachmentType>(),
+                AttachmentTypes = attachmentStage != null ? await _lookupService.GetAttachmentTypesByStageAsync(attachmentStage, ct) : Array.Empty<AttachmentType>(),
                 CanDecideFeasibility = canDecideFeasibility,
+                CanPrepareDocuments = canPrepareDocuments,
                 CanManageAttachments = canManageAttachments,
                 SubCategories = canDecideFeasibility ? await LoadSubCategoriesAsync(ct) : Array.Empty<SubCategory>(),
                 CategoryChanges = await _requestService.GetCategoryChangesAsync(id, ct),
@@ -146,12 +151,13 @@ namespace CIMS.Controllers
         }
 
         /// <summary>
-        /// Approve / Revise / Reject langkah approval sebelum Civil (T2-3; matriks 5.2: kabag (D), mo (G)).
-        /// Hak sebenarnya (role langkah, lingkup, Company, bukan request sendiri, yang pertama berlaku) diperiksa di SP.
+        /// Approve / Revise / Reject langkah approval: titik REQUEST (T2-3; kabag (D), mo (G)) dan
+        /// MGMT (T3-3; gm, director). Hak sebenarnya (role langkah, lingkup, Company, bukan request sendiri,
+        /// yang pertama berlaku) diperiksa di SP dari snapshot langkah.
         /// </summary>
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [RoleAuthorize(CimsRoles.Kabag, CimsRoles.Mo)]
+        [RoleAuthorize(CimsRoles.Kabag, CimsRoles.Mo, CimsRoles.Gm, CimsRoles.Director)]
         public async Task<IActionResult> ApprovalAct(int id, int stepId, string? approvalAction, string? remarks,
             string? returnUrl, CancellationToken ct)
         {
@@ -247,6 +253,78 @@ namespace CIMS.Controllers
             {
                 var requestNo = await _requestService.ChangeCategoryAsync(id, cat, subCategoryId.Value, reason, ct);
                 TempData["Success"] = $"Budget classification changed. Request no.: {requestNo}.";
+            }
+            catch (RequestValidationException ex)
+            {
+                TempData["Error"] = ex.Message;
+            }
+            catch (RequestInvalidStateException ex)
+            {
+                TempData["Error"] = ex.Message;
+            }
+            catch (RequestNotAuthorizedException ex)
+            {
+                TempData["Error"] = ex.Message;
+            }
+            catch (RequestNotFoundException ex)
+            {
+                TempData["Error"] = ex.Message;
+                return RedirectToAction(nameof(Index));
+            }
+
+            return RedirectToAction(nameof(Details), new { id, returnUrl });
+        }
+
+        /// <summary>Isi / ubah BOQ total (IDR) saat Document Preparation (T3-2; BR-05, BR-12).</summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [RoleAuthorize(CimsRoles.Civil)]
+        public async Task<IActionResult> SetBoqTotal(int id, decimal? boqTotal, string? returnUrl, CancellationToken ct)
+        {
+            returnUrl = LocalOrNull(returnUrl);
+            if (boqTotal is null or <= 0)
+            {
+                TempData["Error"] = "BOQ total must be greater than 0.";
+                return RedirectToAction(nameof(Details), new { id, returnUrl });
+            }
+
+            try
+            {
+                await _requestService.SetBoqTotalAsync(id, boqTotal.Value, ct);
+                TempData["Success"] = "BOQ total saved.";
+            }
+            catch (RequestValidationException ex)
+            {
+                TempData["Error"] = ex.Message;
+            }
+            catch (RequestInvalidStateException ex)
+            {
+                TempData["Error"] = ex.Message;
+            }
+            catch (RequestNotAuthorizedException ex)
+            {
+                TempData["Error"] = ex.Message;
+            }
+            catch (RequestNotFoundException ex)
+            {
+                TempData["Error"] = ex.Message;
+                return RedirectToAction(nameof(Index));
+            }
+
+            return RedirectToAction(nameof(Details), new { id, returnUrl });
+        }
+
+        /// <summary>Kirim ke management (T3-2; BR-53): langkah MGMT disusun dari tabel saat ini.</summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [RoleAuthorize(CimsRoles.Civil)]
+        public async Task<IActionResult> SendToManagement(int id, string? remarks, string? returnUrl, CancellationToken ct)
+        {
+            returnUrl = LocalOrNull(returnUrl);
+            try
+            {
+                var status = await _requestService.SendToManagementAsync(id, remarks, ct);
+                TempData["Success"] = $"Request sent to management. Status: {RequestStatus.Label(status)}.";
             }
             catch (RequestValidationException ex)
             {

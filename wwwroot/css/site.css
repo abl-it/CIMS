@@ -28,6 +28,23 @@ html {
   --cims-sidebar-active: #217cdb;
   --cims-sidebar-width: 220px;
   --cims-content-bg: #f4f7fb;
+
+  /* Warna badge status request (satu warna per status; dipakai .cims-status-*) */
+  --cims-status-draft: #6c757d;
+  --cims-status-waiting: #0aa2c0;
+  --cims-status-returned: #ffc107;
+  --cims-status-feasibility: #0d6efd;
+  --cims-status-docprep: #138496;
+  --cims-status-mgmt: #6f42c1;
+  --cims-status-planning: #3d4db7;
+  --cims-status-procurement: #fd7e14;
+  --cims-status-scheduling: #8a5a2b;
+  --cims-status-progress: #084298;
+  --cims-status-bapp: #d63384;
+  --cims-status-closed: #198754;
+  --cims-status-survey: #0f5132;
+  --cims-status-rejected: #dc3545;
+  --cims-status-cancelled: #343a40;
 }
 
 body {
@@ -458,6 +475,50 @@ a.app-sidebar-link.active {
   background-color: var(--bs-body-bg);
   border: 1px solid var(--bs-border-color);
   font-weight: 400;
+}
+
+/* Badge status request: satu warna per status (RequestStatus.BadgeClass) */
+.badge.cims-status { color: #fff; background-color: var(--cims-status-bg, var(--cims-status-draft)); }
+.badge.cims-status-draft { --cims-status-bg: var(--cims-status-draft); }
+.badge.cims-status-waiting { --cims-status-bg: var(--cims-status-waiting); }
+.badge.cims-status-returned { --cims-status-bg: var(--cims-status-returned); color: #212529; }
+.badge.cims-status-feasibility { --cims-status-bg: var(--cims-status-feasibility); }
+.badge.cims-status-docprep { --cims-status-bg: var(--cims-status-docprep); }
+.badge.cims-status-mgmt { --cims-status-bg: var(--cims-status-mgmt); }
+.badge.cims-status-planning { --cims-status-bg: var(--cims-status-planning); }
+.badge.cims-status-procurement { --cims-status-bg: var(--cims-status-procurement); color: #212529; }
+.badge.cims-status-scheduling { --cims-status-bg: var(--cims-status-scheduling); }
+.badge.cims-status-progress { --cims-status-bg: var(--cims-status-progress); }
+.badge.cims-status-bapp { --cims-status-bg: var(--cims-status-bapp); }
+.badge.cims-status-closed { --cims-status-bg: var(--cims-status-closed); }
+.badge.cims-status-survey { --cims-status-bg: var(--cims-status-survey); }
+.badge.cims-status-rejected { --cims-status-bg: var(--cims-status-rejected); }
+.badge.cims-status-cancelled { --cims-status-bg: var(--cims-status-cancelled); }
+
+/* Card yang bisa dibuka-tutup (Details: Approval Steps, Workflow History, Classification Changes) */
+.cims-card-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--cims-space-2);
+  width: 100%;
+  padding: var(--bs-card-cap-padding-y) var(--bs-card-cap-padding-x);
+  border: 0;
+  color: inherit;
+  text-align: start;
+  font-weight: 600;
+  background-color: var(--bs-card-cap-bg);
+  border-radius: var(--bs-card-inner-border-radius);
+}
+
+.cims-card-toggle[aria-expanded="true"] { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+
+.cims-card-toggle:hover { background-color: var(--bs-tertiary-bg); }
+.cims-card-toggle[aria-expanded="true"] { border-bottom: var(--bs-card-border-width) solid var(--bs-card-border-color); }
+.cims-card-toggle-chevron { margin-inline-start: auto; transition: transform 0.2s ease; }
+.cims-card-toggle[aria-expanded="true"] .cims-card-toggle-chevron { transform: rotate(180deg); }
+
+@media (max-width: 767.98px) {
+  .cims-card-toggle { min-height: 2.75rem; }
 }
 
 /* Notifikasi (toast + SweetAlert2) */

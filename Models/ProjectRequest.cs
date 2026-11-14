@@ -42,16 +42,26 @@ namespace CIMS.Models
         public static string Label(string? code) =>
             All.FirstOrDefault(s => s.Key == code).Value ?? code ?? string.Empty;
 
-        /// <summary>Kelas badge Bootstrap per status.</summary>
-        public static string BadgeClass(string? code) => code switch
+        /// <summary>Kelas badge per status: satu warna per status (token --cims-status-* di site.css).</summary>
+        public static string BadgeClass(string? code) => "cims-status " + (code switch
         {
-            Draft => "text-bg-secondary",
-            Returned => "text-bg-warning",
-            WaitingApproval or MgmtApproval or BappReview => "text-bg-info",
-            Rejected or Cancelled => "text-bg-danger",
-            Closed or SurveyCompleted => "text-bg-success",
-            _ => "text-bg-primary"
-        };
+            Draft => "cims-status-draft",
+            WaitingApproval => "cims-status-waiting",
+            Returned => "cims-status-returned",
+            Feasibility => "cims-status-feasibility",
+            DocPreparation => "cims-status-docprep",
+            MgmtApproval => "cims-status-mgmt",
+            Planning => "cims-status-planning",
+            Procurement => "cims-status-procurement",
+            Scheduling => "cims-status-scheduling",
+            InProgress => "cims-status-progress",
+            BappReview => "cims-status-bapp",
+            Closed => "cims-status-closed",
+            SurveyCompleted => "cims-status-survey",
+            Rejected => "cims-status-rejected",
+            Cancelled => "cims-status-cancelled",
+            _ => "cims-status-draft"
+        });
 
         /// <summary>Status yang masih boleh diubah requester (draft / dikembalikan).</summary>
         public static bool IsEditable(string? code) => code is Draft or Returned;
@@ -73,7 +83,8 @@ namespace CIMS.Models
         public static string SuccessMessage(string code) => code switch
         {
             Approve => "Request approved.",
-            Revise => "Request returned to the requester for revision.",
+            // Tujuan Revise mengikuti langkah (REQUESTER / CIVIL); status baru ditampilkan terpisah.
+            Revise => "Request returned for revision.",
             Reject => "Request rejected.",
             _ => "Done."
         };
@@ -188,6 +199,8 @@ namespace CIMS.Models
             "REJECT" => "Rejected",
             "FEASIBLE" => "Feasible",
             "CATEGORY_CHANGE" => "Category changed",
+            "BOQ_TOTAL" => "BOQ total",
+            "SEND_TO_MGMT" => "Sent to management",
             _ => Action
         };
 
@@ -201,17 +214,19 @@ namespace CIMS.Models
             "CANCEL" => "bi-slash-circle",
             "FEASIBLE" => "bi-clipboard-check",
             "CATEGORY_CHANGE" => "bi-tag",
+            "BOQ_TOTAL" => "bi-calculator",
+            "SEND_TO_MGMT" => "bi-send-check",
             _ => "bi-dot"
         };
 
         /// <summary>Warna badge/ikon per aksi.</summary>
         public string ActionBadgeClass => Action switch
         {
-            "SUBMIT" or "RESUBMIT" => "text-bg-primary",
+            "SUBMIT" or "RESUBMIT" or "SEND_TO_MGMT" => "text-bg-primary",
             "APPROVE" or "FEASIBLE" => "text-bg-success",
             "REVISE" => "text-bg-warning",
             "REJECT" => "text-bg-danger",
-            "CATEGORY_CHANGE" => "text-bg-info",
+            "CATEGORY_CHANGE" or "BOQ_TOTAL" => "text-bg-info",
             _ => "text-bg-secondary"
         };
     }
@@ -268,6 +283,10 @@ namespace CIMS.Models
         public decimal? ExpectedRoiPercent { get; set; }
         public string? RoiExplanation { get; set; }
         public string? AdditionalInfo { get; set; }
+
+        /// <summary>Nilai BOQ total (IDR) dari Civil di Document Preparation (T3-2; BR-05, BR-12).</summary>
+        public decimal? BoqTotal { get; set; }
+
         public DateTime? SubmittedAt { get; set; }
         public DateTime CreatedAt { get; set; }
         public string? CreatedBy { get; set; }

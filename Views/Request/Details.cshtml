@@ -70,7 +70,9 @@
                     <label for="approvalRemarks" class="form-label">Remarks</label>
                     <textarea id="approvalRemarks" name="remarks" class="form-control" rows="3" maxlength="1000"
                               aria-describedby="approvalRemarksHelp approvalRemarksError"></textarea>
-                    <div id="approvalRemarksHelp" class="form-text">Optional for approval; required for revision or rejection.</div>
+                    <div id="approvalRemarksHelp" class="form-text">
+                        Optional for approval; required for revision or rejection.@(act.ReviseTo == "CIVIL" ? " Revision returns the request to Civil (feasibility)." : "")
+                    </div>
                     <div id="approvalRemarksError" class="invalid-feedback">Remarks are required to revise or reject.</div>
                 </div>
                 <div class="d-grid d-md-flex justify-content-md-end gap-2">
@@ -83,11 +85,13 @@
                             <i class="bi bi-x-octagon me-1" aria-hidden="true"></i>Reject
                         </button>
                     }
-                    @if (act.ReviseTo == "REQUESTER")
+                    @* Tujuan Revise dari snapshot langkah: REQUESTER (T2-3) atau CIVIL / Feasibility (T3-3, BR-06, BR-07) *@
+                    @if (act.ReviseTo is "REQUESTER" or "CIVIL")
                     {
                         <button type="submit" name="approvalAction" value="@ApprovalAction.Revise" class="btn btn-outline-warning btn-lg"
                                 data-requires-remarks="true"
-                                data-confirm="Return this request to the requester for revision?" data-confirm-title="Revise Request"
+                                data-confirm="@(act.ReviseTo == "CIVIL" ? "Return this request to Civil for feasibility review?" : "Return this request to the requester for revision?")"
+                                data-confirm-title="Revise Request"
                                 data-confirm-ok="Revise">
                             <i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Revise
                         </button>
@@ -179,6 +183,58 @@
     </div>
 }
 
+@* Document Preparation oleh Civil (T3-2; PRD 3.1 langkah 5, BR-05, BR-12, BR-53); validasi akhir di SP *@
+@if (Model.CanPrepareDocuments)
+{
+    var boqReady = r.BoqTotal is > 0;
+    <div class="card mb-3 border-info">
+        <div class="card-header fw-semibold"><i class="bi bi-file-earmark-ruled me-1" aria-hidden="true"></i>Document Preparation</div>
+        <div class="card-body">
+            @* Ringkasan kelengkapan sebelum kirim ke management *@
+            <ul class="list-unstyled mb-3 request-text">
+                <li>
+                    <i class="bi @(boqReady ? "bi-check-circle-fill text-success" : "bi-circle text-muted") me-1" aria-hidden="true"></i>
+                    BOQ total@(boqReady ? $": IDR {r.BoqTotal!.Value.ToString("#,0.##", culture)}" : " not set")
+                </li>
+                <li>
+                    <i class="bi @(missingMandatory.Count == 0 ? "bi-check-circle-fill text-success" : "bi-circle text-muted") me-1" aria-hidden="true"></i>
+                    @(missingMandatory.Count == 0 ? "Required documents attached" : "Missing documents: " + string.Join(", ", missingMandatory))
+                </li>
+            </ul>
+
+            <form asp-action="SetBoqTotal" method="post" class="row g-2 align-items-end mb-3">
+                <input type="hidden" name="id" value="@r.Id" />
+                <input type="hidden" name="returnUrl" value="@returnUrl" />
+                <div class="col-12 col-md-8">
+                    <label for="boqTotal" class="form-label">BOQ total (IDR)</label>
+                    <input id="boqTotal" name="boqTotal" type="number" class="form-control" min="1" step="0.01" required
+                           inputmode="decimal" value="@(r.BoqTotal?.ToString("0.##", culture))" />
+                </div>
+                <div class="col-12 col-md-4 d-grid">
+                    <button type="submit" class="btn btn-outline-primary btn-lg"><i class="bi bi-save me-1" aria-hidden="true"></i>Save BOQ Total</button>
+                </div>
+            </form>
+
+            <hr />
+
+            <form asp-action="SendToManagement" method="post"
+                  data-confirm="Send this request to management for approval? BOQ total and documents cannot be changed afterwards."
+                  data-confirm-title="Send to Management" data-confirm-ok="Send">
+                <input type="hidden" name="id" value="@r.Id" />
+                <input type="hidden" name="returnUrl" value="@returnUrl" />
+                <div class="mb-3">
+                    <label for="sendRemarks" class="form-label">Remarks</label>
+                    <textarea id="sendRemarks" name="remarks" class="form-control" rows="2" maxlength="1000"></textarea>
+                    <div class="form-text">Optional. Upload the BOQ (and Drawing for CAPEX) in the Attachments section below.</div>
+                </div>
+                <div class="d-grid d-md-flex justify-content-md-end">
+                    <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-send-check me-1" aria-hidden="true"></i>Send to Management</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
 @* (i) Preliminary Data *@
 <div class="card mb-3">
     <div class="card-header fw-semibold">Preliminary Data</div>
@@ -245,6 +301,13 @@
                 <dt>Budget expectation</dt>
                 <dd>@(r.BudgetExpectation.HasValue ? "IDR " + r.BudgetExpectation.Value.ToString("#,0", culture) : "-")</dd>
             </div>
+            @if (r.BoqTotal.HasValue)
+            {
+                <div class="col-12 col-md-6 cims-detail-item">
+                    <dt>BOQ total</dt>
+                    <dd>IDR @r.BoqTotal.Value.ToString("#,0.##", culture)</dd>
+                </div>
+            }
             <div class="col-12 col-md-6 cims-detail-item">
                 <dt>Created</dt>
                 <dd>@r.CreatedAt.ToString("dd MMM yyyy HH:mm", culture)@(string.IsNullOrEmpty(r.CreatedBy) ? "" : $" by {r.CreatedBy}")</dd>
@@ -330,7 +393,7 @@
     <div class="card-body">
         @if (Model.CanManageAttachments && missingMandatory.Count > 0)
         {
-            <p class="small text-warning-emphasis">Required before @(Model.CanDecideFeasibility ? "marking feasible" : "submit"): @string.Join(", ", missingMandatory).</p>
+            <p class="small text-warning-emphasis">Required before @(Model.CanPrepareDocuments ? "sending to management" : Model.CanDecideFeasibility ? "marking feasible" : "submit"): @string.Join(", ", missingMandatory).</p>
         }
 
         @if (!Model.Attachments.Any())
@@ -396,7 +459,15 @@
 @if (Model.CategoryChanges.Any())
 {
     <div class="card mb-3">
-        <div class="card-header fw-semibold"><i class="bi bi-tag me-1" aria-hidden="true"></i>Classification Changes</div>
+        <h2 class="h6 mb-0">
+            <button type="button" class="cims-card-toggle" data-bs-toggle="collapse" data-bs-target="#cardCategoryChanges"
+                    aria-expanded="false" aria-controls="cardCategoryChanges">
+                <i class="bi bi-tag" aria-hidden="true"></i>Classification Changes
+                <span class="badge request-status-chip">@Model.CategoryChanges.Count</span>
+                <i class="bi bi-chevron-down cims-card-toggle-chevron" aria-hidden="true"></i>
+            </button>
+        </h2>
+        <div id="cardCategoryChanges" class="collapse">
         <div class="card-body">
             <ol class="list-unstyled mb-0 request-timeline">
                 @foreach (var c in Model.CategoryChanges)
@@ -421,12 +492,24 @@
                 }
             </ol>
         </div>
+        </div>
     </div>
 }
 
-@* Langkah approval (snapshot BR-37; ronde terakhir per titik) *@
+@* Langkah approval (snapshot BR-37; ronde terakhir per titik); tertutup default, klik untuk membuka *@
 <div class="card mb-3">
-    <div class="card-header fw-semibold">Approval Steps</div>
+    <h2 class="h6 mb-0">
+        <button type="button" class="cims-card-toggle" data-bs-toggle="collapse" data-bs-target="#cardApprovalSteps"
+                aria-expanded="false" aria-controls="cardApprovalSteps">
+            <i class="bi bi-diagram-3" aria-hidden="true"></i>Approval Steps
+            @if (Model.ApprovalSteps.FirstOrDefault(s => s.IsCurrent) is { } cur)
+            {
+                <span class="badge text-bg-info fw-normal">Waiting: @(string.IsNullOrEmpty(cur.RoleName) ? cur.RoleCode : cur.RoleName)</span>
+            }
+            <i class="bi bi-chevron-down cims-card-toggle-chevron" aria-hidden="true"></i>
+        </button>
+    </h2>
+    <div id="cardApprovalSteps" class="collapse">
     <div class="card-body">
         @if (!Model.ApprovalSteps.Any())
         {
@@ -464,11 +547,20 @@
             }
         }
     </div>
+    </div>
 </div>
 
-@* Riwayat aksi (terbaru di atas) *@
+@* Riwayat aksi (terbaru di atas); tertutup default, klik untuk membuka *@
 <div class="card mb-3">
-    <div class="card-header fw-semibold"><i class="bi bi-clock-history me-1" aria-hidden="true"></i>Workflow History</div>
+    <h2 class="h6 mb-0">
+        <button type="button" class="cims-card-toggle" data-bs-toggle="collapse" data-bs-target="#cardHistory"
+                aria-expanded="false" aria-controls="cardHistory">
+            <i class="bi bi-clock-history" aria-hidden="true"></i>Workflow History
+            <span class="badge request-status-chip">@Model.History.Count</span>
+            <i class="bi bi-chevron-down cims-card-toggle-chevron" aria-hidden="true"></i>
+        </button>
+    </h2>
+    <div id="cardHistory" class="collapse">
     <div class="card-body">
         @if (!Model.History.Any())
         {
@@ -506,6 +598,7 @@
                 }
             </ol>
         }
+    </div>
     </div>
 </div>
 

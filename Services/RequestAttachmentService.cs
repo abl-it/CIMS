@@ -9,6 +9,15 @@ namespace CIMS.Services
     public class RequestAttachmentService : IRequestAttachmentService
     {
         private const string StageRequest = "REQUEST";
+        private const string StageDocument = "DOCUMENT";
+
+        /// <summary>Tahap jenis lampiran yang boleh diunggah pada status request; null = tidak boleh.</summary>
+        public static string? StageForStatus(string? status) => status switch
+        {
+            RequestStatus.Draft or RequestStatus.Returned or RequestStatus.Feasibility => StageRequest,
+            RequestStatus.DocPreparation => StageDocument,
+            _ => null
+        };
 
         private static readonly FileExtensionContentTypeProvider ContentTypes = new();
 
@@ -47,11 +56,12 @@ namespace CIMS.Services
             // Validasi awal sebelum menulis file; SP memvalidasi ulang saat mencatat metadata.
             var request = await _requestService.GetByIdAsync(requestId, ct)
                 ?? throw new RequestNotFoundException("Request not found.");
-            // Draft/Returned (requester) atau Feasibility (Civil, mis. lampiran ROI); role dicek ulang di SP.
-            if (!RequestStatus.IsEditable(request.Status) && request.Status != RequestStatus.Feasibility)
-                throw new RequestInvalidStateException("Attachments cannot be changed at the current request status.");
+            // Tahap lampiran menurut status: REQUEST (Draft/Returned requester, Feasibility Civil) atau
+            // DOCUMENT (BOQ/Drawing, Document Preparation Civil; T3-2). Role dicek ulang di SP.
+            var stage = StageForStatus(request.Status)
+                ?? throw new RequestInvalidStateException("Attachments cannot be changed at the current request status.");
 
-            var types = await _lookupService.GetAttachmentTypesByStageAsync(StageRequest, ct);
+            var types = await _lookupService.GetAttachmentTypesByStageAsync(stage, ct);
             var type = types.FirstOrDefault(t => t.Id == attachmentTypeId)
                 ?? throw new RequestValidationException("Attachment type is invalid.");
 

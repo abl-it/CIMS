@@ -318,11 +318,11 @@ GO
    DECLARE @Sub INT = (SELECT TOP (1) Id FROM dbo.SubCategory WHERE Category = 'CAPEX' AND IsActive = 1 ORDER BY SortOrder);
    DECLARE @SubOpex INT = (SELECT TOP (1) Id FROM dbo.SubCategory WHERE Category = 'OPEX' AND IsActive = 1 ORDER BY SortOrder);
    BEGIN TRY EXEC dbo.usp_Request_ChangeCategory @Id = @Id, @Username = @Bukan, @Category = 'CAPEX', @SubCategoryId = @Sub, @Reason = N'x';
-   END TRY BEGIN CATCH SELECT '1a expect 50075' AS TestCase, ERROR_NUMBER() AS ErrNo, ERROR_MESSAGE() AS ErrMsg; END CATCH;
+   END TRY BEGIN CATCH IF @@TRANCOUNT > 0 ROLLBACK; SELECT '1a expect 50075' AS TestCase, ERROR_NUMBER() AS ErrNo, ERROR_MESSAGE() AS ErrMsg; END CATCH;
    BEGIN TRY EXEC dbo.usp_Request_ChangeCategory @Id = @Id, @Username = @Civil, @Category = 'CAPEX', @SubCategoryId = @Sub, @Reason = N' ';
-   END TRY BEGIN CATCH SELECT '1b expect 50072' AS TestCase, ERROR_NUMBER() AS ErrNo, ERROR_MESSAGE() AS ErrMsg; END CATCH;
+   END TRY BEGIN CATCH IF @@TRANCOUNT > 0 ROLLBACK; SELECT '1b expect 50072' AS TestCase, ERROR_NUMBER() AS ErrNo, ERROR_MESSAGE() AS ErrMsg; END CATCH;
    BEGIN TRY EXEC dbo.usp_Request_ChangeCategory @Id = @Id, @Username = @Civil, @Category = 'CAPEX', @SubCategoryId = @SubOpex, @Reason = N'x';
-   END TRY BEGIN CATCH SELECT '1c expect 50072' AS TestCase, ERROR_NUMBER() AS ErrNo, ERROR_MESSAGE() AS ErrMsg; END CATCH;
+   END TRY BEGIN CATCH IF @@TRANCOUNT > 0 ROLLBACK; SELECT '1c expect 50072' AS TestCase, ERROR_NUMBER() AS ErrNo, ERROR_MESSAGE() AS ErrMsg; END CATCH;
 
    -- 2) OPEX -> CAPEX: nomor baru PM-CPX-11-26-NNN (bulan/tahun sama), log + riwayat CATEGORY_CHANGE
    EXEC dbo.usp_Request_ChangeCategory @Id = @Id, @Username = @Civil, @Category = 'CAPEX', @SubCategoryId = @Sub,
@@ -340,12 +340,12 @@ GO
    DECLARE @Sub2 INT = (SELECT TOP (1) Id FROM dbo.SubCategory WHERE Category = 'CAPEX' AND IsActive = 1 AND Id <> @Sub ORDER BY SortOrder);
    EXEC dbo.usp_Request_ChangeCategory @Id = @Id, @Username = @Civil, @Category = 'CAPEX', @SubCategoryId = @Sub2, @Reason = N'Better fit';
    BEGIN TRY EXEC dbo.usp_Request_ChangeCategory @Id = @Id, @Username = @Civil, @Category = 'CAPEX', @SubCategoryId = @Sub2, @Reason = N'Same';
-   END TRY BEGIN CATCH SELECT '4b expect 50072' AS TestCase, ERROR_NUMBER() AS ErrNo, ERROR_MESSAGE() AS ErrMsg; END CATCH;
+   END TRY BEGIN CATCH IF @@TRANCOUNT > 0 ROLLBACK; SELECT '4b expect 50072' AS TestCase, ERROR_NUMBER() AS ErrNo, ERROR_MESSAGE() AS ErrMsg; END CATCH;
 
    -- 5) FEASIBLE tanpa lampiran ROI (CAPEX) -> 50072 menyebut ROI; upload ROI lewat aplikasi sebagai civil, lalu
    --    jalankan lagi tanpa TRY/CATCH -> DOC_PREPARATION
    BEGIN TRY EXEC dbo.usp_Request_FeasibilityDecide @Id = @Id, @Username = @Civil, @Decision = 'FEASIBLE';
-   END TRY BEGIN CATCH SELECT '5 expect 50072 (ROI)' AS TestCase, ERROR_NUMBER() AS ErrNo, ERROR_MESSAGE() AS ErrMsg; END CATCH;
+   END TRY BEGIN CATCH IF @@TRANCOUNT > 0 ROLLBACK; SELECT '5 expect 50072 (ROI)' AS TestCase, ERROR_NUMBER() AS ErrNo, ERROR_MESSAGE() AS ErrMsg; END CATCH;
    --    berhasil -> DOC_PREPARATION; ubah kategori lagi -> 50074; tugas FEASIBILITY civil hilang
    SELECT * FROM dbo.fn_User_Tasks(@Civil) WHERE RequestId = @Id;
 

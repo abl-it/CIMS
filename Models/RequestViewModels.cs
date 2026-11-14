@@ -218,7 +218,13 @@ namespace CIMS.Models
         /// <summary>Civil dan status Feasibility (T3-1): keputusan Feasibility dan ubah kategori; validasi akhir di SP.</summary>
         public bool CanDecideFeasibility { get; set; }
 
-        /// <summary>Boleh upload/hapus lampiran tahap REQUEST: requester (Draft/Returned) atau Civil (Feasibility).</summary>
+        /// <summary>Civil dan status Document Preparation (T3-2): BOQ total dan kirim ke management; validasi akhir di SP.</summary>
+        public bool CanPrepareDocuments { get; set; }
+
+        /// <summary>
+        /// Boleh upload/hapus lampiran: tahap REQUEST oleh requester (Draft/Returned) atau Civil (Feasibility);
+        /// tahap DOCUMENT (BOQ/Drawing) oleh Civil (Document Preparation).
+        /// </summary>
         public bool CanManageAttachments { get; set; }
 
         /// <summary>Sub-kategori aktif semua kategori (form ubah kategori); hanya dimuat bila CanDecideFeasibility.</summary>

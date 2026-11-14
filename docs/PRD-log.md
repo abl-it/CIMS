@@ -49,3 +49,4 @@ Pendamping `docs/PRD.md`.
 | 2026-11-13 | T3 dipecah: T3-1 Feasibility (Yes/Revise/Reject, ubah kategori + renumber), T3-2 Document Preparation + kirim ke management, T3-3 Management approval GM/Director | 9.1, 3.1 |
 | 2026-11-13 | Civil mengisi nilai "BOQ total (IDR)" di Document Preparation, wajib sebelum dikirim ke management (dasar plan cost in-house) | BR-05, BR-12 |
 | 2026-11-13 | Civil boleh mengubah kategori ke CAPEX saat Feasibility; Civil boleh mengunggah lampiran ROI; lampiran wajib kategori baru harus lengkap sebelum Feasibility = Yes. ROI dikosongkan bila kategori bukan CAPEX lagi | BR-02, BR-42, BR-54 |
+| 2026-11-13 | BOQ total disimpan di `ProjectRequest.BoqTotal` (migrasi kolom nullable), perubahan dicatat di riwayat. Kirim ke management menyusun langkah MGMT dari tabel saat itu (ronde baru); tanpa langkah MGMT langsung Planning | BR-05, BR-12, BR-53 |

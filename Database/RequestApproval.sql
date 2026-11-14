@@ -16,10 +16,13 @@
        titik (REQUEST -> WAITING_APPROVAL, MGMT -> MGMT_APPROVAL, BAPP -> BAPP_REVIEW).
      - BR-39 (yang pertama berlaku): baris request dikunci (UPDLOCK) dan aksi wajib menyebut @StepId yang
        dilihat user; bila langkah itu sudah diproses orang lain -> 50074.
-     - T2-3 hanya titik REQUEST. MGMT (T3) dan BAPP (T5) memakai function yang sama; SP aksinya menyusul.
-     - Aksi titik REQUEST:
-         APPROVE -> langkah berikut aktif; tanpa langkah berikut -> FEASIBILITY (ST-04)
-         REVISE  -> RETURNED (ST-03), hanya bila ReviseTo = REQUESTER; catatan wajib
+     - Titik REQUEST (T2-3) dan MGMT (T3-3: GM, lalu Director untuk CAPEX; NKM: Director). BAPP menyusul (T5).
+     - Aksi:
+         APPROVE -> langkah berikut aktif; tanpa langkah berikut -> REQUEST: FEASIBILITY (ST-04),
+                    MGMT: PLANNING (ST-08)
+         REVISE  -> sesuai ReviseTo langkah: REQUESTER -> RETURNED (ST-03); CIVIL -> FEASIBILITY (BR-06, BR-07;
+                    Civil menilai ulang, lalu Document Preparation dan kirim ulang = ronde MGMT baru, BR-53);
+                    catatan wajib
          REJECT  -> REJECTED (ST-15), hanya bila AllowReject = 1; alasan wajib (BR-08)
        REVISE/REJECT menutup (VOID) sisa langkah PENDING ronde tersebut. Semua aksi tercatat (BR-10).
    Error   : 50072 = Input wajib kosong / tidak valid
@@ -123,7 +126,7 @@ END
 GO
 
 /* ---------------------------------------------------------------------
-   4. usp_Request_ApprovalAct  (Approve / Revise / Reject langkah titik REQUEST)
+   4. usp_Request_ApprovalAct  (Approve / Revise / Reject langkah titik REQUEST dan MGMT)
       @StepId  = langkah yang ditampilkan ke user (BR-39: cegah aksi ganda).
       @Action  = APPROVE | REVISE | REJECT
       @Remarks = opsional untuk APPROVE; wajib untuk REVISE dan REJECT (maks. 1000 karakter).
@@ -176,9 +179,13 @@ BEGIN
 
     IF @Point IS NULL
         THROW 50073, N'Approval step not found.', 1;
-    IF @Point <> 'REQUEST'
+    -- T2-3: REQUEST · T3-3: MGMT (GM / Director). BAPP menyusul (T5).
+    IF @Point NOT IN ('REQUEST', 'MGMT')
         THROW 50074, N'This approval step cannot be processed here.', 1;
-    IF @Status <> 'WAITING_APPROVAL'
+
+    DECLARE @PointStatus VARCHAR(20) = CASE @Point WHEN 'REQUEST' THEN 'WAITING_APPROVAL' ELSE 'MGMT_APPROVAL' END;
+
+    IF @Status <> @PointStatus
        OR @StepStatus <> 'PENDING'
        OR @StartedAt IS NULL
        OR @Round <> (SELECT MAX(Round) FROM dbo.ApprovalStep WHERE RequestId = @Id AND [Point] = @Point)
@@ -189,7 +196,8 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM dbo.fn_User_ActionableSteps(@Username) a WHERE a.ApprovalStepId = @StepId)
         THROW 50075, N'You are not authorized to process this approval step.', 1;
 
-    IF @Action = 'REVISE' AND ISNULL(@ReviseTo, '') <> 'REQUESTER'
+    -- Tujuan Revise dari snapshot langkah: REQUESTER -> RETURNED, CIVIL -> FEASIBILITY (BR-06, BR-07)
+    IF @Action = 'REVISE' AND ISNULL(@ReviseTo, '') NOT IN ('REQUESTER', 'CIVIL')
         THROW 50074, N'Revision is not allowed at this approval step.', 1;
     IF @Action = 'REJECT' AND @AllowReject = 0
         THROW 50074, N'Rejection is not allowed at this approval step.', 1;
@@ -214,16 +222,20 @@ BEGIN
 
         IF @NextOrder IS NOT NULL
         BEGIN
-            SET @NewStatus = 'WAITING_APPROVAL';
+            SET @NewStatus = @PointStatus;
             UPDATE dbo.ApprovalStep SET StartedAt = @Now
             WHERE  RequestId = @Id AND [Point] = @Point AND Round = @Round AND StepOrder = @NextOrder;
         END
         ELSE
-            SET @NewStatus = 'FEASIBILITY';                                              -- ST-04
+            -- Langkah terakhir: REQUEST -> FEASIBILITY (ST-04), MGMT -> PLANNING (ST-08)
+            SET @NewStatus = CASE @Point WHEN 'REQUEST' THEN 'FEASIBILITY' ELSE 'PLANNING' END;
     END
     ELSE
     BEGIN
-        SET @NewStatus = CASE @Action WHEN 'REVISE' THEN 'RETURNED' ELSE 'REJECTED' END;  -- ST-03 / ST-15
+        -- ST-03 / ST-04 (Revise ke Civil) / ST-15
+        SET @NewStatus = CASE WHEN @Action = 'REJECT'         THEN 'REJECTED'
+                              WHEN @ReviseTo = 'CIVIL'        THEN 'FEASIBILITY'
+                              ELSE 'RETURNED' END;
 
         UPDATE dbo.ApprovalStep SET Status = 'VOID'
         WHERE  RequestId = @Id AND [Point] = @Point AND Round = @Round AND Status = 'PENDING';
@@ -296,4 +308,44 @@ DECLARE @Id INT = 3, @Kabag NVARCHAR(100) = N'marisi', @KabagLain NVARCHAR(100) 
    --EXEC dbo.usp_Request_ApprovalAct @Id = 3, @StepId = 6, @Username = 'marisi', @Action = 'REJECT', @Remarks = N'Not a priority';
 
    -- 8) BR-63: user role kabag dari Company lain (NKM vs ABL) -> 0 baris di fn_User_ActionableSteps
+   ===================================================================== */
+
+/* =====================================================================
+   TEST T3-3 MANAGEMENT APPROVAL (jalankan manual di DB dev; ganti <...> dengan data nyata)
+   Kasus yang diharapkan error dibungkus TRY/CATCH (baris TestCase / ErrNo / ErrMsg).
+   CATCH wajib ROLLBACK: error di dalam transaksi SP (XACT_ABORT ON) membuat transaksi "doomed";
+   tanpa ROLLBACK, statement berikutnya gagal dengan error 3998/3930.
+   Prasyarat: request MGMT_APPROVAL (mis. Id 3, ABL CAPEX setelah Send to Management di T3-2).
+
+   -- 0) Cari user gm / director ABL
+   SELECT u.Username, u.[Role], e.CoCode FROM home..users u JOIN home..app_employees e ON e.EmployeeCode = u.EmployeeCode
+   WHERE  u.[Role] LIKE N'%gm%' OR u.[Role] LIKE N'%director%';
+
+   DECLARE @Id INT = 3, @Gm NVARCHAR(100) = N'<user gm>', @Dir NVARCHAR(100) = N'<user director>';
+
+   -- 1) Langkah aktif: GM -> 1 baris; Director (sebelum GM approve) -> 0 baris
+   EXEC dbo.usp_Request_GetActionableStep @RequestId = @Id, @Username = @Gm;
+   EXEC dbo.usp_Request_GetActionableStep @RequestId = @Id, @Username = @Dir;
+
+   -- 2) Director memakai StepId GM -> 50075; GM Revise tanpa catatan -> 50072
+   DECLARE @GmStep INT = (SELECT ApprovalStepId FROM dbo.fn_User_ActionableSteps(@Gm) WHERE RequestId = @Id AND [Point] = 'MGMT');
+   BEGIN TRY EXEC dbo.usp_Request_ApprovalAct @Id = @Id, @StepId = @GmStep, @Username = @Dir, @Action = 'APPROVE';
+   END TRY BEGIN CATCH IF @@TRANCOUNT > 0 ROLLBACK; SELECT '2a expect 50075' AS TestCase, ERROR_NUMBER() AS ErrNo, ERROR_MESSAGE() AS ErrMsg; END CATCH;
+   BEGIN TRY EXEC dbo.usp_Request_ApprovalAct @Id = @Id, @StepId = @GmStep, @Username = @Gm, @Action = 'REVISE';
+   END TRY BEGIN CATCH IF @@TRANCOUNT > 0 ROLLBACK; SELECT '2b expect 50072' AS TestCase, ERROR_NUMBER() AS ErrNo, ERROR_MESSAGE() AS ErrMsg; END CATCH;
+
+   -- 3) GM Approve -> tetap MGMT_APPROVAL (CAPEX), langkah Director aktif; OPEX -> PLANNING
+   EXEC dbo.usp_Request_ApprovalAct @Id = @Id, @StepId = @GmStep, @Username = @Gm, @Action = 'APPROVE', @Remarks = N'OK';
+   EXEC dbo.usp_Request_GetApprovalSteps @RequestId = @Id, @Username = @Gm;
+
+   -- 4a) Director Revise -> FEASIBILITY (kembali ke Civil); langkah MGMT sisa VOID; tugas FEASIBILITY Civil muncul
+   DECLARE @DirStep INT = (SELECT ApprovalStepId FROM dbo.fn_User_ActionableSteps(@Dir) WHERE RequestId = @Id AND [Point] = 'MGMT');
+   EXEC dbo.usp_Request_ApprovalAct @Id = @Id, @StepId = @DirStep, @Username = @Dir, @Action = 'REVISE', @Remarks = N'Please revise BOQ';
+   --    lalu Civil: Feasible -> Document Preparation -> Send to Management -> ronde MGMT 2 (GM lagi)
+   -- 4b) atau Director Approve -> PLANNING; tugas PLANNING Civil muncul
+   --EXEC dbo.usp_Request_ApprovalAct @Id = @Id, @StepId = @DirStep, @Username = @Dir, @Action = 'APPROVE';
+   -- 4c) atau Reject (alasan wajib) -> REJECTED
+   --EXEC dbo.usp_Request_ApprovalAct @Id = @Id, @StepId = @DirStep, @Username = @Dir, @Action = 'REJECT', @Remarks = N'Budget not available';
+
+   -- 5) Setelah ada langkah MGMT APPROVED, requester Cancel -> 50074 (BR-09)
    ===================================================================== */

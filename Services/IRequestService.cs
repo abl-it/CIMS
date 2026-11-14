@@ -68,6 +68,21 @@ namespace CIMS.Services
         /// <exception cref="RequestNotAuthorizedException">SP error 50075 (bukan Civil).</exception>
         Task<string> FeasibilityDecideAsync(int id, string decision, string? remarks, CancellationToken ct = default);
 
+        /// <summary>Isi / ubah BOQ total (IDR) saat Document Preparation oleh Civil (BR-05, BR-12).</summary>
+        /// <exception cref="RequestValidationException">SP error 50072.</exception>
+        /// <exception cref="RequestNotFoundException">SP error 50073.</exception>
+        /// <exception cref="RequestInvalidStateException">SP error 50074.</exception>
+        /// <exception cref="RequestNotAuthorizedException">SP error 50075 (bukan Civil).</exception>
+        Task SetBoqTotalAsync(int id, decimal boqTotal, CancellationToken ct = default);
+
+        /// <summary>Kirim ke management (BR-53: langkah MGMT disusun saat ini). Wajib BOQ total + lampiran DOCUMENT wajib.</summary>
+        /// <returns>Status request yang baru (MGMT_APPROVAL, atau PLANNING bila tidak ada langkah MGMT).</returns>
+        /// <exception cref="RequestValidationException">SP error 50072 (pesan memuat daftar kekurangan).</exception>
+        /// <exception cref="RequestNotFoundException">SP error 50073.</exception>
+        /// <exception cref="RequestInvalidStateException">SP error 50074.</exception>
+        /// <exception cref="RequestNotAuthorizedException">SP error 50075 (bukan Civil).</exception>
+        Task<string> SendToManagementAsync(int id, string? remarks, CancellationToken ct = default);
+
         /// <summary>Log perubahan kategori (BR-02), terbaru di atas.</summary>
         Task<IReadOnlyList<CategoryChangeItem>> GetCategoryChangesAsync(int requestId, CancellationToken ct = default);
     }

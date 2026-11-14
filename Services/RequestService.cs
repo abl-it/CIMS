@@ -225,6 +225,26 @@ namespace CIMS.Services
             return (await QuerySingleValueAsync<string>("dbo.usp_Request_FeasibilityDecide", p, ct))!;
         }
 
+        public async Task SetBoqTotalAsync(int id, decimal boqTotal, CancellationToken ct = default)
+        {
+            var p = new DynamicParameters();
+            p.Add("@Id", id, DbType.Int32);
+            p.Add("@Username", Username, DbType.String);
+            p.Add("@BoqTotal", boqTotal, DbType.Decimal, precision: 18, scale: 2);
+
+            await ExecuteAsync("dbo.usp_Request_SetBoqTotal", p, ct);
+        }
+
+        public async Task<string> SendToManagementAsync(int id, string? remarks, CancellationToken ct = default)
+        {
+            var p = new DynamicParameters();
+            p.Add("@Id", id, DbType.Int32);
+            p.Add("@Username", Username, DbType.String);
+            p.Add("@Remarks", remarks, DbType.String);
+
+            return (await QuerySingleValueAsync<string>("dbo.usp_Request_SendToManagement", p, ct))!;
+        }
+
         public async Task<IReadOnlyList<CategoryChangeItem>> GetCategoryChangesAsync(int requestId, CancellationToken ct = default)
         {
             var p = new DynamicParameters();

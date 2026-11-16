@@ -152,6 +152,38 @@ namespace CIMS.Services
         /// <exception cref="RequestNotAuthorizedException">SP error 50075 (bukan Civil).</exception>
         Task<(int Id, string RequestNo, string Status)> CreateRunningAsync(RunningProjectFormViewModel model, CancellationToken ct = default);
 
+        /// <summary>Ringkasan progress + daftar minggu (T5-1); null = tidak ada / tanpa akses.</summary>
+        Task<ProjectProgress?> GetProgressAsync(int requestId, CancellationToken ct = default);
+
+        /// <summary>Kurva S project: % plan dan % aktual per minggu (grafik Details; BR-17). Kosong bila tanpa akses / schedule.</summary>
+        Task<IReadOnlyList<ProgressCurvePoint>> GetProgressCurveAsync(int requestId, CancellationToken ct = default);
+
+        /// <summary>Data form progress untuk minggu yang memuat <paramref name="weekDate"/>; null = tanpa akses.</summary>
+        Task<ProgressWeekForm?> GetProgressWeekAsync(int requestId, DateTime weekDate, CancellationToken ct = default);
+
+        /// <summary>Simpan progress mingguan (BR-16, BR-17, BR-68); status jadwal dihitung SP (BR-71).</summary>
+        /// <exception cref="RequestValidationException">SP error 50072.</exception>
+        /// <exception cref="RequestNotFoundException">SP error 50073.</exception>
+        /// <exception cref="RequestInvalidStateException">SP error 50074.</exception>
+        /// <exception cref="RequestNotAuthorizedException">SP error 50075 (bukan Civil).</exception>
+        Task<ProgressSaveResult> SaveProgressAsync(int id, DateTime weekDate, IEnumerable<ProgressInput> items, string? remarks,
+            CancellationToken ct = default);
+
+        /// <summary>Ringkasan biaya + estimasi vs actual per bulan (T5-2); null = tidak ada / tanpa akses.</summary>
+        Task<ProjectActualCost?> GetActualCostAsync(int requestId, CancellationToken ct = default);
+
+        /// <summary>Header + item satu bulan; null = tidak berhak melihat detail.</summary>
+        Task<ActualMonthForm?> GetActualMonthAsync(int requestId, DateTime month, CancellationToken ct = default);
+
+        /// <summary>Ganti seluruh item actual satu bulan (BR-18, BR-19); daftar kosong = hapus bulan. Status biaya dihitung SP.</summary>
+        /// <param name="source">MANUAL | EXCEL (T5-3, dengan <paramref name="attachmentId"/>).</param>
+        /// <exception cref="RequestValidationException">SP error 50072.</exception>
+        /// <exception cref="RequestNotFoundException">SP error 50073.</exception>
+        /// <exception cref="RequestInvalidStateException">SP error 50074.</exception>
+        /// <exception cref="RequestNotAuthorizedException">SP error 50075 (bukan Civil).</exception>
+        Task<ActualSaveResult> SaveActualMonthAsync(int id, DateTime month, IEnumerable<ActualItemInput> items, string? remarks,
+            string source = "MANUAL", int? attachmentId = null, CancellationToken ct = default);
+
         /// <summary>Log perubahan kategori (BR-02), terbaru di atas.</summary>
         Task<IReadOnlyList<CategoryChangeItem>> GetCategoryChangesAsync(int requestId, CancellationToken ct = default);
     }

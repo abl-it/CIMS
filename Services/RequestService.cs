@@ -426,6 +426,152 @@ namespace CIMS.Services
             }
         }
 
+        public async Task<ProjectProgress?> GetProgressAsync(int requestId, CancellationToken ct = default)
+        {
+            var p = new DynamicParameters();
+            p.Add("@RequestId", requestId, DbType.Int32);
+            p.Add("@Username", Username, DbType.String);
+
+            using var conn = _connectionFactory.CreateConnection();
+            using var grid = await conn.QueryMultipleAsync(new CommandDefinition(
+                "dbo.usp_Request_GetProgress", p, commandType: CommandType.StoredProcedure, cancellationToken: ct));
+
+            var summary = await grid.ReadFirstOrDefaultAsync<ProgressSummary>();
+            var weeks = (await grid.ReadAsync<ProgressWeekItem>()).AsList();
+            return summary == null ? null : new ProjectProgress { Summary = summary, Weeks = weeks };
+        }
+
+        public async Task<IReadOnlyList<ProgressCurvePoint>> GetProgressCurveAsync(int requestId, CancellationToken ct = default)
+        {
+            var p = new DynamicParameters();
+            p.Add("@RequestId", requestId, DbType.Int32);
+            p.Add("@Username", Username, DbType.String);
+
+            using var conn = _connectionFactory.CreateConnection();
+            return (await conn.QueryAsync<ProgressCurvePoint>(new CommandDefinition(
+                "dbo.usp_Request_GetProgressCurve", p, commandType: CommandType.StoredProcedure, cancellationToken: ct))).AsList();
+        }
+
+        public async Task<ProgressWeekForm?> GetProgressWeekAsync(int requestId, DateTime weekDate, CancellationToken ct = default)
+        {
+            var p = new DynamicParameters();
+            p.Add("@RequestId", requestId, DbType.Int32);
+            p.Add("@WeekDate", weekDate.Date, DbType.Date);
+            p.Add("@Username", Username, DbType.String);
+
+            using var conn = _connectionFactory.CreateConnection();
+            using var grid = await conn.QueryMultipleAsync(new CommandDefinition(
+                "dbo.usp_Request_GetProgressWeek", p, commandType: CommandType.StoredProcedure, cancellationToken: ct));
+
+            var week = await grid.ReadFirstOrDefaultAsync<ProgressWeekInfo>();
+            var rows = (await grid.ReadAsync<ProgressWeekRow>()).AsList();
+            return week == null ? null : new ProgressWeekForm { Week = week, Rows = rows };
+        }
+
+        public async Task<ProgressSaveResult> SaveProgressAsync(int id, DateTime weekDate, IEnumerable<ProgressInput> items,
+            string? remarks, CancellationToken ct = default)
+        {
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            var json = JsonSerializer.Serialize(items.Select(i => new
+            {
+                id = i.ActionPlanId,
+                progress = i.ProgressPercent,
+                actualStart = i.ActualStartDate?.ToString("yyyy-MM-dd", inv),
+                actualEnd = i.ActualEndDate?.ToString("yyyy-MM-dd", inv)
+            }));
+
+            var p = new DynamicParameters();
+            p.Add("@Id", id, DbType.Int32);
+            p.Add("@Username", Username, DbType.String);
+            p.Add("@WeekDate", weekDate.Date, DbType.Date);
+            p.Add("@ItemsJson", json, DbType.String);
+            p.Add("@Remarks", remarks, DbType.String);
+
+            const string procedure = "dbo.usp_Request_SaveProgress";
+            try
+            {
+                using var conn = _connectionFactory.CreateConnection();
+                return await conn.QuerySingleAsync<ProgressSaveResult>(new CommandDefinition(
+                    procedure, p, commandType: CommandType.StoredProcedure, cancellationToken: ct));
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                var mapped = Translate(ex, procedure, _logger);
+                if (ReferenceEquals(mapped, ex)) throw;
+                throw mapped;
+            }
+        }
+
+        public async Task<ProjectActualCost?> GetActualCostAsync(int requestId, CancellationToken ct = default)
+        {
+            var p = new DynamicParameters();
+            p.Add("@RequestId", requestId, DbType.Int32);
+            p.Add("@Username", Username, DbType.String);
+
+            using var conn = _connectionFactory.CreateConnection();
+            using var grid = await conn.QueryMultipleAsync(new CommandDefinition(
+                "dbo.usp_Request_GetActualCost", p, commandType: CommandType.StoredProcedure, cancellationToken: ct));
+
+            var summary = await grid.ReadFirstOrDefaultAsync<ActualCostSummary>();
+            var months = (await grid.ReadAsync<ActualMonthRow>()).AsList();
+            return summary == null ? null : new ProjectActualCost { Summary = summary, Months = months };
+        }
+
+        public async Task<ActualMonthForm?> GetActualMonthAsync(int requestId, DateTime month, CancellationToken ct = default)
+        {
+            var p = new DynamicParameters();
+            p.Add("@RequestId", requestId, DbType.Int32);
+            p.Add("@Month", month.Date, DbType.Date);
+            p.Add("@Username", Username, DbType.String);
+
+            using var conn = _connectionFactory.CreateConnection();
+            using var grid = await conn.QueryMultipleAsync(new CommandDefinition(
+                "dbo.usp_Request_GetActualMonth", p, commandType: CommandType.StoredProcedure, cancellationToken: ct));
+
+            var header = await grid.ReadFirstOrDefaultAsync<ActualMonthHeader>();
+            var items = (await grid.ReadAsync<ActualItem>()).AsList();
+            return header == null ? null : new ActualMonthForm { Header = header, Items = items };
+        }
+
+        public async Task<ActualSaveResult> SaveActualMonthAsync(int id, DateTime month, IEnumerable<ActualItemInput> items,
+            string? remarks, string source = "MANUAL", int? attachmentId = null, CancellationToken ct = default)
+        {
+            var json = JsonSerializer.Serialize(items.Select(i => new
+            {
+                type = i.ItemType,
+                name = i.ItemName,
+                qty = i.Qty,
+                unit = i.Unit,
+                price = i.UnitPrice,
+                amount = i.Amount,
+                @ref = i.ReferenceNo,
+                notes = i.Notes
+            }));
+
+            var p = new DynamicParameters();
+            p.Add("@Id", id, DbType.Int32);
+            p.Add("@Username", Username, DbType.String);
+            p.Add("@Month", month.Date, DbType.Date);
+            p.Add("@ItemsJson", json, DbType.String);
+            p.Add("@Remarks", remarks, DbType.String);
+            p.Add("@Source", source, DbType.AnsiString);
+            p.Add("@AttachmentId", attachmentId, DbType.Int32);
+
+            const string procedure = "dbo.usp_Request_SaveActualMonth";
+            try
+            {
+                using var conn = _connectionFactory.CreateConnection();
+                return await conn.QuerySingleAsync<ActualSaveResult>(new CommandDefinition(
+                    procedure, p, commandType: CommandType.StoredProcedure, cancellationToken: ct));
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                var mapped = Translate(ex, procedure, _logger);
+                if (ReferenceEquals(mapped, ex)) throw;
+                throw mapped;
+            }
+        }
+
         public async Task<IReadOnlyList<CategoryChangeItem>> GetCategoryChangesAsync(int requestId, CancellationToken ct = default)
         {
             var p = new DynamicParameters();

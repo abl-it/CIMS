@@ -1,0 +1,139 @@
+@model ActualUploadPreview
+@{
+    ViewData["Title"] = "Actual Cost Upload Preview";
+    var culture = System.Globalization.CultureInfo.InvariantCulture;
+    var replaceCount = Model.Groups.Count(g => g.WillReplace);
+}
+
+<div class="cims-page-header d-grid d-md-flex justify-content-md-between align-items-md-center gap-2">
+    <h1 class="h3 mb-0">Upload Preview</h1>
+    <a asp-action="Index" class="btn btn-outline-secondary btn-lg"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Back</a>
+</div>
+
+<p class="text-muted">File: <span class="fw-semibold">@Model.FileName</span> · @Model.RowCount data row(s)</p>
+
+@if (!Model.IsValid)
+{
+    @* All or nothing: tidak ada data yang disimpan *@
+    <div class="alert alert-danger" role="alert">
+        <i class="bi bi-x-octagon me-1" aria-hidden="true"></i>
+        The file was rejected: @Model.Errors.Count error(s). Nothing was saved. Fix the rows below and upload the file again.
+    </div>
+    <div class="table-responsive mb-3">
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th class="cims-col-fit">Row</th>
+                    <th>Error</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var e in Model.Errors.OrderBy(e => e.RowNo))
+                {
+                    <tr>
+                        <td class="cims-col-fit">@(e.RowNo > 0 ? e.RowNo.ToString(culture) : "-")</td>
+                        <td class="request-text">@e.Message</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+        @if (Model.UploadId.HasValue)
+        {
+            @* Upload PENDING yang kini tidak valid (data berubah sejak diupload): batalkan lalu upload ulang *@
+            <form asp-action="Cancel" method="post" class="d-grid"
+                  data-confirm="Cancel this upload? Nothing will be saved." data-confirm-title="Cancel Upload" data-confirm-ok="Cancel Upload">
+                <input type="hidden" name="uploadId" value="@Model.UploadId" />
+                <button type="submit" class="btn btn-outline-secondary btn-lg">Cancel Upload</button>
+            </form>
+        }
+        <a asp-action="Index" class="btn btn-primary btn-lg"><i class="bi bi-upload me-1" aria-hidden="true"></i>Upload Again</a>
+    </div>
+}
+else
+{
+    <div class="alert alert-info" role="status">
+        <i class="bi bi-info-circle me-1" aria-hidden="true"></i>
+        The file is valid: @Model.Groups.Count project-month(s), total IDR @Model.TotalAmount.ToString("#,0.##", culture).
+        @if (replaceCount > 0)
+        {
+            <span class="fw-semibold">@replaceCount month(s) already have actual cost and will be replaced.</span>
+        }
+        Nothing is saved until you confirm.
+    </div>
+
+    @* Desktop / tablet *@
+    <div class="d-none d-md-block">
+        <div class="table-responsive mb-3">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Request</th>
+                        <th class="cims-col-fit">Month</th>
+                        <th class="cims-col-fit text-end">Items</th>
+                        <th class="cims-col-fit text-end">Total (IDR)</th>
+                        <th class="d-none d-lg-table-cell cims-col-fit text-end">Estimate (IDR)</th>
+                        <th class="cims-col-fit">Existing</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var g in Model.Groups)
+                    {
+                        <tr>
+                            <td class="request-text">
+                                <a asp-controller="Request" asp-action="Details" asp-route-id="@g.RequestId" target="_blank" rel="noopener">@g.RequestNo</a>
+                                <div class="small text-muted">@g.Title · @g.CoCode</div>
+                            </td>
+                            <td class="cims-col-fit">@g.PeriodMonth.ToString("MMM yyyy", culture)</td>
+                            <td class="cims-col-fit text-end">@g.ItemCount</td>
+                            <td class="cims-col-fit text-end">@g.TotalAmount.ToString("#,0.##", culture)</td>
+                            <td class="d-none d-lg-table-cell cims-col-fit text-end">@(g.EstimateAmount?.ToString("#,0.##", culture) ?? "-")</td>
+                            <td class="cims-col-fit">
+                                @if (g.WillReplace)
+                                {
+                                    <span class="badge text-bg-warning" title="Existing @(g.ExistingSource?.ToLowerInvariant()) data will be replaced">Replace @((g.ExistingAmount ?? 0).ToString("#,0.##", culture))</span>
+                                }
+                                else
+                                {
+                                    <span class="badge text-bg-light border">New</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @* Mobile *@
+    <div class="d-md-none">
+        @foreach (var g in Model.Groups)
+        {
+            <div class="card request-card mb-2">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start gap-2">
+                        <div class="request-text fw-semibold">@g.RequestNo · @g.PeriodMonth.ToString("MMM yyyy", culture)</div>
+                        @if (g.WillReplace) { <span class="badge text-bg-warning">Replace</span> } else { <span class="badge text-bg-light border">New</span> }
+                    </div>
+                    <div class="small text-muted request-text">@g.Title</div>
+                    <div class="small">@g.ItemCount item(s) · IDR @g.TotalAmount.ToString("#,0.##", culture)</div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+        <form asp-action="Cancel" method="post" class="d-grid"
+              data-confirm="Cancel this upload? Nothing will be saved." data-confirm-title="Cancel Upload" data-confirm-ok="Cancel Upload">
+            <input type="hidden" name="uploadId" value="@Model.UploadId" />
+            <button type="submit" class="btn btn-outline-secondary btn-lg">Cancel</button>
+        </form>
+        <form asp-action="Confirm" method="post" class="d-grid"
+              data-confirm="@($"Save actual cost for {Model.Groups.Count} project-month(s)?" + (replaceCount > 0 ? $" {replaceCount} existing month(s) will be replaced." : ""))"
+              data-confirm-title="Confirm Upload" data-confirm-ok="Save">
+            <input type="hidden" name="uploadId" value="@Model.UploadId" />
+            <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-check2-circle me-1" aria-hidden="true"></i>Confirm and Save</button>
+        </form>
+    </div>
+}

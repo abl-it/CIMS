@@ -131,6 +131,133 @@ namespace CIMS.Models
         };
     }
 
+    /// <summary>Status jadwal (BR-68) dan teks/warna UI.</summary>
+    public static class ScheduleStatus
+    {
+        public const string OnTrack = "ON_TRACK";
+        public const string SlightDelay = "SLIGHT_DELAY";
+        public const string Delay = "DELAY";
+
+        public static string Label(string? code) => code switch
+        {
+            OnTrack => "On Track",
+            SlightDelay => "Slightly Delay",
+            Delay => "Delay",
+            _ => "Not calculated"
+        };
+
+        public static string BadgeClass(string? code) => code switch
+        {
+            OnTrack => "text-bg-success",
+            SlightDelay => "text-bg-warning",
+            Delay => "text-bg-danger",
+            _ => "text-bg-secondary"
+        };
+    }
+
+    /// <summary>Ringkasan progress (usp_Request_GetProgress result 1; T5-1).</summary>
+    public class ProgressSummary
+    {
+        public int RequestId { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public DateTime? ProjectStartDate { get; set; }
+        public DateTime? ProjectEndDate { get; set; }
+        public decimal? ProgressPercent { get; set; }
+        public decimal? PlanProgressPercent { get; set; }
+        public string? ScheduleStatus { get; set; }
+        public DateTime? ScheduleStatusAt { get; set; }
+        public DateTime? LatestWeekStart { get; set; }
+        public DateTime CurrentWeekStart { get; set; }
+        public DateTime? FirstWeekStart { get; set; }
+        public decimal? PlanPercentToday { get; set; }
+    }
+
+    /// <summary>Satu minggu progress tersimpan (dbo.ProjectProgressWeek).</summary>
+    public class ProgressWeekItem
+    {
+        public int Id { get; set; }
+        public int RequestId { get; set; }
+        public DateTime WeekStart { get; set; }
+        public DateTime WeekEnd { get; set; }
+        public decimal PlanPercent { get; set; }
+        public decimal ActualPercent { get; set; }
+        public decimal Deviation { get; set; }
+        public string ScheduleStatus { get; set; } = string.Empty;
+        public string? Remarks { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public string? CreatedBy { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+        public string? UpdatedBy { get; set; }
+    }
+
+    /// <summary>Progress lengkap untuk Details: ringkasan + daftar minggu.</summary>
+    public class ProjectProgress
+    {
+        public ProgressSummary Summary { get; set; } = new();
+        public IReadOnlyList<ProgressWeekItem> Weeks { get; set; } = Array.Empty<ProgressWeekItem>();
+    }
+
+    /// <summary>Info minggu pada form progress (usp_Request_GetProgressWeek result 1).</summary>
+    public class ProgressWeekInfo
+    {
+        public DateTime WeekStart { get; set; }
+        public DateTime WeekEnd { get; set; }
+        public bool IsSaved { get; set; }
+        public string? Remarks { get; set; }
+    }
+
+    /// <summary>Baris action plan pada form progress (usp_Request_GetProgressWeek result 2).</summary>
+    public class ProgressWeekRow
+    {
+        public int ActionPlanId { get; set; }
+        public int SortOrder { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public decimal WeightPercent { get; set; }
+        public DateTime PlanStartDate { get; set; }
+        public DateTime PlanEndDate { get; set; }
+        public DateTime? ActualStartDate { get; set; }
+        public DateTime? ActualEndDate { get; set; }
+
+        /// <summary>% plan action plan pada hari Minggu minggu tersebut.</summary>
+        public decimal PlanPercent { get; set; }
+
+        /// <summary>% tersimpan untuk minggu ini; null = belum disimpan.</summary>
+        public decimal? SavedPercent { get; set; }
+
+        /// <summary>Batas bawah (minggu sebelumnya) dan batas atas (minggu sesudahnya).</summary>
+        public decimal MinPercent { get; set; }
+        public decimal MaxPercent { get; set; }
+
+        /// <summary>Nilai awal di form: tersimpan, atau nilai minggu sebelumnya.</summary>
+        public decimal InitialPercent => SavedPercent ?? MinPercent;
+    }
+
+    /// <summary>Form progress satu minggu.</summary>
+    public class ProgressWeekForm
+    {
+        public ProgressWeekInfo Week { get; set; } = new();
+        public IReadOnlyList<ProgressWeekRow> Rows { get; set; } = Array.Empty<ProgressWeekRow>();
+    }
+
+    /// <summary>Input progress per action plan dari form. Validasi akhir di SP.</summary>
+    public class ProgressInput
+    {
+        public int ActionPlanId { get; set; }
+        public decimal? ProgressPercent { get; set; }
+        public DateTime? ActualStartDate { get; set; }
+        public DateTime? ActualEndDate { get; set; }
+    }
+
+    /// <summary>Hasil simpan progress (usp_Request_SaveProgress).</summary>
+    public class ProgressSaveResult
+    {
+        public DateTime WeekStart { get; set; }
+        public decimal PlanPercent { get; set; }
+        public decimal ActualPercent { get; set; }
+        public decimal Deviation { get; set; }
+        public string ScheduleStatus { get; set; } = string.Empty;
+    }
+
     /// <summary>Ringkasan schedule (usp_Request_GetSchedule result 1; T4-2, BR-13, BR-15, BR-16).</summary>
     public class ProjectScheduleSummary
     {
@@ -321,6 +448,7 @@ namespace CIMS.Models
             "ESTIMATE_CHANGE" => "Cost estimate changed",
             "MIGRATION" => "Running project entered",
             "OUTSIDE_APPROVAL" => "Approved outside CIMS",
+            "ACTUAL_COST" => "Actual cost",
             _ => Action
         };
 
@@ -345,6 +473,7 @@ namespace CIMS.Models
             "ESTIMATE_CHANGE" => "bi-cash-stack",
             "MIGRATION" => "bi-box-arrow-in-right",
             "OUTSIDE_APPROVAL" => "bi-patch-check",
+            "ACTUAL_COST" => "bi-receipt",
             _ => "bi-dot"
         };
 
@@ -355,7 +484,7 @@ namespace CIMS.Models
             "APPROVE" or "FEASIBLE" or "INHOUSE" or "CONTRACT" or "SITE_HANDOVER" => "text-bg-success",
             "REVISE" or "RETURN_TOR" or "SCHEDULE_CHANGE" or "ESTIMATE_CHANGE" => "text-bg-warning",
             "REJECT" => "text-bg-danger",
-            "CATEGORY_CHANGE" or "BOQ_TOTAL" or "MIGRATION" or "OUTSIDE_APPROVAL" => "text-bg-info",
+            "CATEGORY_CHANGE" or "BOQ_TOTAL" or "MIGRATION" or "OUTSIDE_APPROVAL" or "ACTUAL_COST" => "text-bg-info",
             _ => "text-bg-secondary"
         };
     }

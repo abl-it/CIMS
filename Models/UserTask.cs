@@ -11,9 +11,10 @@ namespace CIMS.Models
         public const string Planning = "PLANNING";
         public const string Procurement = "PROCUREMENT";
         public const string Scheduling = "SCHEDULING";
+        public const string Progress = "PROGRESS";
 
         /// <summary>Urutan tampil (sama dengan usp_Task_GetSummary).</summary>
-        public static readonly string[] All = { Approval, Revise, Rejected, Feasibility, DocPreparation, Planning, Procurement, Scheduling };
+        public static readonly string[] All = { Approval, Revise, Rejected, Feasibility, DocPreparation, Planning, Procurement, Scheduling, Progress };
 
         public static bool IsValid(string? code) => code != null && All.Contains(code);
 
@@ -27,6 +28,7 @@ namespace CIMS.Models
             Planning => "Planning",
             Procurement => "Procurement (contract)",
             Scheduling => "Scheduling / site handover",
+            Progress => "Weekly progress",
             _ => code ?? string.Empty
         };
 
@@ -36,6 +38,7 @@ namespace CIMS.Models
             Approval => "Review",
             Revise => "Revise",
             Rejected => "View",
+            Progress => "Update",
             _ => "Open"
         };
 
@@ -49,6 +52,7 @@ namespace CIMS.Models
             Planning => "bi-calendar3",
             Procurement => "bi-cart",
             Scheduling => "bi-calendar-range",
+            Progress => "bi-graph-up-arrow",
             _ => "bi-list-task"
         };
     }

@@ -665,8 +665,9 @@ BEGIN
     SET @SortBy     = CASE WHEN @SortBy IN (N'CreatedAt', N'RequestNo', N'Title', N'Category', N'Status') THEN @SortBy ELSE N'CreatedAt' END;
     SET @SortDir    = CASE WHEN UPPER(@SortDir) = N'ASC' THEN N'ASC' ELSE N'DESC' END;
     SET @PageNumber = CASE WHEN @PageNumber IS NULL OR @PageNumber < 1 THEN 1 ELSE @PageNumber END;
+    -- Batas 5000 untuk export Excel (FR-04); tampilan list tetap dibatasi Controller (10 baris)
     SET @PageSize   = CASE WHEN @PageSize   IS NULL OR @PageSize   < 1 THEN 10
-                           WHEN @PageSize   > 100 THEN 100
+                           WHEN @PageSize   > 5000 THEN 5000
                            ELSE @PageSize END;
 
     DECLARE @Scope TABLE (DepartmentID INT PRIMARY KEY);

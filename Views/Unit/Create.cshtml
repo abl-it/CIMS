@@ -1,0 +1,19 @@
+@model UnitFormViewModel
+@{
+    ViewData["Title"] = "Add Unit";
+    ViewData["ContentWidth"] = "narrow";
+}
+
+<div class="cims-page-header">
+    <h1 class="h3 mb-0">Add Unit</h1>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <partial name="_UnitForm" model="Model" />
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

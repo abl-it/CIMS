@@ -61,4 +61,22 @@ Pendamping `docs/PRD.md`.
 | 2026-11-16 | Input project berjalan: dicatat langsung di Planning atau Scheduling; project yang sudah In Progress masuk Scheduling lalu schedule + site handover (tanggal lampau) lewat alur T4-2 | FR-03 |
 | 2026-11-16 | Project berjalan outsource: kontrak (vendor, nomor, tanggal, nilai) diinput Civil di form input; plan cost = nilai kontrak. In-house: plan cost = BOQ total | FR-03, BR-11, BR-12 |
 | 2026-11-16 | Field wajib project berjalan: departemen, judul, kategori, sub-kategori, lokasi; lainnya opsional | FR-03 |
+| 2026-11-16 | T5 dipecah 3: T5-1 progress mingguan + kurva S + status jadwal; T5-2 master Satuan + actual cost per item (manual) + status biaya dan keseluruhan; T5-3 upload template Excel + arsip file | 9.1, MD-04, BR-18, BR-19 |
+| 2026-11-16 | Minggu progress = Senin s.d. Minggu, satu catatan per project per minggu (simpan ulang menimpa); % plan diambil pada hari Minggu minggu itu; progress hanya untuk minggu mulai project s.d. minggu berjalan | BR-16, BR-17, BR-68 |
+| 2026-11-16 | Tanggal mulai/selesai aktual per action plan diisi Civil (mulai wajib bila progress > 0, selesai wajib bila 100%) | Data 4 |
+| 2026-11-16 | Progress per action plan tidak boleh turun dibanding minggu sebelumnya; koreksi dengan menyimpan ulang minggu yang sama. Action plan yang sudah punya progress tidak bisa dihapus | BR-16 |
+| 2026-11-16 | Tugas Saya "Weekly progress" untuk civil: project In Progress yang progress minggu berjalan belum disimpan; hilang setelah disimpan | 7.1, FR-01, BR-16, BR-66 |
+| 2026-11-16 | Actual cost manual: seluruh item satu bulan disimpan sekaligus dan menimpa bulan itu (sama dengan upload ulang); daftar kosong = hapus bulan; tercatat di riwayat | BR-18, BR-19 |
+| 2026-11-16 | Bulan actual cost: dari bulan awal Preparation s.d. bulan berjalan; input saat In Progress dan BAPP Review | BR-18 |
+| 2026-11-16 | Satuan item actual diketik bebas; master Satuan (MD-04) hanya daftar saran | MD-04, 6.4 |
+| 2026-11-16 | Status biaya: actual sebelum bulan estimasi pertama dibandingkan dengan estimasi bulan pertama; actual tanpa estimasi sama sekali = Over Budget; amount item = qty × harga satuan dengan toleransi pembulatan IDR 1 | BR-69, 6.4 |
+| 2026-11-16 | Library baca/tulis Excel: ClosedXML (MIT) untuk upload actual cost dan template unduhan | BR-18, 9 (catatan teknis) |
+| 2026-11-16 | Upload actual cost di satu halaman pusat (Cost Management > Actual Cost Upload); satu file banyak project/bulan; tiap project + bulan menimpa bulan itu | BR-18, BR-19 |
+| 2026-11-16 | Upload all or nothing: satu baris salah = tidak ada yang disimpan, error per nomor baris ditampilkan; preview per project + bulan lalu konfirmasi; file yang lolos validasi diarsipkan (PENDING/IMPORTED/CANCELLED) | BR-18, BR-19 |
+| 2026-11-16 | T6 ditunda; dashboard dasar dikerjakan lebih dulu. Halaman Dashboard terpisah (Home tetap shortcut Tugas Saya) | 9.1, FR-01 |
+| 2026-11-16 | Kartu dashboard per kategori: project aktif (In Progress + BAPP) per status keseluruhan (belum dihitung = On Track), plan cost vs estimasi vs actual s.d. bulan, pipeline (Approval, Civil review, Preparation, Closed di bulan) | 8.1, BR-70, 9.1 |
+| 2026-11-16 | Filter bulan dashboard: biaya kumulatif s.d. bulan itu + Closed di bulan itu; status = nilai terakhir (riwayat status tidak disimpan) | 9.1 |
+| 2026-11-16 | Export Excel tahap ini: tabel project dashboard dan Request List sesuai filter aktif; list lain menyusul bersama modulnya | FR-04 |
+| 2026-11-16 | Perubahan scope: grafik dasar ditarik dari T8 ke MVP dengan Chart.js (lokal di wwwroot/lib): dashboard (status keseluruhan per kategori, biaya bulanan estimasi vs actual) dan Details (kurva S progress, kurva biaya kumulatif). Grafik Plan vs Actual lengkap, Gantt, dan KPI tetap T8 | 9.1, BR-17, BR-69, BR-70 |
+| 2026-11-16 | Perubahan scope: Gantt plan vs actual per action plan di Details > Schedule (Frappe Gantt 0.6.1 lokal, MIT; hanya tampilan). Menu Gantt per kategori (CAPEX/OPEX/LVE) tetap T8 | 9.1, BR-15, BR-16, Data 4 |
 | 2026-11-16 | Approval di luar sistem: baris opsional (langkah/role, nama, tanggal), tercatat di riwayat "Approved outside CIMS"; requester data migrasi = user civil penginput | BR-76, BR-77 |

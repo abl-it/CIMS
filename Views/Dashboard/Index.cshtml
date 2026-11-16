@@ -1,0 +1,334 @@
+@model DashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+    ViewData["ContentWidth"] = "full";
+    var culture = System.Globalization.CultureInfo.InvariantCulture;
+    var result = Model.Result;
+    var monthText = Model.MonthDate.ToString("MMM yyyy", culture);
+    var currentUrl = Context.Request.Path + Context.Request.QueryString;
+
+    string Idr(decimal? v) => v.HasValue ? v.Value.ToString("#,0", culture) : "-";
+    string Pct(decimal? v) => v.HasValue ? v.Value.ToString("0.##", culture) + "%" : "-";
+
+    // Route values (semua filter ikut terbawa; "" = semua Company)
+    Dictionary<string, string?> RouteFor(int page, string? sortBy = null, string? sortDir = null,
+        string? category = "\u0000", string? overall = "\u0000")
+    {
+        var d = new Dictionary<string, string?>
+        {
+            ["month"] = Model.Month,
+            ["sortBy"] = sortBy ?? Model.SortBy,
+            ["sortDir"] = sortDir ?? Model.SortDir,
+            ["page"] = page.ToString(culture)
+        };
+        if (Model.ShowCompanyFilter) d["coCode"] = Model.CoCode ?? string.Empty;
+        var cat = category == "\u0000" ? Model.Category : category;
+        var ov = overall == "\u0000" ? Model.OverallStatus : overall;
+        if (!string.IsNullOrEmpty(cat)) d["category"] = cat;
+        if (!string.IsNullOrEmpty(ov)) d["overallStatus"] = ov;
+        if (!string.IsNullOrWhiteSpace(Model.Search)) d["search"] = Model.Search;
+        return d;
+    }
+
+    Dictionary<string, string?> SortRoute(string column)
+    {
+        var dir = Model.SortBy == column && Model.SortDir == "DESC" ? "ASC" : "DESC";
+        return RouteFor(1, column, dir);
+    }
+
+    string SortMark(string column) => Model.SortBy == column ? (Model.SortDir == "ASC" ? " ▲" : " ▼") : "";
+
+    var firstItem = result.TotalCount == 0 ? 0 : (result.PageNumber - 1) * result.PageSize + 1;
+    var lastItem = Math.Min(result.PageNumber * result.PageSize, result.TotalCount);
+    var pageStart = Math.Max(1, result.PageNumber - 2);
+    var pageEnd = Math.Min(result.TotalPages, result.PageNumber + 2);
+}
+
+<div class="cims-page-header d-grid d-md-flex justify-content-md-between align-items-md-center gap-2">
+    <h1 class="h3 mb-0">Dashboard</h1>
+    <span class="text-muted small">Cost to @monthText · statuses are the latest calculated values</span>
+</div>
+
+@* Filter (Company untuk role lintas Company, bulan laporan, kategori, status keseluruhan, cari) *@
+<form asp-action="Index" method="get" class="cims-filter row g-2">
+    <input type="hidden" name="sortBy" value="@Model.SortBy" />
+    <input type="hidden" name="sortDir" value="@Model.SortDir" />
+    @if (Model.ShowCompanyFilter)
+    {
+        <div class="col-12 col-md-auto">
+            <label for="coCode" class="form-label visually-hidden">Company</label>
+            <select id="coCode" name="coCode" class="form-select">
+                <option value="" selected="@(string.IsNullOrEmpty(Model.CoCode))">All companies</option>
+                <option value="ABL" selected="@(Model.CoCode == "ABL")">ABL</option>
+                <option value="NKM" selected="@(Model.CoCode == "NKM")">NKM</option>
+            </select>
+        </div>
+    }
+    <div class="col-12 col-md-auto">
+        <label for="month" class="form-label visually-hidden">Month</label>
+        <input id="month" name="month" type="month" class="form-control" value="@Model.Month" max="@DateTime.Today.ToString("yyyy-MM", culture)" />
+    </div>
+    <div class="col-12 col-md-auto">
+        <label for="category" class="form-label visually-hidden">Category</label>
+        <select id="category" name="category" class="form-select">
+            <option value="" selected="@(string.IsNullOrEmpty(Model.Category))">All categories</option>
+            @foreach (var c in ProjectRequest.Categories)
+            {
+                <option value="@c" selected="@(Model.Category == c)">@c</option>
+            }
+        </select>
+    </div>
+    <div class="col-12 col-md-auto">
+        <label for="overallStatus" class="form-label visually-hidden">Overall status</label>
+        <select id="overallStatus" name="overallStatus" class="form-select">
+            <option value="" selected="@(string.IsNullOrEmpty(Model.OverallStatus))">All statuses</option>
+            @foreach (var s in new[] { OverallStatus.OnTrack, OverallStatus.AtRisk, OverallStatus.Delayed })
+            {
+                <option value="@s" selected="@(Model.OverallStatus == s)">@OverallStatus.Label(s)</option>
+            }
+        </select>
+    </div>
+    <div class="col-12 col-md">
+        <label for="search" class="form-label visually-hidden">Search</label>
+        <input type="search" id="search" name="search" value="@Model.Search" class="form-control" placeholder="Search title or request no." />
+    </div>
+    <div class="col-12 col-md-auto d-grid d-md-flex gap-2">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-search me-1" aria-hidden="true"></i>Apply</button>
+        <a asp-action="Index" class="btn btn-outline-secondary"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a>
+    </div>
+</form>
+
+@* Kartu per kategori (BR-70; PRD 9.1) *@
+<div class="row g-3 mb-3">
+    @foreach (var s in Model.Summary)
+    {
+        <div class="col-12 col-lg-4">
+            <div class="card h-100 dashboard-card">
+                <div class="card-header d-flex justify-content-between align-items-center gap-2">
+                    <span class="fw-semibold">@s.Category</span>
+                    <span class="small text-muted">@s.ActiveTotal active project(s)</span>
+                </div>
+                <div class="card-body">
+                    <div class="row g-2 text-center mb-3">
+                        <div class="col-4">
+                            <a class="dashboard-stat dashboard-stat-ontrack" asp-action="Index" asp-all-route-data="@RouteFor(1, category: s.Category, overall: OverallStatus.OnTrack)" asp-fragment="projects"
+                               aria-label="@s.OnTrack @s.Category projects on track">
+                                <span class="dashboard-stat-value">@s.OnTrack</span>
+                                <span class="dashboard-stat-label">On Track</span>
+                            </a>
+                        </div>
+                        <div class="col-4">
+                            <a class="dashboard-stat dashboard-stat-atrisk" asp-action="Index" asp-all-route-data="@RouteFor(1, category: s.Category, overall: OverallStatus.AtRisk)" asp-fragment="projects"
+                               aria-label="@s.AtRisk @s.Category projects at risk">
+                                <span class="dashboard-stat-value">@s.AtRisk</span>
+                                <span class="dashboard-stat-label">At Risk</span>
+                            </a>
+                        </div>
+                        <div class="col-4">
+                            <a class="dashboard-stat dashboard-stat-delayed" asp-action="Index" asp-all-route-data="@RouteFor(1, category: s.Category, overall: OverallStatus.Delayed)" asp-fragment="projects"
+                               aria-label="@s.Delayed @s.Category projects delayed">
+                                <span class="dashboard-stat-value">@s.Delayed</span>
+                                <span class="dashboard-stat-label">Delayed</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <dl class="row small mb-2 request-detail">
+                        <dt class="col-6 fw-normal text-muted">Plan cost</dt>
+                        <dd class="col-6 text-end mb-1">IDR @Idr(s.PlanCost)</dd>
+                        <dt class="col-6 fw-normal text-muted">Estimate to @monthText</dt>
+                        <dd class="col-6 text-end mb-1">IDR @Idr(s.EstimateToMonth)</dd>
+                        <dt class="col-6 fw-normal text-muted">Actual to @monthText</dt>
+                        <dd class="col-6 text-end mb-1">IDR @Idr(s.ActualToMonth)@(s.CostRatioPercent.HasValue ? " (" + Pct(s.CostRatioPercent) + ")" : "")</dd>
+                    </dl>
+
+                    <hr class="my-2" />
+                    <ul class="list-unstyled small mb-0 dashboard-pipeline">
+                        <li><span>Request approval</span><span class="fw-semibold">@s.InApproval</span></li>
+                        <li><span>Civil review</span><span class="fw-semibold">@s.InCivilReview</span></li>
+                        <li><span>Planning / procurement / scheduling</span><span class="fw-semibold">@s.InPreparation</span></li>
+                        <li><span>Closed in @monthText</span><span class="fw-semibold">@s.ClosedInMonth</span></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@* Grafik dasar (Chart.js lokal; Keputusan 16-11-2026): status per kategori, biaya bulanan estimasi vs actual *@
+<div class="row g-3 mb-3">
+    <div class="col-12 col-lg-5">
+        <div class="card h-100">
+            <div class="card-header fw-semibold">Overall status by category</div>
+            <div class="card-body">
+                <div class="cims-chart"><canvas id="chartStatus" role="img" aria-label="Active projects per category by overall status"></canvas></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-lg-7">
+        <div class="card h-100">
+            <div class="card-header fw-semibold">Monthly cost: estimate vs actual <span class="small text-muted fw-normal">(active projects@(Model.Category != null ? ", " + Model.Category : ""))</span></div>
+            <div class="card-body">
+                @if (!Model.MonthlyCost.Any())
+                {
+                    <p class="text-muted small mb-0">No cost estimate or actual cost yet.</p>
+                }
+                else
+                {
+                    <div class="cims-chart"><canvas id="chartCost" role="img" aria-label="Monthly estimate and actual cost with cumulative lines"></canvas></div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+@* Data grafik (JSON, bukan script yang dijalankan) *@
+<script type="application/json" id="dashboardChartData">
+    @Json.Serialize(new
+    {
+        status = Model.Summary.Select(s => new { category = s.Category, onTrack = s.OnTrack, atRisk = s.AtRisk, delayed = s.Delayed }),
+        cost = Model.MonthlyCost.Select(m => new { month = m.PeriodMonth.ToString("MMM yyyy", culture), estimate = m.EstimateAmount, actual = m.ActualAmount })
+    })
+</script>
+
+@* Shortcut Tugas Saya (FR-01) *@
+<div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center gap-2">
+        <span class="fw-semibold"><i class="bi bi-bell me-1" aria-hidden="true"></i>My Tasks</span>
+        <a asp-controller="MyTask" asp-action="Index">View all (@Model.TaskTotal)</a>
+    </div>
+    <div class="card-body">
+        @if (Model.TaskTotal == 0)
+        {
+            <p class="text-muted mb-0">You have no pending tasks.</p>
+        }
+        else
+        {
+            <div class="d-flex flex-wrap gap-2">
+                @foreach (var t in Model.TaskSummary.Where(t => t.TaskCount > 0))
+                {
+                    <a class="btn btn-outline-primary" asp-controller="MyTask" asp-action="Index" asp-route-type="@t.TaskType">
+                        <i class="bi @UserTaskType.Icon(t.TaskType) me-1" aria-hidden="true"></i>@UserTaskType.Label(t.TaskType)
+                        <span class="badge text-bg-primary ms-1">@t.TaskCount</span>
+                    </a>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@* Tabel project aktif (In Progress + BAPP Review) *@
+<div id="projects" class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+    <h2 class="h5 mb-0">
+        Active projects
+        @if (!string.IsNullOrEmpty(Model.Category) || !string.IsNullOrEmpty(Model.OverallStatus))
+        {
+            <span class="small text-muted fw-normal">· @(Model.Category ?? "All categories") · @(Model.OverallStatus != null ? OverallStatus.Label(Model.OverallStatus) : "All statuses")</span>
+        }
+    </h2>
+    <a class="btn btn-outline-success" asp-action="Export" asp-all-route-data="@RouteFor(1)">
+        <i class="bi bi-file-earmark-excel me-1" aria-hidden="true"></i>Export Excel
+    </a>
+</div>
+
+@if (!result.Items.Any())
+{
+    <div class="alert alert-info" role="status">No active projects for the selected filters.</div>
+}
+else
+{
+    @* Desktop / tablet *@
+    <div class="d-none d-md-block">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th><a class="sort-link" asp-action="Index" asp-all-route-data='SortRoute("RequestNo")' asp-fragment="projects">Request@(SortMark("RequestNo"))</a></th>
+                        <th class="cims-col-fit"><a class="sort-link" asp-action="Index" asp-all-route-data='SortRoute("Category")' asp-fragment="projects">Category@(SortMark("Category"))</a></th>
+                        <th class="d-none d-lg-table-cell cims-col-fit">Dept.</th>
+                        <th class="cims-col-fit text-end"><a class="sort-link" asp-action="Index" asp-all-route-data='SortRoute("Progress")' asp-fragment="projects">Progress@(SortMark("Progress"))</a></th>
+                        <th class="cims-col-fit">Schedule</th>
+                        <th class="d-none d-lg-table-cell cims-col-fit text-end"><a class="sort-link" asp-action="Index" asp-all-route-data='SortRoute("PlanCost")' asp-fragment="projects">Plan cost@(SortMark("PlanCost"))</a></th>
+                        <th class="cims-col-fit text-end">Actual to @monthText</th>
+                        <th class="cims-col-fit">Cost</th>
+                        <th class="cims-col-fit"><a class="sort-link" asp-action="Index" asp-all-route-data='SortRoute("Overall")' asp-fragment="projects">Overall@(SortMark("Overall"))</a></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in result.Items)
+                    {
+                        <tr>
+                            <td class="request-text">
+                                <a asp-controller="Request" asp-action="Details" asp-route-id="@p.Id" asp-route-returnUrl="@currentUrl">@(p.RequestNo ?? "-")</a>
+                                <div class="small text-muted">@p.Title</div>
+                            </td>
+                            <td class="cims-col-fit">@p.Category</td>
+                            <td class="d-none d-lg-table-cell cims-col-fit">@p.ABRV <span class="small text-muted">@p.CoCode</span></td>
+                            <td class="cims-col-fit text-end">
+                                @Pct(p.ProgressPercent)
+                                <div class="small text-muted">plan @Pct(p.PlanProgressPercent)</div>
+                            </td>
+                            <td class="cims-col-fit"><span class="badge @ScheduleStatus.BadgeClass(p.ScheduleStatus)">@ScheduleStatus.Label(p.ScheduleStatus)</span></td>
+                            <td class="d-none d-lg-table-cell cims-col-fit text-end">@Idr(p.PlanCost)</td>
+                            <td class="cims-col-fit text-end">
+                                @Idr(p.ActualToMonth)
+                                <div class="small text-muted">est. @Idr(p.EstimateToMonth)</div>
+                            </td>
+                            <td class="cims-col-fit"><span class="badge @CostStatus.BadgeClass(p.CostStatus)">@CostStatus.Label(p.CostStatus)</span></td>
+                            <td class="cims-col-fit"><span class="badge @OverallStatus.BadgeClass(p.OverallStatusOrDefault)">@OverallStatus.Label(p.OverallStatusOrDefault)</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @* Mobile: card list *@
+    <div class="d-md-none">
+        @foreach (var p in result.Items)
+        {
+            <div class="card request-card mb-2">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start gap-2">
+                        <div class="request-text">
+                            <a class="fw-semibold" asp-controller="Request" asp-action="Details" asp-route-id="@p.Id" asp-route-returnUrl="@currentUrl">@(p.RequestNo ?? "-")</a>
+                            <div class="small text-muted">@p.Title</div>
+                        </div>
+                        <span class="badge @OverallStatus.BadgeClass(p.OverallStatusOrDefault)">@OverallStatus.Label(p.OverallStatusOrDefault)</span>
+                    </div>
+                    <div class="small mt-2">@p.Category · @p.ABRV @p.CoCode</div>
+                    <div class="small">Progress @Pct(p.ProgressPercent) (plan @Pct(p.PlanProgressPercent)) · <span class="badge @ScheduleStatus.BadgeClass(p.ScheduleStatus)">@ScheduleStatus.Label(p.ScheduleStatus)</span></div>
+                    <div class="small">Actual IDR @Idr(p.ActualToMonth) of est. @Idr(p.EstimateToMonth) · <span class="badge @CostStatus.BadgeClass(p.CostStatus)">@CostStatus.Label(p.CostStatus)</span></div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="cims-list-footer d-flex flex-column flex-md-row justify-content-md-between align-items-md-center gap-2">
+        <div class="text-muted small">Showing @firstItem–@lastItem of @result.TotalCount</div>
+        @if (result.TotalPages > 1)
+        {
+            <nav aria-label="Pagination">
+                <ul class="pagination pagination-sm mb-0 flex-wrap">
+                    <li class="page-item @(result.PageNumber <= 1 ? "disabled" : "")">
+                        <a class="page-link" asp-action="Index" asp-all-route-data="@RouteFor(result.PageNumber - 1)" asp-fragment="projects">Previous</a>
+                    </li>
+                    @for (var i = pageStart; i <= pageEnd; i++)
+                    {
+                        <li class="page-item @(i == result.PageNumber ? "active" : "")">
+                            <a class="page-link" asp-action="Index" asp-all-route-data="@RouteFor(i)" asp-fragment="projects">@i</a>
+                        </li>
+                    }
+                    <li class="page-item @(result.PageNumber >= result.TotalPages ? "disabled" : "")">
+                        <a class="page-link" asp-action="Index" asp-all-route-data="@RouteFor(result.PageNumber + 1)" asp-fragment="projects">Next</a>
+                    </li>
+                </ul>
+            </nav>
+        }
+    </div>
+}
+
+@section Scripts {
+    <script src="~/lib/chart.js/chart.umd.min.js" asp-append-version="true"></script>
+    <script src="~/js/cims-charts.js" asp-append-version="true"></script>
+    <script src="~/js/dashboard-charts.js" asp-append-version="true"></script>
+}

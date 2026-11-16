@@ -258,6 +258,21 @@ BEGIN
             THROW 50072, N'Some cost estimate months fall outside the new schedule. Adjust the cost estimate first.', 1;
     END
 
+    -- T5-1: action plan yang sudah punya progress mingguan tidak boleh dihapus (RequestProgress.sql).
+    -- Dicek hanya bila tabel progress sudah ada (urutan script); statement di dalam IF dikompilasi saat dijalankan.
+    IF OBJECT_ID(N'dbo.ProjectProgressItem', N'U') IS NOT NULL
+    BEGIN
+        SELECT TOP (1) @Msg = N'Action plan "' + a.Name + N'" already has weekly progress and cannot be removed.'
+        FROM   dbo.ProjectActionPlan a
+        WHERE  a.RequestId = @Id
+          AND  NOT EXISTS (SELECT 1 FROM @Items i WHERE i.ItemId = a.Id)
+          AND  EXISTS (SELECT 1 FROM dbo.ProjectProgressItem p WHERE p.ActionPlanId = a.Id)
+        ORDER BY a.SortOrder;
+
+        IF @Msg IS NOT NULL
+            THROW 50072, @Msg, 1;
+    END
+
     UPDATE dbo.ProjectRequest
     SET    ProjectStartDate = @ProjectStartDate, UpdatedAt = @Now, UpdatedBy = @Username
     WHERE  Id = @Id;
@@ -400,6 +415,11 @@ BEGIN
     IF @Status = 'IN_PROGRESS'
         INSERT INTO dbo.ApprovalHistory (RequestId, Action, FromStatus, ToStatus, Remarks, ActionBy, ActionAt)
         VALUES (@Id, 'ESTIMATE_CHANGE', @Status, @Status, LEFT(@Reason, 1000), @Username, @Now);
+
+    -- T5-2: estimasi berubah saat berjalan -> hitung ulang status biaya (BR-69, BR-71; RequestActualCost.sql).
+    -- EXEC diselesaikan saat dijalankan, jadi aman walau script T5-2 belum dijalankan.
+    IF @Status = 'IN_PROGRESS' AND OBJECT_ID(N'dbo.usp_Request_RefreshCostStatus', N'P') IS NOT NULL
+        EXEC dbo.usp_Request_RefreshCostStatus @Id = @Id, @Username = @Username;
 
     COMMIT TRANSACTION;
 END

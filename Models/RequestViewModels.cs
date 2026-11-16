@@ -379,5 +379,29 @@ namespace CIMS.Models
 
         /// <summary>Civil dan status Scheduling: catat site handover (-> In Progress).</summary>
         public bool CanHandover { get; set; }
+
+        /// <summary>Progress mingguan + status jadwal (T5-1); null = belum In Progress / tanpa akses.</summary>
+        public ProjectProgress? Progress { get; set; }
+
+        /// <summary>Civil dan status In Progress: input progress mingguan.</summary>
+        public bool CanEnterProgress { get; set; }
+
+        /// <summary>Progress per action plan minggu terpilih (form untuk Civil, baca saja untuk role lain).</summary>
+        public ProgressWeekForm? ProgressWeek { get; set; }
+
+        /// <summary>Kurva S (grafik): % plan vs % aktual per minggu; kosong bila belum ada schedule.</summary>
+        public IReadOnlyList<ProgressCurvePoint> ProgressCurve { get; set; } = Array.Empty<ProgressCurvePoint>();
+
+        /// <summary>Actual cost + status biaya/keseluruhan (T5-2); null = belum In Progress / tanpa akses.</summary>
+        public ProjectActualCost? ActualCost { get; set; }
+
+        /// <summary>Civil dan status In Progress / BAPP Review: input actual cost bulanan.</summary>
+        public bool CanEnterActual { get; set; }
+
+        /// <summary>Bulan terpilih (form untuk Civil, detail baca untuk role lain yang berhak).</summary>
+        public ActualMonthForm? ActualMonth { get; set; }
+
+        /// <summary>Saran satuan (master Unit aktif); hanya dimuat bila CanEnterActual.</summary>
+        public IReadOnlyList<UnitOption> Units { get; set; } = Array.Empty<UnitOption>();
     }
 }

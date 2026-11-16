@@ -1,0 +1,4 @@
+Frappe Gantt 0.6.1
+Source : https://github.com/frappe/gantt (npm package "frappe-gantt@0.6.1", files dist/frappe-gantt.min.js and dist/frappe-gantt.min.css)
+License: MIT (declared in the package's package.json; the npm package ships no separate license file)
+Copyright (c) Frappe Technologies Pvt. Ltd.

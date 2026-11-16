@@ -1,0 +1,171 @@
+@model ActualUploadIndexViewModel
+@{
+    ViewData["Title"] = "Actual Cost Upload";
+    var result = Model.Result;
+    var culture = System.Globalization.CultureInfo.InvariantCulture;
+    var firstItem = result.TotalCount == 0 ? 0 : (result.PageNumber - 1) * result.PageSize + 1;
+    var lastItem = Math.Min(result.PageNumber * result.PageSize, result.TotalCount);
+    var pageStart = Math.Max(1, result.PageNumber - 2);
+    var pageEnd = Math.Min(result.TotalPages, result.PageNumber + 2);
+    string Size(long bytes) => bytes >= 1048576
+        ? (bytes / 1048576d).ToString("0.0", culture) + " MB"
+        : Math.Max(1, bytes / 1024).ToString(culture) + " KB";
+    // Upload PENDING milik user sendiri: bisa dilanjutkan (preview ulang) atau dibatalkan
+    bool CanResume(ActualCostUploadItem u) => Model.CanUpload && u.Status == ActualUploadStatus.Pending
+        && string.Equals(u.CreatedBy, Model.CurrentUsername, StringComparison.OrdinalIgnoreCase);
+}
+
+<div class="cims-page-header d-grid d-md-flex justify-content-md-between align-items-md-center gap-2">
+    <h1 class="h3 mb-0">Actual Cost Upload</h1>
+    @if (Model.CanUpload)
+    {
+        <a asp-action="Template" class="btn btn-outline-primary btn-lg"><i class="bi bi-file-earmark-spreadsheet me-1" aria-hidden="true"></i>Download Template</a>
+    }
+</div>
+
+@if (Model.CanUpload)
+{
+    <div class="card mb-3">
+        <div class="card-header fw-semibold">Upload File</div>
+        <div class="card-body">
+            <p class="small text-muted">
+                One file may contain many projects and months (one row per item). Each project + month in the file replaces all items of that month.
+                If any row is invalid, nothing is saved and every error is listed. You will see a preview before the data is saved.
+            </p>
+            <form asp-action="Upload" method="post" enctype="multipart/form-data" class="row g-2 align-items-end" data-upload-form>
+                <div class="col-12 col-md">
+                    <label for="file" class="form-label">Excel file (@Model.AllowedExtensions, max @Model.MaxSizeMB MB)</label>
+                    <input id="file" name="file" type="file" class="form-control" accept=".xlsx" required />
+                </div>
+                <div class="col-12 col-md-auto d-grid">
+                    <button type="submit" class="btn btn-primary btn-lg" data-upload-submit>
+                        <span class="spinner-border spinner-border-sm me-1 d-none" role="status" aria-hidden="true" data-upload-spinner></span>
+                        <i class="bi bi-upload me-1" aria-hidden="true"></i>Upload and Preview
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+<h2 class="h5">Upload history</h2>
+<p class="small text-muted">
+    <span class="badge @ActualUploadStatus.BadgeClass(ActualUploadStatus.Pending)">Pending</span> uploaded and previewed, not saved yet (continue to confirm, or cancel) ·
+    <span class="badge @ActualUploadStatus.BadgeClass(ActualUploadStatus.Imported)">Imported</span> saved to the projects ·
+    <span class="badge @ActualUploadStatus.BadgeClass(ActualUploadStatus.Cancelled)">Cancelled</span> not saved; the file is kept in the archive.
+</p>
+@if (!result.Items.Any())
+{
+    <div class="alert alert-info" role="status">No uploads yet.</div>
+}
+else
+{
+    @* Desktop / tablet: tabel *@
+    <div class="d-none d-md-block">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>File</th>
+                        <th class="cims-col-fit text-end">Project-months</th>
+                        <th class="cims-col-fit text-end">Total (IDR)</th>
+                        <th class="d-none d-lg-table-cell">Uploaded</th>
+                        <th class="d-none d-lg-table-cell">Processed</th>
+                        <th class="cims-col-fit">Status</th>
+                        <th class="cims-col-fit text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var u in result.Items)
+                    {
+                        <tr>
+                            <td class="request-text">
+                                @u.OriginalFileName
+                                <div class="small text-muted">@u.RowTotal rows · @Size(u.FileSizeBytes)</div>
+                            </td>
+                            <td class="cims-col-fit text-end">@u.GroupTotal</td>
+                            <td class="cims-col-fit text-end">@u.TotalAmount.ToString("#,0.##", culture)</td>
+                            <td class="d-none d-lg-table-cell">@u.CreatedAt.ToString("dd MMM yyyy HH:mm", culture)<div class="small text-muted">@u.CreatedBy</div></td>
+                            <td class="d-none d-lg-table-cell">@(u.ProcessedAt?.ToString("dd MMM yyyy HH:mm", culture) ?? "-")<div class="small text-muted">@u.ProcessedBy</div></td>
+                            <td class="cims-col-fit"><span class="badge @ActualUploadStatus.BadgeClass(u.Status)">@ActualUploadStatus.Label(u.Status)</span></td>
+                            <td class="cims-col-fit text-end">
+                              <div class="d-inline-flex gap-1">
+                                @if (CanResume(u))
+                                {
+                                    <a asp-action="Preview" asp-route-id="@u.Id" class="btn btn-outline-primary cims-icon-btn"
+                                       title="Continue (preview and confirm)" aria-label="Continue upload @u.OriginalFileName"><i class="bi bi-play-circle" aria-hidden="true"></i></a>
+                                    <form asp-action="Cancel" method="post" class="d-inline"
+                                          data-confirm="Cancel this upload? Nothing will be saved." data-confirm-title="Cancel Upload" data-confirm-ok="Cancel Upload">
+                                        <input type="hidden" name="uploadId" value="@u.Id" />
+                                        <button type="submit" class="btn btn-outline-danger cims-icon-btn" title="Cancel upload" aria-label="Cancel upload @u.OriginalFileName">
+                                            <i class="bi bi-x-circle" aria-hidden="true"></i>
+                                        </button>
+                                    </form>
+                                }
+                                <a asp-action="Download" asp-route-id="@u.Id" class="btn btn-outline-secondary cims-icon-btn"
+                                   title="Download file" aria-label="Download @u.OriginalFileName"><i class="bi bi-download" aria-hidden="true"></i></a>
+                              </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @* Mobile: card list *@
+    <div class="d-md-none">
+        @foreach (var u in result.Items)
+        {
+            <div class="card request-card mb-2">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start gap-2">
+                        <div class="request-text fw-semibold">@u.OriginalFileName</div>
+                        <span class="badge @ActualUploadStatus.BadgeClass(u.Status)">@ActualUploadStatus.Label(u.Status)</span>
+                    </div>
+                    <div class="small text-muted">@u.GroupTotal project-month(s) · IDR @u.TotalAmount.ToString("#,0.##", culture)</div>
+                    <div class="small text-muted">@u.CreatedAt.ToString("dd MMM yyyy HH:mm", culture) · @u.CreatedBy</div>
+                    <div class="d-grid gap-2 mt-2">
+                        @if (CanResume(u))
+                        {
+                            <a asp-action="Preview" asp-route-id="@u.Id" class="btn btn-outline-primary"><i class="bi bi-play-circle me-1" aria-hidden="true"></i>Continue</a>
+                            <form asp-action="Cancel" method="post" class="d-grid"
+                                  data-confirm="Cancel this upload? Nothing will be saved." data-confirm-title="Cancel Upload" data-confirm-ok="Cancel Upload">
+                                <input type="hidden" name="uploadId" value="@u.Id" />
+                                <button type="submit" class="btn btn-outline-danger">Cancel Upload</button>
+                            </form>
+                        }
+                        <a asp-action="Download" asp-route-id="@u.Id" class="btn btn-outline-secondary"><i class="bi bi-download me-1" aria-hidden="true"></i>Download</a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="cims-list-footer d-flex flex-column flex-md-row justify-content-md-between align-items-md-center gap-2">
+        <div class="text-muted small">Showing @firstItem–@lastItem of @result.TotalCount</div>
+        @if (result.TotalPages > 1)
+        {
+            <nav aria-label="Pagination">
+                <ul class="pagination pagination-sm mb-0 flex-wrap">
+                    <li class="page-item @(result.PageNumber <= 1 ? "disabled" : "")">
+                        <a class="page-link" asp-action="Index" asp-route-page="@(result.PageNumber - 1)">Previous</a>
+                    </li>
+                    @for (var p = pageStart; p <= pageEnd; p++)
+                    {
+                        <li class="page-item @(p == result.PageNumber ? "active" : "")">
+                            <a class="page-link" asp-action="Index" asp-route-page="@p">@p</a>
+                        </li>
+                    }
+                    <li class="page-item @(result.PageNumber >= result.TotalPages ? "disabled" : "")">
+                        <a class="page-link" asp-action="Index" asp-route-page="@(result.PageNumber + 1)">Next</a>
+                    </li>
+                </ul>
+            </nav>
+        }
+    </div>
+}
+
+@section Scripts {
+    <script src="~/js/actual-upload.js" asp-append-version="true"></script>
+}

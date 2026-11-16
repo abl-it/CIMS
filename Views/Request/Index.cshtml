@@ -40,10 +40,14 @@
 
 <div class="cims-page-header d-grid d-md-flex justify-content-md-between align-items-md-center gap-2">
     <h1 class="h3 mb-0">Request List</h1>
-    @if (Model.CanCreate)
-    {
-        <a asp-action="Create" asp-route-returnUrl="@currentUrl" class="btn btn-primary btn-lg"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Create Request</a>
-    }
+    <div class="d-grid d-md-flex gap-2">
+        @* Export sesuai filter aktif (FR-04); query string sama dengan list *@
+        <a href="@(Url.Action("Export") + Context.Request.QueryString)" class="btn btn-outline-success btn-lg"><i class="bi bi-file-earmark-excel me-1" aria-hidden="true"></i>Export Excel</a>
+        @if (Model.CanCreate)
+        {
+            <a asp-action="Create" asp-route-returnUrl="@currentUrl" class="btn btn-primary btn-lg"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Create Request</a>
+        }
+    </div>
 </div>
 
 <form asp-action="Index" method="get" class="cims-filter row g-2">

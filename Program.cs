@@ -48,6 +48,9 @@ builder.Services.AddScoped<ISurveyTemplateItemService, SurveyTemplateItemService
 builder.Services.AddScoped<IAppSettingService, AppSettingService>();
 builder.Services.AddScoped<ISubCategoryService, SubCategoryService>();
 builder.Services.AddScoped<IVendorService, VendorService>();
+builder.Services.AddScoped<IUnitService, UnitService>();
+builder.Services.AddScoped<IActualCostUploadService, ActualCostUploadService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.Configure<FileStorageOptions>(builder.Configuration.GetSection(FileStorageOptions.SectionName));
 builder.Services.AddScoped<IRequestLookupService, RequestLookupService>();
 builder.Services.AddScoped<IRequestService, RequestService>();

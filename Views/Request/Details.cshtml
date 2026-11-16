@@ -1,7 +1,8 @@
 @model RequestDetailsViewModel
 @{
     var r = Model.Request;
-    ViewData["Title"] = "Request Details";
+    // Nomor request/project tampil di judul halaman dan tab browser
+    ViewData["Title"] = string.IsNullOrEmpty(r.RequestNo) ? "Request Details" : $"{r.RequestNo} · Request Details";
     ViewData["ContentWidth"] = "narrow";
     // URL list asal (filter, sort, halaman); null = list tanpa filter.
     var returnUrl = ViewData["ReturnUrl"] as string;
@@ -32,13 +33,25 @@
 }
 
 <div class="cims-page-header d-grid d-md-flex justify-content-md-between align-items-md-center gap-2">
-    <div class="d-flex flex-wrap align-items-center gap-2">
-        <h1 class="h3 mb-0">Request Details</h1>
+    <div class="d-flex flex-wrap align-items-center gap-2 request-text">
+        <h1 class="h3 mb-0">
+            @(string.IsNullOrEmpty(r.RequestNo) ? "Request Details" : r.RequestNo)
+            <span class="d-block fs-6 fw-normal text-muted">@r.Title</span>
+        </h1>
         <span class="badge @RequestStatus.BadgeClass(r.Status)">@RequestStatus.Label(r.Status)</span>
         @if (r.IsMigrated)
         {
             @* Project berjalan saat go-live (FR-03, BR-77) *@
             <span class="badge text-bg-secondary" title="Running project entered by Civil (data migration); approvals were done outside CIMS">Migrated</span>
+        }
+        @if (Model.ActualCost?.Summary is { OverallStatus: not null } ov)
+        {
+            @* Status keseluruhan project (BR-70) = status terburuk antara jadwal (BR-68) dan biaya (BR-69) *@
+            <span class="badge @CIMS.Models.OverallStatus.BadgeClass(ov.OverallStatus)"
+                  title="Overall project status = the worse of schedule (@CIMS.Models.ScheduleStatus.Label(ov.ScheduleStatus)) and cost (@CostStatus.Label(ov.CostStatus))">
+                Overall: @CIMS.Models.OverallStatus.Label(ov.OverallStatus)
+            </span>
+            <span class="small text-muted">Schedule @CIMS.Models.ScheduleStatus.Label(ov.ScheduleStatus) · Cost @CostStatus.Label(ov.CostStatus)</span>
         }
     </div>
     <div class="d-grid d-md-flex gap-2">
@@ -433,6 +446,48 @@
                 }
             </dl>
 
+            @if (sch.ActionPlans.Any())
+            {
+                @* Gantt schedule vs actual (Frappe Gantt lokal; Keputusan 16-11-2026, sebagian T8). Hanya tampilan. *@
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                    <h2 class="h6 mb-0">Gantt: plan vs actual</h2>
+                    <div class="btn-group" role="group" aria-label="Gantt time scale">
+                        <button type="button" class="btn btn-outline-secondary" data-gantt-view="Day">Day</button>
+                        <button type="button" class="btn btn-outline-secondary active" data-gantt-view="Week" aria-pressed="true">Week</button>
+                        <button type="button" class="btn btn-outline-secondary" data-gantt-view="Month">Month</button>
+                    </div>
+                </div>
+                <div class="cims-gantt mb-2" data-gantt>
+                    <svg id="ganttSchedule" role="img" aria-label="Gantt chart of planned and actual action plan dates"></svg>
+                </div>
+                <ul class="list-inline small text-muted mb-3 cims-gantt-legend">
+                    <li class="list-inline-item"><span class="cims-gantt-key cims-gantt-key-prep"></span>Preparation</li>
+                    <li class="list-inline-item"><span class="cims-gantt-key cims-gantt-key-plan"></span>Plan (filled = progress)</li>
+                    <li class="list-inline-item"><span class="cims-gantt-key cims-gantt-key-done"></span>Actual (finished)</li>
+                    <li class="list-inline-item"><span class="cims-gantt-key cims-gantt-key-running"></span>Actual (running, to today)</li>
+                </ul>
+                <script type="application/json" id="ganttData">
+                    @Json.Serialize(new
+                    {
+                        today = DateTime.Today.ToString("yyyy-MM-dd", culture),
+                        preparationStart = sum.PreparationStartAt?.ToString("yyyy-MM-dd", culture),
+                        projectStart = sum.ProjectStartDate?.ToString("yyyy-MM-dd", culture),
+                        plans = sch.ActionPlans.Select(a => new
+                        {
+                            id = a.Id,
+                            no = a.SortOrder,
+                            name = a.Name,
+                            weight = a.WeightPercent,
+                            planStart = a.PlanStartDate.ToString("yyyy-MM-dd", culture),
+                            planEnd = a.PlanEndDate.ToString("yyyy-MM-dd", culture),
+                            progress = a.ProgressPercent,
+                            actualStart = a.ActualStartDate?.ToString("yyyy-MM-dd", culture),
+                            actualEnd = a.ActualEndDate?.ToString("yyyy-MM-dd", culture)
+                        })
+                    })
+                </script>
+            }
+
             @if (Model.CanEditSchedule)
             {
                 @* --- Form schedule + action plan --- *@
@@ -724,6 +779,424 @@
                             </tfoot>
                         </table>
                     </div>
+                }
+            }
+        </div>
+    </div>
+}
+
+@* Progress mingguan + status jadwal (T5-1; BR-16, BR-17, BR-68, BR-71) *@
+@if (Model.Progress is { } prog)
+{
+    var ps = prog.Summary;
+    string Pct(decimal? v) => v.HasValue ? v.Value.ToString("0.##", culture) + "%" : "-";
+    string WeekText(DateTime start) => start.ToString("dd MMM", culture) + " – " + start.AddDays(6).ToString("dd MMM yyyy", culture);
+    <div class="card mb-3 @(Model.CanEnterProgress ? "border-info" : "")">
+        <div class="card-header fw-semibold d-flex flex-wrap align-items-center gap-2">
+            <span><i class="bi bi-graph-up-arrow me-1" aria-hidden="true"></i>Weekly Progress</span>
+            <span class="badge @CIMS.Models.ScheduleStatus.BadgeClass(ps.ScheduleStatus)">@CIMS.Models.ScheduleStatus.Label(ps.ScheduleStatus)</span>
+        </div>
+        <div class="card-body">
+            <dl class="row mb-2 request-detail">
+                <div class="col-12 col-md-6 cims-detail-item">
+                    <dt>Actual progress</dt>
+                    <dd>@Pct(ps.ProgressPercent)@(ps.LatestWeekStart.HasValue ? " (week of " + ps.LatestWeekStart.Value.ToString("dd MMM yyyy", culture) + ")" : "")</dd>
+                </div>
+                <div class="col-12 col-md-6 cims-detail-item">
+                    <dt>Plan progress</dt>
+                    <dd>@Pct(ps.PlanProgressPercent) · today @Pct(ps.PlanPercentToday)</dd>
+                </div>
+            </dl>
+            <div class="mb-3" aria-hidden="true">
+                <div class="small text-muted mb-1">Actual</div>
+                <div class="progress mb-2" role="presentation">
+                    <div class="progress-bar" style="width: @((ps.ProgressPercent ?? 0).ToString("0.##", culture))%"></div>
+                </div>
+                <div class="small text-muted mb-1">Plan</div>
+                <div class="progress" role="presentation">
+                    <div class="progress-bar bg-secondary" style="width: @((ps.PlanProgressPercent ?? ps.PlanPercentToday ?? 0).ToString("0.##", culture))%"></div>
+                </div>
+            </div>
+
+            @if (Model.ProgressCurve.Any())
+            {
+                @* Kurva S (BR-17): % plan vs % aktual per minggu *@
+                <h2 class="h6 mt-3">S-curve: plan vs actual progress</h2>
+                <div class="cims-chart mb-2"><canvas id="chartSCurve" role="img" aria-label="Weekly planned and actual cumulative progress"></canvas></div>
+            }
+
+            @if (Model.ProgressWeek is { } pw)
+            {
+                var wk = pw.Week.WeekStart;
+                var first = ps.FirstWeekStart ?? ps.CurrentWeekStart;
+                var hasPrev = wk > first;
+                var hasNext = wk < ps.CurrentWeekStart;
+                var today = DateTime.Now.ToString("yyyy-MM-dd", culture);
+                <hr />
+                <div id="progressForm" class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                    <h2 class="h6 mb-0">
+                        Week @WeekText(wk)
+                        @if (pw.Week.IsSaved) { <span class="badge text-bg-success ms-1">Saved</span> } else { <span class="badge text-bg-light border ms-1">Not saved</span> }
+                    </h2>
+                    <div class="d-flex gap-2">
+                        <a class="btn btn-outline-secondary cims-icon-btn @(hasPrev ? "" : "disabled")" aria-disabled="@(!hasPrev ? "true" : null)"
+                           href="@(hasPrev ? Url.Action("Details", new { id = r.Id, returnUrl, week = wk.AddDays(-7).ToString("yyyy-MM-dd", culture) }) + "#progressForm" : null)"
+                           title="Previous week" aria-label="Previous week"><i class="bi bi-chevron-left" aria-hidden="true"></i></a>
+                        <a class="btn btn-outline-secondary cims-icon-btn @(hasNext ? "" : "disabled")" aria-disabled="@(!hasNext ? "true" : null)"
+                           href="@(hasNext ? Url.Action("Details", new { id = r.Id, returnUrl, week = wk.AddDays(7).ToString("yyyy-MM-dd", culture) }) + "#progressForm" : null)"
+                           title="Next week" aria-label="Next week"><i class="bi bi-chevron-right" aria-hidden="true"></i></a>
+                    </div>
+                </div>
+
+                @if (!pw.Rows.Any())
+                {
+                    <p class="text-muted small">No action plans. Add them in the schedule first.</p>
+                }
+                else if (!Model.CanEnterProgress)
+                {
+                    @* Baca saja (management dan role lain): progress per action plan pada minggu terpilih *@
+                    @if (!pw.Week.IsSaved)
+                    {
+                        <p class="small text-muted">No progress was saved for this week; plan figures are shown for reference.</p>
+                    }
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Action plan</th>
+                                    <th class="cims-col-fit text-end">Weight</th>
+                                    <th class="cims-col-fit text-end">Plan</th>
+                                    <th class="cims-col-fit text-end">Actual</th>
+                                    <th class="d-none d-md-table-cell cims-col-fit text-end">Deviation</th>
+                                    <th class="d-none d-lg-table-cell cims-col-fit">Actual start</th>
+                                    <th class="d-none d-lg-table-cell cims-col-fit">Actual end</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var row in pw.Rows)
+                                {
+                                    var dev = row.SavedPercent.HasValue ? row.SavedPercent.Value - row.PlanPercent : (decimal?)null;
+                                    <tr>
+                                        <td class="request-text">
+                                            @row.SortOrder. @row.Name
+                                            <div class="small text-muted">Plan @row.PlanStartDate.ToString("dd MMM", culture) – @row.PlanEndDate.ToString("dd MMM yyyy", culture)</div>
+                                        </td>
+                                        <td class="cims-col-fit text-end">@row.WeightPercent.ToString("0.##", culture)%</td>
+                                        <td class="cims-col-fit text-end">@row.PlanPercent.ToString("0.##", culture)%</td>
+                                        <td class="cims-col-fit text-end">@(row.SavedPercent.HasValue ? row.SavedPercent.Value.ToString("0.##", culture) + "%" : "-")</td>
+                                        <td class="d-none d-md-table-cell cims-col-fit text-end @(dev < 0 ? "text-danger" : "")">@(dev?.ToString("+0.##;-0.##;0", culture) ?? "-")</td>
+                                        <td class="d-none d-lg-table-cell cims-col-fit">@(row.ActualStartDate?.ToString("dd MMM yyyy", culture) ?? "-")</td>
+                                        <td class="d-none d-lg-table-cell cims-col-fit">@(row.ActualEndDate?.ToString("dd MMM yyyy", culture) ?? "-")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    @if (!string.IsNullOrEmpty(pw.Week.Remarks))
+                    {
+                        <p class="small text-muted mt-2 mb-0 request-text">Remarks: @pw.Week.Remarks</p>
+                    }
+                }
+                else
+                {
+                    <form asp-action="SaveProgress" method="post" data-progress-form>
+                        <input type="hidden" name="id" value="@r.Id" />
+                        <input type="hidden" name="returnUrl" value="@returnUrl" />
+                        <input type="hidden" name="weekStart" value="@wk.ToString("yyyy-MM-dd", culture)" />
+                        @for (var i = 0; i < pw.Rows.Count; i++)
+                        {
+                            var row = pw.Rows[i];
+                            <div class="cims-plan-row" data-progress-row data-weight="@row.WeightPercent.ToString("0.##", culture)">
+                                <input type="hidden" name="items[@i].ActionPlanId" value="@row.ActionPlanId" />
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-12 col-lg-4 request-text">
+                                        <div class="fw-semibold">@row.SortOrder. @row.Name</div>
+                                        <div class="small text-muted">
+                                            Weight @row.WeightPercent.ToString("0.##", culture)% · plan @row.PlanStartDate.ToString("dd MMM", culture) – @row.PlanEndDate.ToString("dd MMM yyyy", culture)
+                                            · plan this week @row.PlanPercent.ToString("0.##", culture)%
+                                        </div>
+                                    </div>
+                                    <div class="col-12 col-md-4 col-lg-2">
+                                        <label class="form-label" for="pr@(i)Progress">Progress (%)</label>
+                                        <input id="pr@(i)Progress" name="items[@i].ProgressPercent" type="number" class="form-control" required
+                                               min="@row.MinPercent.ToString("0.##", culture)" max="@row.MaxPercent.ToString("0.##", culture)" step="0.01" inputmode="decimal"
+                                               value="@row.InitialPercent.ToString("0.##", culture)" data-progress-value />
+                                        <div class="form-text">@row.MinPercent.ToString("0.##", culture)–@row.MaxPercent.ToString("0.##", culture)%</div>
+                                    </div>
+                                    <div class="col-12 col-md-4 col-lg-3">
+                                        <label class="form-label" for="pr@(i)Start">Actual start</label>
+                                        <input id="pr@(i)Start" name="items[@i].ActualStartDate" type="date" class="form-control" max="@today"
+                                               value="@(row.ActualStartDate?.ToString("yyyy-MM-dd", culture))" data-actual-start />
+                                    </div>
+                                    <div class="col-12 col-md-4 col-lg-3">
+                                        <label class="form-label" for="pr@(i)End">Actual end</label>
+                                        <input id="pr@(i)End" name="items[@i].ActualEndDate" type="date" class="form-control" max="@today"
+                                               value="@(row.ActualEndDate?.ToString("yyyy-MM-dd", culture))" data-actual-end />
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                        <p class="small my-3" aria-live="polite">Project actual progress for this week: <span class="fw-semibold" data-progress-total>0</span>%</p>
+                        <div class="mb-3">
+                            <label for="progressRemarks" class="form-label">Remarks</label>
+                            <textarea id="progressRemarks" name="remarks" class="form-control" rows="2" maxlength="1000">@pw.Week.Remarks</textarea>
+                            <div class="form-text">Optional. Progress cannot be lower than the previous week. Actual start is required once progress is above 0%; actual end only at 100%.</div>
+                        </div>
+                        <div class="d-grid d-md-flex justify-content-md-end">
+                            <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-save me-1" aria-hidden="true"></i>Save Progress</button>
+                        </div>
+                    </form>
+                }
+            }
+
+            <hr />
+            <h2 class="h6">Progress history</h2>
+            @if (!prog.Weeks.Any())
+            {
+                <p class="text-muted small mb-0">No weekly progress yet.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Week</th>
+                                <th class="cims-col-fit text-end">Plan</th>
+                                <th class="cims-col-fit text-end">Actual</th>
+                                <th class="d-none d-md-table-cell cims-col-fit text-end">Deviation</th>
+                                <th class="cims-col-fit">Status</th>
+                                <th class="d-none d-lg-table-cell">Remarks</th>
+                                <th class="cims-col-fit text-end"><span class="visually-hidden">Actions</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var w in prog.Weeks)
+                            {
+                                <tr>
+                                    <td>
+                                        @WeekText(w.WeekStart)
+                                        <div class="small text-muted">@(w.UpdatedBy ?? w.CreatedBy) · @((w.UpdatedAt ?? w.CreatedAt).ToString("dd MMM yyyy HH:mm", culture))</div>
+                                    </td>
+                                    <td class="cims-col-fit text-end">@w.PlanPercent.ToString("0.##", culture)%</td>
+                                    <td class="cims-col-fit text-end">@w.ActualPercent.ToString("0.##", culture)%</td>
+                                    <td class="d-none d-md-table-cell cims-col-fit text-end">@w.Deviation.ToString("+0.##;-0.##;0", culture)</td>
+                                    <td class="cims-col-fit"><span class="badge @CIMS.Models.ScheduleStatus.BadgeClass(w.ScheduleStatus)">@CIMS.Models.ScheduleStatus.Label(w.ScheduleStatus)</span></td>
+                                    <td class="d-none d-lg-table-cell request-text">@w.Remarks</td>
+                                    <td class="cims-col-fit text-end">
+                                        <a class="btn btn-outline-primary cims-icon-btn" title="@(Model.CanEnterProgress ? "Edit week" : "View action plans")"
+                                           aria-label="@(Model.CanEnterProgress ? "Edit" : "View") week @WeekText(w.WeekStart)"
+                                           href="@(Url.Action("Details", new { id = r.Id, returnUrl, week = w.WeekStart.ToString("yyyy-MM-dd", culture) }) + "#progressForm")"><i class="bi @(Model.CanEnterProgress ? "bi-pencil-square" : "bi-eye")" aria-hidden="true"></i></a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@* Actual cost bulanan + status biaya dan keseluruhan (T5-2; BR-18, BR-19, BR-69, BR-70, PRD 6.4) *@
+@if (Model.ActualCost is { } ac)
+{
+    var cs = ac.Summary;
+    string Idr(decimal? v) => v.HasValue ? "IDR " + v.Value.ToString("#,0.##", culture) : "-";
+    <div class="card mb-3 @(Model.CanEnterActual ? "border-info" : "")">
+        <div class="card-header fw-semibold d-flex flex-wrap align-items-center gap-2">
+            <span><i class="bi bi-receipt me-1" aria-hidden="true"></i>Actual Cost</span>
+            <span class="badge @CostStatus.BadgeClass(cs.CostStatus)" title="Cost status">@CostStatus.Label(cs.CostStatus)</span>
+        </div>
+        <div class="card-body">
+            <dl class="row mb-0 request-detail">
+                <div class="col-12 col-md-6 cims-detail-item">
+                    <dt>Plan cost</dt>
+                    <dd>@Idr(cs.PlanCost)</dd>
+                </div>
+                <div class="col-12 col-md-6 cims-detail-item">
+                    <dt>Actual cost</dt>
+                    <dd>@Idr(cs.ActualCostTotal ?? 0)@(cs.CostRatioPercent.HasValue ? " (" + cs.CostRatioPercent.Value.ToString("0.##", culture) + "% of estimate to " + cs.LastActualMonth?.ToString("MMM yyyy", culture) + ")" : "")</dd>
+                </div>
+            </dl>
+
+            @if (cs.CanSeeDetail)
+            {
+                <hr />
+                <h2 class="h6">Estimate vs actual per month</h2>
+                @if (!ac.Months.Any())
+                {
+                    <p class="text-muted small">No cost estimate or actual cost yet.</p>
+                }
+                else
+                {
+                    var cumEst = 0m;
+                    var cumAct = 0m;
+                    <div class="table-responsive mb-3">
+                        <table class="table align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Month</th>
+                                    <th class="text-end">Estimate</th>
+                                    <th class="text-end">Actual</th>
+                                    <th class="d-none d-md-table-cell text-end">Cum. estimate</th>
+                                    <th class="d-none d-md-table-cell text-end">Cum. actual</th>
+                                    <th class="cims-col-fit text-end"><span class="visually-hidden">Actions</span></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var m in ac.Months)
+                                {
+                                    cumEst += m.EstimateAmount;
+                                    cumAct += m.ActualAmount;
+                                    var selected = Model.ActualMonth?.Header.PeriodMonth == m.PeriodMonth;
+                                    <tr class="@(selected ? "table-active" : "")">
+                                        <td>
+                                            @m.PeriodMonth.ToString("MMM yyyy", culture)
+                                            @if (m.HasActual)
+                                            {
+                                                <div class="small text-muted">@m.ItemCount items · @(m.Source?.ToLowerInvariant())</div>
+                                            }
+                                        </td>
+                                        <td class="text-end">@m.EstimateAmount.ToString("#,0.##", culture)</td>
+                                        <td class="text-end">@(m.HasActual ? m.ActualAmount.ToString("#,0.##", culture) : "-")</td>
+                                        <td class="d-none d-md-table-cell text-end">@cumEst.ToString("#,0.##", culture)</td>
+                                        <td class="d-none d-md-table-cell text-end">@cumAct.ToString("#,0.##", culture)</td>
+                                        <td class="cims-col-fit text-end">
+                                            @if (m.PeriodMonth <= cs.CurrentMonth && (cs.FirstMonth == null || m.PeriodMonth >= cs.FirstMonth))
+                                            {
+                                                <a class="btn btn-outline-primary cims-icon-btn" title="@(Model.CanEnterActual ? "Edit month" : "View items")"
+                                                   aria-label="@(Model.CanEnterActual ? "Edit" : "View") @m.PeriodMonth.ToString("MMM yyyy", culture)"
+                                                   href="@(Url.Action("Details", new { id = r.Id, returnUrl, month = m.PeriodMonth.ToString("yyyy-MM", culture) }) + "#actualForm")">
+                                                    <i class="bi @(Model.CanEnterActual ? "bi-pencil-square" : "bi-eye")" aria-hidden="true"></i>
+                                                </a>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    @* Kurva biaya: estimasi vs actual kumulatif per bulan (BR-69) *@
+                    <h2 class="h6">Cost curve: cumulative estimate vs actual</h2>
+                    <div class="cims-chart mb-3"><canvas id="chartCostCurve" role="img" aria-label="Cumulative estimate and actual cost per month"></canvas></div>
+                }
+
+                @if (Model.ActualMonth is { } am)
+                {
+                    var mh = am.Header;
+                    var monthKey = mh.PeriodMonth.ToString("yyyy-MM", culture);
+                    var first = cs.FirstMonth ?? cs.CurrentMonth;
+                    var hasPrev = mh.PeriodMonth > first;
+                    var hasNext = mh.PeriodMonth < cs.CurrentMonth;
+                    <div id="actualForm" class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                        <h2 class="h6 mb-0">
+                            Items for @mh.PeriodMonth.ToString("MMMM yyyy", culture)
+                            @if (mh.IsSaved) { <span class="badge text-bg-success ms-1">Saved</span> } else { <span class="badge text-bg-light border ms-1">Not saved</span> }
+                            <span class="small text-muted ms-1">Estimate @Idr(mh.EstimateAmount ?? 0)</span>
+                        </h2>
+                        <div class="d-flex gap-2">
+                            <a class="btn btn-outline-secondary cims-icon-btn @(hasPrev ? "" : "disabled")" aria-disabled="@(!hasPrev ? "true" : null)"
+                               href="@(hasPrev ? Url.Action("Details", new { id = r.Id, returnUrl, month = mh.PeriodMonth.AddMonths(-1).ToString("yyyy-MM", culture) }) + "#actualForm" : null)"
+                               title="Previous month" aria-label="Previous month"><i class="bi bi-chevron-left" aria-hidden="true"></i></a>
+                            <a class="btn btn-outline-secondary cims-icon-btn @(hasNext ? "" : "disabled")" aria-disabled="@(!hasNext ? "true" : null)"
+                               href="@(hasNext ? Url.Action("Details", new { id = r.Id, returnUrl, month = mh.PeriodMonth.AddMonths(1).ToString("yyyy-MM", culture) }) + "#actualForm" : null)"
+                               title="Next month" aria-label="Next month"><i class="bi bi-chevron-right" aria-hidden="true"></i></a>
+                        </div>
+                    </div>
+                    @if (mh.IsSaved)
+                    {
+                        <p class="small text-muted">
+                            @(mh.UpdatedBy ?? mh.CreatedBy) · @((mh.UpdatedAt ?? mh.CreatedAt)?.ToString("dd MMM yyyy HH:mm", culture)) · @(mh.Source?.ToLowerInvariant())
+                            @if (!string.IsNullOrEmpty(mh.Remarks)) { <span>· @mh.Remarks</span> }
+                        </p>
+                    }
+
+                    @if (Model.CanEnterActual)
+                    {
+                        <datalist id="unitOptions">
+                            @foreach (var u in Model.Units)
+                            {
+                                <option value="@u.Name">@u.Description</option>
+                            }
+                        </datalist>
+                        <form asp-action="SaveActualCost" method="post" data-actual-form>
+                            <input type="hidden" name="id" value="@r.Id" />
+                            <input type="hidden" name="returnUrl" value="@returnUrl" />
+                            <input type="hidden" name="month" value="@monthKey" />
+                            <div data-actual-list>
+                                @for (var i = 0; i < am.Items.Count; i++)
+                                {
+                                    var it = am.Items[i];
+                                    <partial name="_ActualItemRow" model="(i, it)" />
+                                }
+                            </div>
+                            <template data-actual-template>
+                                <partial name="_ActualItemRow" model="(-1, (ActualItem?)null)" />
+                            </template>
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 my-3">
+                                <button type="button" class="btn btn-outline-primary" data-add-actual><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add Item</button>
+                                <span class="small" aria-live="polite">Month total: IDR <span class="fw-semibold" data-actual-total>0</span></span>
+                            </div>
+                            <div class="mb-3">
+                                <label for="actualRemarks" class="form-label">Remarks</label>
+                                <textarea id="actualRemarks" name="remarks" class="form-control" rows="2" maxlength="1000">@mh.Remarks</textarea>
+                                <div class="form-text">
+                                    Saving replaces all items of this month. Remove all items and save to delete this month's actual cost.
+                                    For many projects at once, use <a asp-controller="ActualCostUpload" asp-action="Index">Actual Cost Upload</a> (Excel).
+                                </div>
+                            </div>
+                            <div class="d-grid d-md-flex justify-content-md-end">
+                                <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-save me-1" aria-hidden="true"></i>Save Actual Cost</button>
+                            </div>
+                        </form>
+                    }
+                    else if (!am.Items.Any())
+                    {
+                        <p class="text-muted small mb-0">No items for this month.</p>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Item</th>
+                                        <th class="d-none d-md-table-cell text-end">Qty</th>
+                                        <th class="d-none d-md-table-cell text-end">Unit price</th>
+                                        <th class="text-end">Amount</th>
+                                        <th class="d-none d-lg-table-cell">Reference</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var it in am.Items)
+                                    {
+                                        <tr>
+                                            <td class="request-text">
+                                                @it.ItemName
+                                                <div class="small text-muted">@ActualItemType.Label(it.ItemType)@(string.IsNullOrEmpty(it.Notes) ? "" : " · " + it.Notes)</div>
+                                                <div class="small text-muted d-md-none">@it.Qty.ToString("0.####", culture) @it.Unit × @it.UnitPrice.ToString("#,0.##", culture)</div>
+                                            </td>
+                                            <td class="d-none d-md-table-cell text-end">@it.Qty.ToString("0.####", culture) @it.Unit</td>
+                                            <td class="d-none d-md-table-cell text-end">@it.UnitPrice.ToString("#,0.##", culture)</td>
+                                            <td class="text-end">@it.Amount.ToString("#,0.##", culture)</td>
+                                            <td class="d-none d-lg-table-cell">@it.ReferenceNo</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                                <tfoot>
+                                    <tr class="fw-semibold">
+                                        <td>Total</td>
+                                        <td class="d-none d-md-table-cell"></td>
+                                        <td class="d-none d-md-table-cell"></td>
+                                        <td class="text-end">@((mh.TotalAmount ?? 0).ToString("#,0.##", culture))</td>
+                                        <td class="d-none d-lg-table-cell"></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    }
                 }
             }
         </div>
@@ -1182,5 +1655,43 @@
     @if (Model.CanEditSchedule)
     {
         <script src="~/js/request-schedule.js" asp-append-version="true"></script>
+    }
+    @if (Model.CanEnterProgress)
+    {
+        <script src="~/js/request-progress.js" asp-append-version="true"></script>
+    }
+    @if (Model.CanEnterActual)
+    {
+        <script src="~/js/request-actual.js" asp-append-version="true"></script>
+    }
+    @if (Model.Schedule?.ActionPlans.Any() == true)
+    {
+        <script src="~/lib/frappe-gantt/frappe-gantt.min.js" asp-append-version="true"></script>
+        <script src="~/js/request-gantt.js" asp-append-version="true"></script>
+    }
+    @{
+        // Grafik Details (Keputusan 16-11-2026): kurva S progress + kurva biaya kumulatif
+        var costMonths = Model.ActualCost is { Summary.CanSeeDetail: true } chartAc ? chartAc.Months : Array.Empty<ActualMonthRow>();
+        var chartCulture = System.Globalization.CultureInfo.InvariantCulture;
+    }
+    @if (Model.ProgressCurve.Any() || costMonths.Any())
+    {
+        <script type="application/json" id="requestChartData">
+            @Json.Serialize(new
+            {
+                scurve = Model.ProgressCurve.Select(p => new { week = p.WeekStart.ToString("dd MMM", chartCulture), plan = p.PlanPercent, actual = p.ActualPercent }),
+                cost = costMonths.Select(m => new { month = m.PeriodMonth.ToString("MMM yyyy", chartCulture), estimate = m.EstimateAmount, actual = m.HasActual ? m.ActualAmount : (decimal?)null })
+            })
+        </script>
+        <script src="~/lib/chart.js/chart.umd.min.js" asp-append-version="true"></script>
+        <script src="~/js/cims-charts.js" asp-append-version="true"></script>
+        <script src="~/js/request-charts.js" asp-append-version="true"></script>
+    }
+}
+
+@section Styles {
+    @if (Model.Schedule?.ActionPlans.Any() == true)
+    {
+        <link rel="stylesheet" href="~/lib/frappe-gantt/frappe-gantt.min.css" asp-append-version="true" />
     }
 }

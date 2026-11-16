@@ -16,6 +16,10 @@
          PLANNING    : request PLANNING -> role civil (aktif setelah management approval, T3).
          PROCUREMENT : request PROCUREMENT (TOR dikirim) -> role purchasing (input kontrak; T4-1).
          SCHEDULING  : request SCHEDULING -> role civil (schedule, action plan, estimasi biaya, site handover; T4-2).
+         PROGRESS    : request IN_PROGRESS yang progress minggu berjalan (Senin s.d. Minggu) belum disimpan
+                       -> role civil (pengingat input progress mingguan; T5-1, BR-16, BR-66). Hilang setelah
+                       progress minggu itu disimpan. TaskSince = Senin minggu berjalan.
+       Urutan menjalankan: Task.sql SETELAH RequestProgress.sql (memakai ProjectProgressWeek dan fn_WeekStart).
        Jenis lain (TOR -> purchasing, BAPP, survei) ditambah di modulnya (T4/T6).
      - TaskSince = sejak kapan tugas menunggu (StartedAt langkah, atau waktu status terakhir dari history).
        Tidak ada penanda overdue (BR-32).
@@ -121,6 +125,17 @@ RETURN
     WHERE   pr.Status = 'PROCUREMENT'
       AND   EXISTS (SELECT 1 FROM r WHERE r.RoleCode = N'purchasing')
       AND   pr.DepartmentID IN (SELECT DepartmentID FROM scope)
+
+    UNION ALL
+
+    -- Progress minggu berjalan belum disimpan -> civil (T5-1, BR-16)
+    SELECT  'PROGRESS', pr.Id, NULL, CAST(wk.WeekStart AS DATETIME2(3))
+    FROM    dbo.ProjectRequest pr
+            CROSS APPLY (SELECT dbo.fn_WeekStart(CAST(SYSDATETIME() AS DATE)) AS WeekStart) wk
+    WHERE   pr.Status = 'IN_PROGRESS'
+      AND   EXISTS (SELECT 1 FROM r WHERE r.RoleCode = N'civil')
+      AND   pr.DepartmentID IN (SELECT DepartmentID FROM scope)
+      AND   NOT EXISTS (SELECT 1 FROM dbo.ProjectProgressWeek w WHERE w.RequestId = pr.Id AND w.WeekStart = wk.WeekStart)
 );
 GO
 
@@ -136,7 +151,7 @@ BEGIN
     SELECT  t.TaskType, COUNT(*) AS TaskCount
     FROM    dbo.fn_User_Tasks(@Username) t
     GROUP BY t.TaskType
-    ORDER BY CHARINDEX(',' + t.TaskType + ',', ',APPROVAL,REVISE,REJECTED,FEASIBILITY,DOC_PREPARATION,PLANNING,PROCUREMENT,SCHEDULING,');
+    ORDER BY CHARINDEX(',' + t.TaskType + ',', ',APPROVAL,REVISE,REJECTED,FEASIBILITY,DOC_PREPARATION,PLANNING,PROCUREMENT,SCHEDULING,PROGRESS,');
 END
 GO
 
@@ -217,6 +232,13 @@ GO
    -- 4) Civil: request FEASIBILITY (ABL dan NKM) -> FEASIBILITY; user non-civil -> tidak ada jenis ini
    EXEC dbo.usp_Task_GetSummary @Username = @Civil;
    EXEC dbo.usp_Task_GetList    @Username = @Civil, @TaskType = 'FEASIBILITY';
+
+   -- 4b) Civil: project IN_PROGRESS tanpa progress minggu berjalan -> PROGRESS (TaskSince = Senin minggu ini);
+   --     setelah usp_Request_SaveProgress untuk minggu ini, baris project itu hilang
+   EXEC dbo.usp_Task_GetList @Username = 'users1', @TaskType = 'PROGRESS';
+   SELECT pr.Id, pr.RequestNo, w.WeekStart FROM dbo.ProjectRequest pr
+          LEFT JOIN dbo.ProjectProgressWeek w ON w.RequestId = pr.Id AND w.WeekStart = dbo.fn_WeekStart(CAST(SYSDATETIME() AS DATE))
+   WHERE  pr.Status = 'IN_PROGRESS';                                                  -- WeekStart NULL = muncul sebagai tugas
 
    -- 5) User tanpa tugas / tidak ada -> 0 baris
    EXEC dbo.usp_Task_GetSummary @Username = N'tidak-ada-xyz';

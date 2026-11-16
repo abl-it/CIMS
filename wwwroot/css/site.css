@@ -394,6 +394,7 @@ a.app-sidebar-link.active {
 .subcategory-card .subcategory-text,
 .request-card .request-text,
 .vendor-card .vendor-text,
+.unit-card .unit-text,
 .request-text,
 .setting-text {
   word-break: break-word;
@@ -628,7 +629,8 @@ a.app-sidebar-link.active {
   .cims-compact .setting-card .card-body,
   .cims-compact .subcategory-card .card-body,
   .cims-compact .request-card .card-body,
-  .cims-compact .vendor-card .card-body {
+  .cims-compact .vendor-card .card-body,
+  .cims-compact .unit-card .card-body {
     padding: var(--cims-space-3);
   }
 }
@@ -762,3 +764,49 @@ a.app-sidebar-link.active {
     margin-bottom: var(--cims-space-1);
   }
 }
+
+/* Dashboard (PRD 9.1): angka status per kategori dan pipeline */
+.dashboard-stat {
+  display: block;
+  min-height: 2.75rem;
+  padding: var(--cims-space-2);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  text-decoration: none;
+}
+.dashboard-stat:hover { filter: brightness(0.96); }
+.dashboard-stat-value { display: block; font-size: 1.5rem; font-weight: 600; line-height: 1.2; }
+.dashboard-stat-label { display: block; font-size: var(--cims-font-size-sm); }
+.dashboard-stat-ontrack { background-color: var(--bs-success-bg-subtle); color: var(--bs-success-text-emphasis); }
+.dashboard-stat-atrisk  { background-color: var(--bs-warning-bg-subtle); color: var(--bs-warning-text-emphasis); }
+.dashboard-stat-delayed { background-color: var(--bs-danger-bg-subtle);  color: var(--bs-danger-text-emphasis); }
+.dashboard-pipeline li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--cims-space-2);
+  padding: var(--cims-space-1) 0;
+}
+
+/* Grafik Chart.js: tinggi tetap, lebar mengikuti kontainer (responsive) */
+.cims-chart { position: relative; height: 16rem; }
+@media (min-width: 992px) { .cims-chart { height: 18rem; } }
+
+/* Gantt (Frappe Gantt; Details > Schedule): hanya tampilan, scroll horizontal di dalam kotaknya sendiri */
+.cims-gantt { overflow-x: auto; border: 1px solid var(--bs-border-color); border-radius: var(--bs-border-radius); }
+.cims-gantt .gantt .bar-wrapper,
+.cims-gantt .gantt .handle-group { pointer-events: none; }          /* tidak bisa di-drag; ubah jadwal lewat form */
+.cims-gantt .gantt .handle { display: none; }
+.cims-gantt .gantt .bar-wrapper.gantt-prep .bar          { fill: var(--bs-secondary-bg); stroke: var(--bs-border-color); }
+.cims-gantt .gantt .bar-wrapper.gantt-plan .bar          { fill: var(--bs-primary-bg-subtle); }
+.cims-gantt .gantt .bar-wrapper.gantt-plan .bar-progress { fill: var(--bs-primary); }
+.cims-gantt .gantt .bar-wrapper.gantt-done .bar,
+.cims-gantt .gantt .bar-wrapper.gantt-done .bar-progress    { fill: var(--bs-success); }
+.cims-gantt .gantt .bar-wrapper.gantt-running .bar,
+.cims-gantt .gantt .bar-wrapper.gantt-running .bar-progress { fill: var(--bs-warning); }
+.cims-gantt .gantt .bar-wrapper.gantt-plan .bar-label,
+.cims-gantt .gantt .bar-wrapper.gantt-prep .bar-label    { fill: var(--bs-body-color); }
+.cims-gantt-key { display: inline-block; width: 1rem; height: 0.75rem; margin-right: var(--cims-space-1); vertical-align: middle; border-radius: 2px; }
+.cims-gantt-key-prep    { background-color: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color); }
+.cims-gantt-key-plan    { background: linear-gradient(90deg, var(--bs-primary) 50%, var(--bs-primary-bg-subtle) 50%); }
+.cims-gantt-key-done    { background-color: var(--bs-success); }
+.cims-gantt-key-running { background-color: var(--bs-warning); }

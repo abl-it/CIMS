@@ -41,11 +41,13 @@ namespace CIMS.Controllers
         private readonly ICurrentUserService _currentUserService;
         private readonly IUserTaskService _taskService;
         private readonly IVendorService _vendorService;
+        private readonly IUnitService _unitService;
 
         public RequestController(IRequestService requestService, IRequestAttachmentService attachmentService,
             IRequestLookupService lookupService, ISubCategoryService subCategoryService, ICurrentUserService currentUserService,
-            IUserTaskService taskService, IVendorService vendorService)
+            IUserTaskService taskService, IVendorService vendorService, IUnitService unitService)
         {
+            _unitService = unitService;
             _vendorService = vendorService;
             _requestService = requestService;
             _attachmentService = attachmentService;
@@ -59,6 +61,75 @@ namespace CIMS.Controllers
 
         [HttpGet]
         public async Task<IActionResult> Index(RequestListViewModel query, CancellationToken ct)
+        {
+            await NormalizeListQueryAsync(query, ct);
+            query.PageSize = Math.Clamp(query.PageSize, 1, 10);
+            if (query.Page < 1) query.Page = 1;
+
+            var result = await _requestService.GetPagedAsync(query.CoCode, query.DepartmentId, query.Search, query.Category,
+                query.Status, query.SortBy, query.SortDir, query.Page, query.PageSize, ct);
+
+            // Halaman melebihi total -> arahkan ke halaman terakhir.
+            if (result.TotalCount > 0 && query.Page > result.TotalPages)
+            {
+                return RedirectToAction(nameof(Index), new
+                {
+                    coCode = query.ShowCompanyFilter ? query.CoCode ?? string.Empty : null,
+                    departmentId = query.DepartmentId,
+                    search = query.Search,
+                    category = query.Category,
+                    status = query.Status,
+                    sortBy = query.SortBy,
+                    sortDir = query.SortDir,
+                    page = result.TotalPages,
+                    pageSize = query.PageSize
+                });
+            }
+
+            query.Result = result;
+            return View(query);
+        }
+
+        /// <summary>Export Request List sesuai filter aktif (FR-04; maks. 5000 baris).</summary>
+        [HttpGet]
+        public async Task<IActionResult> Export(RequestListViewModel query, CancellationToken ct)
+        {
+            await NormalizeListQueryAsync(query, ct);
+            var result = await _requestService.GetPagedAsync(query.CoCode, query.DepartmentId, query.Search, query.Category,
+                query.Status, query.SortBy, query.SortDir, 1, 5000, ct);
+
+            var columns = new List<ExcelExport.Column<RequestListItem>>
+            {
+                new("Request No", x => x.RequestNo),
+                new("Title", x => x.Title),
+                new("Category", x => x.Category),
+                new("Sub-category", x => x.SubCategoryName),
+                new("Company", x => x.CoCode),
+                new("Department", x => x.ABRV ?? x.DeptName),
+                new("Requester", x => x.RequesterName),
+                new("Status", x => RequestStatus.Label(x.Status)),
+                new("Target completion", x => x.TargetCompletionDate, "dd mmm yyyy"),
+                new("Budget expectation (IDR)", x => x.BudgetExpectation, "#,##0"),
+                new("Submitted", x => x.SubmittedAt, "dd mmm yyyy hh:mm"),
+                new("Created", x => x.CreatedAt, "dd mmm yyyy hh:mm")
+            };
+
+            var dept = query.DepartmentId.HasValue ? query.Departments.FirstOrDefault(d => d.DepartmentID == query.DepartmentId) : null;
+            var filter = string.Join(" · ", new[]
+            {
+                query.ShowCompanyFilter ? "Company " + (query.CoCode ?? "All") : null,
+                dept != null ? "Department " + dept.DeptName : null,
+                query.Category != null ? "Category " + query.Category : null,
+                query.Status != null ? "Status " + RequestStatus.Label(query.Status) : null,
+                !string.IsNullOrWhiteSpace(query.Search) ? "Search \"" + query.Search + "\"" : null
+            }.Where(s => s != null));
+
+            var bytes = ExcelExport.Build("Requests", "CIMS - Request List", filter, columns, result.Items);
+            return File(bytes, ExcelExport.ContentType, $"CIMS-requests-{DateTime.Now:yyyyMMdd-HHmm}.xlsx");
+        }
+
+        /// <summary>Filter list request (Index dan Export): Company (BR-57), departemen dalam lingkup, whitelist.</summary>
+        private async Task NormalizeListQueryAsync(RequestListViewModel query, CancellationToken ct)
         {
             query.ShowCompanyFilter = CimsRoles.HasAny(AppUser, CrossCompanyRoles);
             query.CanCreate = CimsRoles.HasAny(AppUser, RequesterRoles);
@@ -91,35 +162,10 @@ namespace CIMS.Controllers
                 ? AllowedSortBy.First(s => s.Equals(query.SortBy, StringComparison.OrdinalIgnoreCase))
                 : "CreatedAt";
             query.SortDir = string.Equals(query.SortDir, "ASC", StringComparison.OrdinalIgnoreCase) ? "ASC" : "DESC";
-            query.PageSize = Math.Clamp(query.PageSize, 1, 10);
-            if (query.Page < 1) query.Page = 1;
-
-            var result = await _requestService.GetPagedAsync(query.CoCode, query.DepartmentId, query.Search, query.Category,
-                query.Status, query.SortBy, query.SortDir, query.Page, query.PageSize, ct);
-
-            // Halaman melebihi total -> arahkan ke halaman terakhir.
-            if (result.TotalCount > 0 && query.Page > result.TotalPages)
-            {
-                return RedirectToAction(nameof(Index), new
-                {
-                    coCode = query.ShowCompanyFilter ? query.CoCode ?? string.Empty : null,
-                    departmentId = query.DepartmentId,
-                    search = query.Search,
-                    category = query.Category,
-                    status = query.Status,
-                    sortBy = query.SortBy,
-                    sortDir = query.SortDir,
-                    page = result.TotalPages,
-                    pageSize = query.PageSize
-                });
-            }
-
-            query.Result = result;
-            return View(query);
         }
 
         [HttpGet]
-        public async Task<IActionResult> Details(int id, string? returnUrl, CancellationToken ct)
+        public async Task<IActionResult> Details(int id, string? returnUrl, DateTime? week, string? month, CancellationToken ct)
         {
             var request = await _requestService.GetByIdAsync(id, ct);
             if (request == null) return NotFound();
@@ -153,6 +199,40 @@ namespace CIMS.Controllers
                     or RequestStatus.Closed or RequestStatus.SurveyCompleted
                 ? await _requestService.GetScheduleAsync(id, ct)
                 : null;
+            // Progress mingguan (T5-1): tampil mulai In Progress; input oleh Civil hanya saat In Progress.
+            var progress = request.Status is RequestStatus.InProgress or RequestStatus.BappReview
+                    or RequestStatus.Closed or RequestStatus.SurveyCompleted
+                ? await _requestService.GetProgressAsync(id, ct)
+                : null;
+            var canEnterProgress = isCivil && request.Status == RequestStatus.InProgress && progress != null;
+            ProgressWeekForm? progressWeek = null;
+            if (progress != null)
+            {
+                // Detail per action plan untuk semua yang boleh melihat progress (form untuk Civil, baca saja untuk
+                // management dan role lain). Default: Civil = minggu berjalan, lainnya = minggu terakhir yang tersimpan.
+                // Minggu dibatasi: minggu mulai project s.d. minggu berjalan (SP tetap memvalidasi).
+                var weekDate = (week ?? (canEnterProgress ? DateTime.Today : progress.Summary.LatestWeekStart ?? DateTime.Today)).Date;
+                var first = progress!.Summary.FirstWeekStart ?? progress.Summary.CurrentWeekStart;
+                if (weekDate < first) weekDate = first;
+                if (weekDate > progress.Summary.CurrentWeekStart.AddDays(6)) weekDate = progress.Summary.CurrentWeekStart;
+                progressWeek = await _requestService.GetProgressWeekAsync(id, weekDate, ct);
+            }
+
+            // Actual cost (T5-2): tampil mulai In Progress; input Civil saat In Progress / BAPP Review.
+            var actualCost = progress != null ? await _requestService.GetActualCostAsync(id, ct) : null;
+            var canEnterActual = isCivil && actualCost != null
+                                 && request.Status is RequestStatus.InProgress or RequestStatus.BappReview;
+            ActualMonthForm? actualMonth = null;
+            if (actualCost is { Summary.CanSeeDetail: true })
+            {
+                // ?month=yyyy-MM; default bulan berjalan; dibatasi bulan awal s.d. bulan berjalan
+                var current = actualCost.Summary.CurrentMonth;
+                var monthDate = DateTime.TryParseExact(month, "yyyy-MM", System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None, out var parsed) ? parsed : current;
+                if (actualCost.Summary.FirstMonth is { } firstMonth && monthDate < firstMonth) monthDate = firstMonth;
+                if (monthDate > current) monthDate = current;
+                actualMonth = await _requestService.GetActualMonthAsync(id, monthDate, ct);
+            }
 
             return View(new RequestDetailsViewModel
             {
@@ -172,6 +252,14 @@ namespace CIMS.Controllers
                 Schedule = schedule,
                 CanEditSchedule = canEditSchedule && schedule != null,
                 CanHandover = canEditSchedule && schedule != null && request.Status == RequestStatus.Scheduling,
+                Progress = progress,
+                CanEnterProgress = canEnterProgress,
+                ProgressWeek = progressWeek,
+                ProgressCurve = progress != null ? await _requestService.GetProgressCurveAsync(id, ct) : Array.Empty<ProgressCurvePoint>(),
+                ActualCost = actualCost,
+                CanEnterActual = canEnterActual,
+                ActualMonth = actualMonth,
+                Units = canEnterActual ? await _unitService.GetActiveAsync(ct) : Array.Empty<UnitOption>(),
                 ApprovalSteps = steps,
                 History = await _requestService.GetHistoryAsync(id, ct),
                 CanEdit = canEdit,
@@ -543,6 +631,86 @@ namespace CIMS.Controllers
                 var status = await _requestService.SiteHandoverAsync(id, handoverDate.Value, remarks, ct);
                 TempData["Success"] = $"Site handover recorded. Status: {RequestStatus.Label(status)}.";
             });
+        }
+
+        /// <summary>Civil menyimpan progress mingguan (T5-1; BR-16, BR-17, BR-68). Kembali ke minggu yang sama.</summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [RoleAuthorize(CimsRoles.Civil)]
+        public async Task<IActionResult> SaveProgress(int id, DateTime? weekStart, List<ProgressInput>? items, string? remarks,
+            string? returnUrl, CancellationToken ct)
+        {
+            returnUrl = LocalOrNull(returnUrl);
+            var weekText = weekStart?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+            if (weekStart == null)
+            {
+                TempData["Error"] = "Week is required.";
+                return RedirectToAction(nameof(Details), new { id, returnUrl });
+            }
+
+            try
+            {
+                var result = await _requestService.SaveProgressAsync(id, weekStart.Value, items ?? new List<ProgressInput>(), remarks, ct);
+                var inv = System.Globalization.CultureInfo.InvariantCulture;
+                TempData["Success"] = $"Progress saved for the week of {result.WeekStart.ToString("dd MMM yyyy", inv)}: "
+                                      + $"actual {result.ActualPercent.ToString("0.##", inv)}% vs plan {result.PlanPercent.ToString("0.##", inv)}% "
+                                      + $"({ScheduleStatus.Label(result.ScheduleStatus)}).";
+            }
+            catch (Exception ex) when (ex is RequestValidationException or RequestInvalidStateException or RequestNotAuthorizedException)
+            {
+                TempData["Error"] = ex.Message;
+            }
+            catch (RequestNotFoundException ex)
+            {
+                TempData["Error"] = ex.Message;
+                return RedirectToAction(nameof(Index));
+            }
+
+            return RedirectToAction(nameof(Details), new { id, returnUrl, week = weekText });
+        }
+
+        /// <summary>
+        /// Civil menyimpan actual cost satu bulan (T5-2; BR-18, BR-19): seluruh item bulan itu diganti; tanpa item = hapus.
+        /// Kembali ke bulan yang sama.
+        /// </summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [RoleAuthorize(CimsRoles.Civil)]
+        public async Task<IActionResult> SaveActualCost(int id, string? month, List<ActualItemInput>? items, string? remarks,
+            string? returnUrl, CancellationToken ct)
+        {
+            returnUrl = LocalOrNull(returnUrl);
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            if (!DateTime.TryParseExact(month, "yyyy-MM", inv, System.Globalization.DateTimeStyles.None, out var monthDate))
+            {
+                TempData["Error"] = "Month is required.";
+                return RedirectToAction(nameof(Details), new { id, returnUrl });
+            }
+
+            // Baris kosong total diabaikan; sisanya divalidasi SP
+            var rows = (items ?? new List<ActualItemInput>()).Where(i => !i.IsEmpty).ToList();
+
+            try
+            {
+                var result = await _requestService.SaveActualMonthAsync(id, monthDate, rows, remarks, ct: ct);
+                var monthText = monthDate.ToString("MMM yyyy", inv);
+                TempData["Success"] = rows.Count == 0
+                    ? $"Actual cost for {monthText} removed. Cost status: {CostStatus.Label(result.CostStatus)}."
+                    : $"Actual cost for {monthText} saved. Total actual IDR {(result.ActualCostTotal ?? 0).ToString("#,0.##", inv)} "
+                      + $"({(result.CostRatioPercent.HasValue ? result.CostRatioPercent.Value.ToString("0.##", inv) + "% of estimate, " : "")}"
+                      + $"{CostStatus.Label(result.CostStatus)}).";
+            }
+            catch (Exception ex) when (ex is RequestValidationException or RequestInvalidStateException or RequestNotAuthorizedException)
+            {
+                TempData["Error"] = ex.Message;
+            }
+            catch (RequestNotFoundException ex)
+            {
+                TempData["Error"] = ex.Message;
+                return RedirectToAction(nameof(Index));
+            }
+
+            return RedirectToAction(nameof(Details), new { id, returnUrl, month });
         }
 
         /// <summary>

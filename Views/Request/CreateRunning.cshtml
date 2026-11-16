@@ -1,0 +1,300 @@
+@model RunningProjectFormViewModel
+@{
+    ViewData["Title"] = "Input Running Project";
+    ViewData["ContentWidth"] = "narrow";
+    var returnUrl = ViewData["ReturnUrl"] as string;
+    var cancelUrl = returnUrl ?? Url.Action("Index");
+    var culture = System.Globalization.CultureInfo.InvariantCulture;
+    var today = DateTime.Now.ToString("yyyy-MM-dd", culture);
+    var selectedDept = Model.Departments.FirstOrDefault(d => d.DepartmentID == Model.DepartmentID);
+}
+
+<div class="cims-page-header">
+    <h1 class="h3 mb-0">Input Running Project</h1>
+</div>
+
+<p class="text-muted small">
+    For projects that started before CIMS go-live (data migration). The project is recorded directly in its current status without approval in CIMS.
+    For a project already in progress, choose <strong>Scheduling</strong>, then fill in the schedule and record the site handover with the actual date.
+</p>
+
+<form id="running-form" asp-controller="Request" asp-action="CreateRunning" method="post" novalidate data-dirty-guard
+      data-running-form data-lookup-url="@Url.Action("RunningLookups", "Request")">
+    @if (returnUrl != null)
+    {
+        <input type="hidden" name="returnUrl" value="@returnUrl" />
+    }
+    <div asp-validation-summary="ModelOnly" class="text-danger mb-3" role="alert"></div>
+
+    @* --- Data request (wajib: departemen, judul, kategori, sub-kategori, lokasi) --- *@
+    <div class="card mb-3">
+        <div class="card-header fw-semibold">Request Data</div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-12 col-md-8">
+                    <label asp-for="DepartmentID" class="form-label"></label>
+                    <select asp-for="DepartmentID" class="form-select" data-running-department>
+                        <option value="">-- Select --</option>
+                        @foreach (var d in Model.Departments)
+                        {
+                            <option value="@d.DepartmentID" selected="@(Model.DepartmentID == d.DepartmentID)">@d.DisplayText</option>
+                        }
+                    </select>
+                    <span asp-validation-for="DepartmentID" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label" for="companyDisplay">Company</label>
+                    <input id="companyDisplay" class="form-control" value="@selectedDept?.CoCode" readonly data-running-company />
+                </div>
+
+                <div class="col-12">
+                    <label asp-for="Title" class="form-label"></label>
+                    <input asp-for="Title" class="form-control" autocomplete="off" />
+                    <span asp-validation-for="Title" class="text-danger"></span>
+                </div>
+
+                <div class="col-12 col-md-6 col-lg-4">
+                    <label asp-for="Category" class="form-label"></label>
+                    <select asp-for="Category" class="form-select" data-cascade-category>
+                        <option value="">-- Select --</option>
+                        @foreach (var c in ProjectRequest.Categories)
+                        {
+                            <option value="@c" selected="@(Model.Category == c)">@c</option>
+                        }
+                    </select>
+                    <span asp-validation-for="Category" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-md-6 col-lg-4">
+                    <label asp-for="SubCategoryId" class="form-label"></label>
+                    <select asp-for="SubCategoryId" class="form-select" data-cascade-subcategory>
+                        <option value="">-- Select --</option>
+                        @foreach (var s in Model.SubCategories)
+                        {
+                            <option value="@s.Id" data-category="@s.Category" selected="@(Model.SubCategoryId == s.Id)">@s.Name</option>
+                        }
+                    </select>
+                    <span asp-validation-for="SubCategoryId" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-md-6 col-lg-4">
+                    <label asp-for="BudgetRemarks" class="form-label"></label>
+                    <select asp-for="BudgetRemarks" class="form-select">
+                        <option value="">-- Select --</option>
+                        @foreach (var b in ProjectRequest.BudgetRemarksOptions)
+                        {
+                            <option value="@b.Key" selected="@(Model.BudgetRemarks == b.Key)">@b.Value</option>
+                        }
+                    </select>
+                    <span asp-validation-for="BudgetRemarks" class="text-danger"></span>
+                </div>
+
+                <div class="col-12 col-md-6 col-lg-4">
+                    <label asp-for="LocationId" class="form-label"></label>
+                    <select asp-for="LocationId" class="form-select" data-running-lookup="locations">
+                        <option value="">-- Select --</option>
+                        @foreach (var l in Model.Locations)
+                        {
+                            <option value="@l.Id" selected="@(Model.LocationId == l.Id)">@l.Name</option>
+                        }
+                    </select>
+                    <span asp-validation-for="LocationId" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-md-6 col-lg-4">
+                    <label asp-for="PicEmployeeCode" class="form-label"></label>
+                    <select asp-for="PicEmployeeCode" class="form-select" data-running-lookup="employees">
+                        <option value="">-- Select --</option>
+                        @foreach (var e in Model.Employees)
+                        {
+                            <option value="@e.EmployeeCode" selected="@(Model.PicEmployeeCode == e.EmployeeCode)">@e.FullName (@e.EmployeeCode)</option>
+                        }
+                    </select>
+                    <span asp-validation-for="PicEmployeeCode" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-md-6 col-lg-4">
+                    <label asp-for="SubDepartmentID" class="form-label"></label>
+                    <select asp-for="SubDepartmentID" class="form-select" data-running-lookup="costCenters">
+                        <option value="">-- Select --</option>
+                        @foreach (var cc in Model.CostCenters)
+                        {
+                            <option value="@cc.SubDepartmentID" selected="@(Model.SubDepartmentID == cc.SubDepartmentID)">@cc.SubDepartmentCode @cc.SubDepartmentName</option>
+                        }
+                    </select>
+                    <span asp-validation-for="SubDepartmentID" class="text-danger"></span>
+                </div>
+
+                <div class="col-12 col-md-6">
+                    <label asp-for="TargetCompletionDate" class="form-label"></label>
+                    <input asp-for="TargetCompletionDate" type="date" class="form-control" />
+                    <span asp-validation-for="TargetCompletionDate" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-md-6">
+                    <label asp-for="BudgetExpectation" class="form-label"></label>
+                    <input asp-for="BudgetExpectation" asp-format="{0:0.##}" type="number" min="0" step="0.01" inputmode="decimal" class="form-control" />
+                    <span asp-validation-for="BudgetExpectation" class="text-danger"></span>
+                </div>
+
+                <div class="col-12">
+                    <label asp-for="Background" class="form-label"></label>
+                    <textarea asp-for="Background" class="form-control" rows="2"></textarea>
+                    <span asp-validation-for="Background" class="text-danger"></span>
+                </div>
+                <div class="col-12">
+                    <label asp-for="Objective" class="form-label"></label>
+                    <textarea asp-for="Objective" class="form-control" rows="2"></textarea>
+                    <span asp-validation-for="Objective" class="text-danger"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* --- Status saat ini + cara eksekusi --- *@
+    <div class="card mb-3">
+        <div class="card-header fw-semibold">Current Status</div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-12">
+                    <span class="form-label d-block">@Html.DisplayNameFor(m => m.TargetStatus)</span>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" asp-for="TargetStatus" id="statusPlanning" value="@RequestStatus.Planning" data-running-status />
+                        <label class="form-check-label" for="statusPlanning">Planning: execution method not decided yet</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" asp-for="TargetStatus" id="statusScheduling" value="@RequestStatus.Scheduling" data-running-status />
+                        <label class="form-check-label" for="statusScheduling">Scheduling: in-house decided or contract signed (also for projects already in progress)</label>
+                    </div>
+                    <span asp-validation-for="TargetStatus" class="text-danger"></span>
+                </div>
+
+                <div class="col-12" data-show-when="scheduling">
+                    <span class="form-label d-block">@Html.DisplayNameFor(m => m.ExecutionType)</span>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" asp-for="ExecutionType" id="execInHouse" value="@RequestExecutionType.InHouse" data-running-execution />
+                        <label class="form-check-label" for="execInHouse">In-house</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" asp-for="ExecutionType" id="execOutsource" value="@RequestExecutionType.Outsource" data-running-execution />
+                        <label class="form-check-label" for="execOutsource">Outsource</label>
+                    </div>
+                    <span asp-validation-for="ExecutionType" class="text-danger d-block"></span>
+                </div>
+
+                <div class="col-12 col-md-6" data-show-when="boq">
+                    <label asp-for="BoqTotal" class="form-label"></label>
+                    <input asp-for="BoqTotal" asp-format="{0:0.##}" type="number" min="0.01" step="0.01" inputmode="decimal" class="form-control" />
+                    <div class="form-text">Plan cost for in-house execution. Optional in planning.</div>
+                    <span asp-validation-for="BoqTotal" class="text-danger"></span>
+                </div>
+
+                <div class="col-12" data-show-when="outsource">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label asp-for="VendorId" class="form-label"></label>
+                            <select asp-for="VendorId" class="form-select">
+                                <option value="">-- Select --</option>
+                                @foreach (var v in Model.Vendors)
+                                {
+                                    <option value="@v.Id" selected="@(Model.VendorId == v.Id)">@v.DisplayText</option>
+                                }
+                            </select>
+                            <span asp-validation-for="VendorId" class="text-danger"></span>
+                        </div>
+                        <div class="col-12 col-md-6 col-lg-4">
+                            <label asp-for="ContractNo" class="form-label"></label>
+                            <input asp-for="ContractNo" class="form-control" autocomplete="off" />
+                            <span asp-validation-for="ContractNo" class="text-danger"></span>
+                        </div>
+                        <div class="col-12 col-md-6 col-lg-4">
+                            <label asp-for="ContractDate" class="form-label"></label>
+                            <input asp-for="ContractDate" type="date" class="form-control" max="@today" />
+                            <span asp-validation-for="ContractDate" class="text-danger"></span>
+                        </div>
+                        <div class="col-12 col-lg-4">
+                            <label asp-for="ContractValue" class="form-label"></label>
+                            <input asp-for="ContractValue" asp-format="{0:0.##}" type="number" min="0.01" step="0.01" inputmode="decimal" class="form-control" />
+                            <div class="form-text">Plan cost = contract value.</div>
+                            <span asp-validation-for="ContractValue" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-6" data-show-when="scheduling">
+                    <label asp-for="PreparationStartDate" class="form-label"></label>
+                    <input asp-for="PreparationStartDate" type="date" class="form-control" max="@today" />
+                    <div class="form-text">Optional. Default: contract date (outsource) or today (in-house).</div>
+                    <span asp-validation-for="PreparationStartDate" class="text-danger"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* --- Approval di luar sistem (BR-76) --- *@
+    <div class="card mb-3">
+        <div class="card-header fw-semibold">Approvals Outside CIMS</div>
+        <div class="card-body">
+            <p class="form-text mt-0">Optional. Record approvals that were done before CIMS (e.g. Kabag, GM, Director). Empty rows are ignored.</p>
+            <div data-approval-list data-max-rows="@RunningProjectFormViewModel.MaxOutsideApprovals">
+                @for (var i = 0; i < Model.Approvals.Count; i++)
+                {
+                    <div class="row g-2 align-items-end mb-2" data-approval-row>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="Approvals_@(i)__Step">Step / role</label>
+                            <input class="form-control" id="Approvals_@(i)__Step" name="Approvals[@i].Step" maxlength="100" value="@Model.Approvals[i].Step" data-field="Step" />
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="Approvals_@(i)__Name">Approver name</label>
+                            <input class="form-control" id="Approvals_@(i)__Name" name="Approvals[@i].Name" maxlength="100" value="@Model.Approvals[i].Name" data-field="Name" />
+                        </div>
+                        <div class="col-10 col-md-3">
+                            <label class="form-label" for="Approvals_@(i)__Date">Date</label>
+                            <input class="form-control" type="date" id="Approvals_@(i)__Date" name="Approvals[@i].Date" max="@today"
+                                   value="@(Model.Approvals[i].Date?.ToString("yyyy-MM-dd", culture))" data-field="Date" />
+                        </div>
+                        <div class="col-2 col-md-1 d-flex justify-content-end">
+                            <button type="button" class="btn btn-outline-danger cims-icon-btn" data-remove-row title="Remove" aria-label="Remove approval row"><i class="bi bi-trash" aria-hidden="true"></i></button>
+                        </div>
+                    </div>
+                }
+            </div>
+            <template data-approval-template>
+                <div class="row g-2 align-items-end mb-2" data-approval-row>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label">Step / role</label>
+                        <input class="form-control" maxlength="100" data-field="Step" />
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label">Approver name</label>
+                        <input class="form-control" maxlength="100" data-field="Name" />
+                    </div>
+                    <div class="col-10 col-md-3">
+                        <label class="form-label">Date</label>
+                        <input class="form-control" type="date" max="@today" data-field="Date" />
+                    </div>
+                    <div class="col-2 col-md-1 d-flex justify-content-end">
+                        <button type="button" class="btn btn-outline-danger cims-icon-btn" data-remove-row title="Remove" aria-label="Remove approval row"><i class="bi bi-trash" aria-hidden="true"></i></button>
+                    </div>
+                </div>
+            </template>
+            <button type="button" class="btn btn-outline-primary" data-add-approval><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add Approval</button>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <label asp-for="Remarks" class="form-label"></label>
+            <textarea asp-for="Remarks" class="form-control" rows="2"></textarea>
+            <span asp-validation-for="Remarks" class="text-danger"></span>
+        </div>
+    </div>
+
+    <div class="d-grid gap-2 d-md-flex justify-content-md-end mb-3">
+        <a href="@cancelUrl" class="btn btn-outline-secondary btn-lg"
+           data-confirm="Unsaved changes will be lost." data-confirm-title="Discard changes?"
+           data-confirm-ok="Yes, discard" data-confirm-danger="true" data-confirm-if-dirty="#running-form">Cancel</a>
+        <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-save me-1" aria-hidden="true"></i>Save Running Project</button>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/request-approval.js" asp-append-version="true"></script>
+    <script src="~/js/running-project.js" asp-append-version="true"></script>
+}

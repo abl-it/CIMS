@@ -17,6 +17,9 @@ namespace CIMS.Services
         /// <summary>Pertanyaan Environment Assessment aktif, urut SortOrder.</summary>
         Task<IReadOnlyList<RequestAssessmentItem>> GetAssessmentQuestionsAsync(CancellationToken ct = default);
 
+        /// <summary>Departemen dalam lingkup user yang punya ABRV (input project berjalan, FR-03).</summary>
+        Task<IReadOnlyList<DepartmentOption>> GetDepartmentsForUserAsync(string username, CancellationToken ct = default);
+
         /// <summary>Jenis lampiran aktif pada satu tahap (mis. REQUEST).</summary>
         Task<IReadOnlyList<AttachmentType>> GetAttachmentTypesByStageAsync(string stage, CancellationToken ct = default);
     }

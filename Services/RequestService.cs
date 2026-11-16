@@ -25,10 +25,11 @@ namespace CIMS.Services
             _logger = logger;
         }
 
-        public async Task<PagedResult<RequestListItem>> GetPagedAsync(string? coCode, string? search, string? category, string? status,
-            string? sortBy, string? sortDir, int pageNumber, int pageSize, CancellationToken ct = default)
+        public async Task<PagedResult<RequestListItem>> GetPagedAsync(string? coCode, int? departmentId, string? search,
+            string? category, string? status, string? sortBy, string? sortDir, int pageNumber, int pageSize, CancellationToken ct = default)
         {
             var p = new DynamicParameters();
+            p.Add("@DepartmentID", departmentId, DbType.Int32);
             p.Add("@Username", Username, DbType.String);
             p.Add("@CoCode", coCode, DbType.AnsiString);
             p.Add("@Search", search, DbType.String);
@@ -243,6 +244,186 @@ namespace CIMS.Services
             p.Add("@Remarks", remarks, DbType.String);
 
             return (await QuerySingleValueAsync<string>("dbo.usp_Request_SendToManagement", p, ct))!;
+        }
+
+        public async Task<string> ChooseExecutionAsync(int id, string executionType, string? remarks, CancellationToken ct = default)
+        {
+            var p = new DynamicParameters();
+            p.Add("@Id", id, DbType.Int32);
+            p.Add("@Username", Username, DbType.String);
+            p.Add("@ExecutionType", executionType, DbType.AnsiString);
+            p.Add("@Remarks", remarks, DbType.String);
+
+            return (await QuerySingleValueAsync<string>("dbo.usp_Request_ChooseExecution", p, ct))!;
+        }
+
+        public async Task SaveContractAsync(int id, int vendorId, string contractNo, DateTime contractDate,
+            decimal contractValue, string? remarks, CancellationToken ct = default)
+        {
+            var p = new DynamicParameters();
+            p.Add("@Id", id, DbType.Int32);
+            p.Add("@Username", Username, DbType.String);
+            p.Add("@VendorId", vendorId, DbType.Int32);
+            p.Add("@ContractNo", contractNo, DbType.String);
+            p.Add("@ContractDate", contractDate.Date, DbType.Date);
+            p.Add("@ContractValue", contractValue, DbType.Decimal, precision: 18, scale: 2);
+            p.Add("@Remarks", remarks, DbType.String);
+
+            await ExecuteAsync("dbo.usp_Request_SaveContract", p, ct);
+        }
+
+        public async Task<string> CompleteProcurementAsync(int id, CancellationToken ct = default)
+        {
+            var p = new DynamicParameters();
+            p.Add("@Id", id, DbType.Int32);
+            p.Add("@Username", Username, DbType.String);
+
+            return (await QuerySingleValueAsync<string>("dbo.usp_Request_CompleteProcurement", p, ct))!;
+        }
+
+        public async Task ReturnTorAsync(int id, string? reason, CancellationToken ct = default)
+        {
+            var p = new DynamicParameters();
+            p.Add("@Id", id, DbType.Int32);
+            p.Add("@Username", Username, DbType.String);
+            p.Add("@Reason", reason, DbType.String);
+
+            await ExecuteAsync("dbo.usp_Request_ReturnTor", p, ct);
+        }
+
+        public async Task<ProjectContract?> GetContractAsync(int requestId, CancellationToken ct = default)
+        {
+            var p = new DynamicParameters();
+            p.Add("@RequestId", requestId, DbType.Int32);
+            p.Add("@Username", Username, DbType.String);
+
+            using var conn = _connectionFactory.CreateConnection();
+            return await conn.QueryFirstOrDefaultAsync<ProjectContract>(new CommandDefinition(
+                "dbo.usp_Request_GetContract", p, commandType: CommandType.StoredProcedure, cancellationToken: ct));
+        }
+
+        public async Task<ProjectSchedule?> GetScheduleAsync(int requestId, CancellationToken ct = default)
+        {
+            var p = new DynamicParameters();
+            p.Add("@RequestId", requestId, DbType.Int32);
+            p.Add("@Username", Username, DbType.String);
+
+            using var conn = _connectionFactory.CreateConnection();
+            using var grid = await conn.QueryMultipleAsync(new CommandDefinition(
+                "dbo.usp_Request_GetSchedule", p, commandType: CommandType.StoredProcedure, cancellationToken: ct));
+
+            var summary = await grid.ReadFirstOrDefaultAsync<ProjectScheduleSummary>();
+            var plans = (await grid.ReadAsync<ProjectActionPlanItem>()).AsList();
+            var estimates = (await grid.ReadAsync<ProjectCostEstimateItem>()).AsList();
+            if (summary == null) return null;
+
+            return new ProjectSchedule { Summary = summary, ActionPlans = plans, CostEstimates = estimates };
+        }
+
+        public async Task SaveScheduleAsync(int id, DateTime projectStartDate, IEnumerable<ActionPlanInput> actionPlans,
+            string? reason, CancellationToken ct = default)
+        {
+            // Urutan list = SortOrder. Tanggal dikirim "yyyy-MM-dd" (OPENJSON ... DATE).
+            var json = JsonSerializer.Serialize(actionPlans.Select(a => new
+            {
+                id = a.Id,
+                name = a.Name,
+                weight = a.WeightPercent,
+                start = a.PlanStartDate?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
+                end = a.PlanEndDate?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)
+            }));
+
+            var p = new DynamicParameters();
+            p.Add("@Id", id, DbType.Int32);
+            p.Add("@Username", Username, DbType.String);
+            p.Add("@ProjectStartDate", projectStartDate.Date, DbType.Date);
+            p.Add("@ActionPlanJson", json, DbType.String);
+            p.Add("@Reason", reason, DbType.String);
+
+            await ExecuteAsync("dbo.usp_Request_SaveSchedule", p, ct);
+        }
+
+        public async Task SaveCostEstimateAsync(int id, IEnumerable<(DateTime Month, decimal Amount)> estimates,
+            string? reason, CancellationToken ct = default)
+        {
+            var json = JsonSerializer.Serialize(estimates.Select(e => new
+            {
+                month = new DateTime(e.Month.Year, e.Month.Month, 1).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
+                amount = e.Amount
+            }));
+
+            var p = new DynamicParameters();
+            p.Add("@Id", id, DbType.Int32);
+            p.Add("@Username", Username, DbType.String);
+            p.Add("@EstimateJson", json, DbType.String);
+            p.Add("@Reason", reason, DbType.String);
+
+            await ExecuteAsync("dbo.usp_Request_SaveCostEstimate", p, ct);
+        }
+
+        public async Task<string> SiteHandoverAsync(int id, DateTime handoverDate, string? remarks, CancellationToken ct = default)
+        {
+            var p = new DynamicParameters();
+            p.Add("@Id", id, DbType.Int32);
+            p.Add("@Username", Username, DbType.String);
+            p.Add("@HandoverDate", handoverDate.Date, DbType.Date);
+            p.Add("@Remarks", remarks, DbType.String);
+
+            return (await QuerySingleValueAsync<string>("dbo.usp_Request_SiteHandover", p, ct))!;
+        }
+
+        public async Task<(int Id, string RequestNo, string Status)> CreateRunningAsync(RunningProjectFormViewModel model,
+            CancellationToken ct = default)
+        {
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            var approvals = JsonSerializer.Serialize(model.Approvals
+                .Where(a => !a.IsEmpty)
+                .Select(a => new { step = a.Step, name = a.Name, date = a.Date?.ToString("yyyy-MM-dd", inv) }));
+
+            // Field yang tidak relevan untuk status/cara eksekusi dikosongkan (SP menolak data kontrak di luar outsource).
+            var scheduling = model.TargetStatus == RequestStatus.Scheduling;
+            var executionType = scheduling ? model.ExecutionType : null;
+            var outsource = executionType == RequestExecutionType.Outsource;
+
+            var p = new DynamicParameters();
+            p.Add("@Username", Username, DbType.String);
+            p.Add("@DepartmentID", model.DepartmentID, DbType.Int32);
+            p.Add("@Title", model.Title, DbType.String);
+            p.Add("@Category", model.Category, DbType.AnsiString);
+            p.Add("@SubCategoryId", model.SubCategoryId, DbType.Int32);
+            p.Add("@LocationId", model.LocationId, DbType.Int32);
+            p.Add("@PicEmployeeCode", model.PicEmployeeCode, DbType.AnsiString);
+            p.Add("@SubDepartmentID", model.SubDepartmentID, DbType.Int32);
+            p.Add("@BudgetRemarks", model.BudgetRemarks, DbType.AnsiString);
+            p.Add("@TargetCompletionDate", model.TargetCompletionDate?.Date, DbType.Date);
+            p.Add("@BudgetExpectation", model.BudgetExpectation, DbType.Decimal, precision: 18, scale: 2);
+            p.Add("@Background", model.Background, DbType.String);
+            p.Add("@Objective", model.Objective, DbType.String);
+            p.Add("@TargetStatus", model.TargetStatus, DbType.AnsiString);
+            p.Add("@ExecutionType", executionType, DbType.AnsiString);
+            p.Add("@BoqTotal", model.BoqTotal, DbType.Decimal, precision: 18, scale: 2);
+            p.Add("@VendorId", outsource ? model.VendorId : null, DbType.Int32);
+            p.Add("@ContractNo", outsource ? model.ContractNo : null, DbType.String);
+            p.Add("@ContractDate", outsource ? model.ContractDate?.Date : null, DbType.Date);
+            p.Add("@ContractValue", outsource ? model.ContractValue : null, DbType.Decimal, precision: 18, scale: 2);
+            p.Add("@PreparationStartDate", scheduling ? model.PreparationStartDate?.Date : null, DbType.Date);
+            p.Add("@ApprovalsJson", approvals, DbType.String);
+            p.Add("@Remarks", model.Remarks, DbType.String);
+
+            const string procedure = "dbo.usp_Request_CreateRunning";
+            try
+            {
+                using var conn = _connectionFactory.CreateConnection();
+                var row = await conn.QuerySingleAsync<(int Id, string RequestNo, string Status)>(new CommandDefinition(
+                    procedure, p, commandType: CommandType.StoredProcedure, cancellationToken: ct));
+                return row;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                var mapped = Translate(ex, procedure, _logger);
+                if (ReferenceEquals(mapped, ex)) throw;
+                throw mapped;
+            }
         }
 
         public async Task<IReadOnlyList<CategoryChangeItem>> GetCategoryChangesAsync(int requestId, CancellationToken ct = default)

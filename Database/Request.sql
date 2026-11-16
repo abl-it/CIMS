@@ -95,6 +95,85 @@ BEGIN
 END
 GO
 
+/* MIGRASI T4-1 (PRD 3.3, BR-11, BR-12, BR-15): cara eksekusi, plan cost, awal periode Preparation.
+   Hanya menambah kolom nullable; data lama tidak berubah. */
+IF COL_LENGTH(N'dbo.ProjectRequest', N'ExecutionType') IS NULL
+BEGIN
+    ALTER TABLE dbo.ProjectRequest ADD
+        ExecutionType       VARCHAR(10)    NULL
+            CONSTRAINT CK_ProjectRequest_ExecutionType CHECK (ExecutionType IS NULL OR ExecutionType IN ('INHOUSE', 'OUTSOURCE')),
+        PlanCost            DECIMAL(18, 2) NULL
+            CONSTRAINT CK_ProjectRequest_PlanCost CHECK (PlanCost IS NULL OR PlanCost > 0),
+        PreparationStartAt  DATETIME2(3)   NULL;
+END
+GO
+
+/* MIGRASI T4-3 (FR-03, BR-77): penanda project berjalan yang diinput Civil saat go-live (data migrasi).
+   Kolom NOT NULL dengan default 0; baris lama otomatis 0. */
+IF COL_LENGTH(N'dbo.ProjectRequest', N'IsMigrated') IS NULL
+BEGIN
+    ALTER TABLE dbo.ProjectRequest ADD
+        IsMigrated  BIT  NOT NULL CONSTRAINT DF_ProjectRequest_IsMigrated DEFAULT (0);
+END
+GO
+
+/* ---------------------------------------------------------------------
+   1a. dbo.fn_User_OutsourceOnly(@Username)  (RL-06: purchasing hanya melihat project outsource)
+       1 baris = user hanya memegang role purchasing (tanpa role CIMS lain yang melihat request);
+       SP list/detail request menambah syarat ExecutionType = 'OUTSOURCE' untuk user ini.
+   --------------------------------------------------------------------- */
+CREATE OR ALTER FUNCTION dbo.fn_User_OutsourceOnly
+(
+    @Username NVARCHAR(100)
+)
+RETURNS TABLE
+AS
+RETURN
+(
+    SELECT 1 AS OutsourceOnly
+    FROM   home..users u
+    WHERE  u.Username = @Username
+      AND  EXISTS (SELECT 1 FROM STRING_SPLIT(u.[Role], N';') s WHERE LTRIM(RTRIM(s.value)) = N'purchasing')
+      AND  NOT EXISTS (SELECT 1 FROM STRING_SPLIT(u.[Role], N';') s
+                       WHERE LTRIM(RTRIM(s.value)) IN (N'administrator', N'director', N'gm', N'civil', N'kabag', N'mo',
+                                                       N'adm', N'plan', N'spv', N'emp'))
+);
+GO
+
+/* ---------------------------------------------------------------------
+   1b. dbo.fn_User_CanChangeAttachment(@Stage, @Status, @Username)  (satu tempat aturan lampiran)
+       1 baris = user boleh upload/hapus lampiran jenis tahap @Stage pada request berstatus @Status:
+         REQUEST     : DRAFT / RETURNED (requester; role dicek di aplikasi), FEASIBILITY oleh civil (T3-1)
+         DOCUMENT    : DOC_PREPARATION oleh civil (BOQ, Drawing; T3-2)
+         PROCUREMENT : PLANNING oleh civil (TOR; T4-1, BR-11)
+         CONTRACT    : PROCUREMENT oleh purchasing (lampiran kontrak; T4-1, BR-11)
+   --------------------------------------------------------------------- */
+CREATE OR ALTER FUNCTION dbo.fn_User_CanChangeAttachment
+(
+    @Stage    VARCHAR(20),
+    @Status   VARCHAR(20),
+    @Username NVARCHAR(100)
+)
+RETURNS TABLE
+AS
+RETURN
+(
+    WITH r AS
+    (
+        SELECT DISTINCT LTRIM(RTRIM(s.value)) AS RoleCode
+        FROM   home..users u
+               CROSS APPLY STRING_SPLIT(u.[Role], N';') s
+        WHERE  u.Username = @Username
+    )
+    SELECT 1 AS Allowed
+    WHERE  (@Stage = 'REQUEST' AND @Status IN ('DRAFT', 'RETURNED'))
+       OR  (@Stage = 'REQUEST'     AND @Status = 'FEASIBILITY'     AND EXISTS (SELECT 1 FROM r WHERE RoleCode = N'civil'))
+       OR  (@Stage = 'DOCUMENT'    AND @Status = 'DOC_PREPARATION' AND EXISTS (SELECT 1 FROM r WHERE RoleCode = N'civil'))
+       OR  (@Stage = 'PROCUREMENT' AND @Status = 'PLANNING'        AND EXISTS (SELECT 1 FROM r WHERE RoleCode = N'civil'))
+       OR  (@Stage = 'CONTRACT'    AND @Status = 'PROCUREMENT'     AND EXISTS (SELECT 1 FROM r WHERE RoleCode = N'purchasing'))
+);
+GO
+
 IF NOT EXISTS (SELECT 1 FROM sys.indexes
                WHERE name = N'UX_ProjectRequest_RequestNo' AND object_id = OBJECT_ID(N'dbo.ProjectRequest'))
 BEGIN
@@ -505,7 +584,7 @@ BEGIN
             r.AreaLength, r.AreaWidth, r.AreaSize, r.BudgetExpectation,
             r.Background, r.Objective, r.OperationalImpact, r.RiskIfNotApproved, r.ExpectedBenefits,
             r.Alternatives, r.SpecialNote, r.ExpectedRoiPercent, r.RoiExplanation, r.AdditionalInfo,
-            r.BoqTotal,
+            r.BoqTotal, r.ExecutionType, r.PlanCost, r.PreparationStartAt, r.IsMigrated,
             r.SubmittedAt, r.CreatedAt, r.CreatedBy, r.UpdatedAt, r.UpdatedBy
     FROM    dbo.ProjectRequest r
             LEFT JOIN home..APP_Departments d     ON d.DepartmentID = r.DepartmentID
@@ -515,7 +594,9 @@ BEGIN
             LEFT JOIN dbo.SubCategory sc          ON sc.Id = r.SubCategoryId
             LEFT JOIN dbo.Location l              ON l.Id = r.LocationId
     WHERE   r.Id = @Id
-      AND   EXISTS (SELECT 1 FROM dbo.fn_User_AllowedDepartments(@Username) f WHERE f.DepartmentID = r.DepartmentID);
+      AND   EXISTS (SELECT 1 FROM dbo.fn_User_AllowedDepartments(@Username) f WHERE f.DepartmentID = r.DepartmentID)
+      -- RL-06: purchasing (tanpa role lain) hanya project outsource
+      AND   (r.ExecutionType = 'OUTSOURCE' OR NOT EXISTS (SELECT 1 FROM dbo.fn_User_OutsourceOnly(@Username)));
 END
 GO
 
@@ -556,13 +637,15 @@ END
 GO
 
 /* ---------------------------------------------------------------------
-   12. usp_Request_GetPaged  (list dalam lingkup user; filter Company untuk role lintas Company, BR-57)
+   12. usp_Request_GetPaged  (list dalam lingkup user; filter Company untuk role lintas Company, BR-57;
+       filter departemen @DepartmentID, tetap dibatasi lingkup user)
        @SortBy  : CreatedAt | RequestNo | Title | Category | Status   (default CreatedAt)
        @SortDir : ASC | DESC                                          (default DESC)
    --------------------------------------------------------------------- */
 CREATE OR ALTER PROCEDURE dbo.usp_Request_GetPaged
     @Username    NVARCHAR(100),
     @CoCode      VARCHAR(10)   = NULL,
+    @DepartmentID INT          = NULL,
     @Search      NVARCHAR(100) = NULL,
     @Category    VARCHAR(10)   = NULL,
     @Status      VARCHAR(20)   = NULL,
@@ -590,10 +673,15 @@ BEGIN
     INSERT INTO @Scope (DepartmentID)
     SELECT DISTINCT f.DepartmentID FROM dbo.fn_User_AllowedDepartments(@Username) f;
 
+    -- RL-06: purchasing (tanpa role lain) hanya project outsource
+    DECLARE @OutsourceOnly BIT = CASE WHEN EXISTS (SELECT 1 FROM dbo.fn_User_OutsourceOnly(@Username)) THEN 1 ELSE 0 END;
+
     SELECT @TotalCount = COUNT(*)
     FROM   dbo.ProjectRequest r
            JOIN @Scope s ON s.DepartmentID = r.DepartmentID
-    WHERE  (@CoCode   IS NULL OR r.CoCode   = @CoCode)
+    WHERE  (@OutsourceOnly = 0 OR r.ExecutionType = 'OUTSOURCE')
+      AND  (@CoCode   IS NULL OR r.CoCode   = @CoCode)
+      AND  (@DepartmentID IS NULL OR r.DepartmentID = @DepartmentID)
       AND  (@Category IS NULL OR r.Category = @Category)
       AND  (@Status   IS NULL OR r.Status   = @Status)
       AND  (@Search   IS NULL OR r.Title LIKE N'%' + @Search + N'%' OR r.RequestNo LIKE '%' + @Search + '%'
@@ -609,7 +697,9 @@ BEGIN
             LEFT JOIN dbo.SubCategory sc      ON sc.Id = r.SubCategoryId
             LEFT JOIN home..APP_Departments d ON d.DepartmentID = r.DepartmentID
             LEFT JOIN home..app_employees req ON req.EmployeeCode = r.RequesterEmployeeCode
-    WHERE   (@CoCode   IS NULL OR r.CoCode   = @CoCode)
+    WHERE   (@OutsourceOnly = 0 OR r.ExecutionType = 'OUTSOURCE')
+      AND   (@CoCode   IS NULL OR r.CoCode   = @CoCode)
+      AND   (@DepartmentID IS NULL OR r.DepartmentID = @DepartmentID)
       AND   (@Category IS NULL OR r.Category = @Category)
       AND   (@Status   IS NULL OR r.Status   = @Status)
       AND   (@Search   IS NULL OR r.Title LIKE N'%' + @Search + N'%' OR r.RequestNo LIKE '%' + @Search + '%'
@@ -643,6 +733,8 @@ GO
        Jenis tahap REQUEST: status DRAFT / RETURNED (requester; T2), atau FEASIBILITY oleh role civil
        (mis. lampiran ROI setelah Civil mengubah kategori ke CAPEX; T3-1, BR-42).
        Jenis tahap DOCUMENT (BOQ, Drawing; BR-05): status DOC_PREPARATION oleh role civil (T3-2).
+       Jenis tahap PROCUREMENT (TOR): PLANNING oleh civil · CONTRACT: PROCUREMENT oleh purchasing (T4-1, BR-11).
+       Aturan lengkap: dbo.fn_User_CanChangeAttachment.
    --------------------------------------------------------------------- */
 CREATE OR ALTER PROCEDURE dbo.usp_RequestAttachment_Insert
     @RequestId         INT,
@@ -674,15 +766,11 @@ BEGIN
 
     IF @Stage IS NULL
         THROW 50072, N'Attachment type is invalid.', 1;
-    IF @Stage NOT IN ('REQUEST', 'DOCUMENT')
+    IF @Stage NOT IN ('REQUEST', 'DOCUMENT', 'PROCUREMENT', 'CONTRACT')
         THROW 50072, N'This attachment type cannot be uploaded at this stage.', 1;
 
-    DECLARE @IsCivil BIT = CASE WHEN EXISTS (SELECT 1 FROM home..users u CROSS APPLY STRING_SPLIT(u.[Role], N';') s
-                                             WHERE u.Username = @Username AND LTRIM(RTRIM(s.value)) = N'civil')
-                                THEN 1 ELSE 0 END;
-    -- REQUEST: DRAFT/RETURNED, atau FEASIBILITY oleh civil (T3-1) · DOCUMENT (BOQ, Drawing): DOC_PREPARATION oleh civil (T3-2)
-    IF NOT (   (@Stage = 'REQUEST'  AND (@Status IN ('DRAFT', 'RETURNED') OR (@Status = 'FEASIBILITY' AND @IsCivil = 1)))
-            OR (@Stage = 'DOCUMENT' AND @Status = 'DOC_PREPARATION' AND @IsCivil = 1))
+    -- Aturan tahap x status x role: dbo.fn_User_CanChangeAttachment (T2, T3-1, T3-2, T4-1)
+    IF NOT EXISTS (SELECT 1 FROM dbo.fn_User_CanChangeAttachment(@Stage, @Status, @Username))
         THROW 50074, N'Attachments cannot be changed at the current request status.', 1;
 
     SET @OriginalFileName = LTRIM(RTRIM(@OriginalFileName));
@@ -726,6 +814,7 @@ BEGIN
     WHERE   a.RequestId = @RequestId
       AND   a.IsActive = 1
       AND   EXISTS (SELECT 1 FROM dbo.fn_User_AllowedDepartments(@Username) f WHERE f.DepartmentID = r.DepartmentID)
+      AND   (r.ExecutionType = 'OUTSOURCE' OR NOT EXISTS (SELECT 1 FROM dbo.fn_User_OutsourceOnly(@Username)))
     ORDER BY t.Name, a.CreatedAt, a.Id;
 END
 GO
@@ -747,7 +836,8 @@ BEGIN
             JOIN dbo.ProjectRequest r  ON r.Id = a.RequestId
     WHERE   a.Id = @Id
       AND   a.IsActive = 1
-      AND   EXISTS (SELECT 1 FROM dbo.fn_User_AllowedDepartments(@Username) f WHERE f.DepartmentID = r.DepartmentID);
+      AND   EXISTS (SELECT 1 FROM dbo.fn_User_AllowedDepartments(@Username) f WHERE f.DepartmentID = r.DepartmentID)
+      AND   (r.ExecutionType = 'OUTSOURCE' OR NOT EXISTS (SELECT 1 FROM dbo.fn_User_OutsourceOnly(@Username)));
 END
 GO
 
@@ -773,13 +863,8 @@ BEGIN
 
     IF @Status IS NULL
         THROW 50073, N'Attachment not found.', 1;
-    -- Aturan sama dengan Insert: REQUEST saat DRAFT/RETURNED, atau FEASIBILITY oleh civil (T3-1);
-    -- DOCUMENT saat DOC_PREPARATION oleh civil (T3-2)
-    DECLARE @IsCivil BIT = CASE WHEN EXISTS (SELECT 1 FROM home..users u CROSS APPLY STRING_SPLIT(u.[Role], N';') s
-                                             WHERE u.Username = @Username AND LTRIM(RTRIM(s.value)) = N'civil')
-                                THEN 1 ELSE 0 END;
-    IF NOT (   (@Stage = 'REQUEST'  AND (@Status IN ('DRAFT', 'RETURNED') OR (@Status = 'FEASIBILITY' AND @IsCivil = 1)))
-            OR (@Stage = 'DOCUMENT' AND @Status = 'DOC_PREPARATION' AND @IsCivil = 1))
+    -- Aturan sama dengan Insert (dbo.fn_User_CanChangeAttachment)
+    IF NOT EXISTS (SELECT 1 FROM dbo.fn_User_CanChangeAttachment(@Stage, @Status, @Username))
         THROW 50074, N'Attachments cannot be changed at the current request status.', 1;
 
     UPDATE dbo.RequestAttachment

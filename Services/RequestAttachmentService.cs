@@ -10,12 +10,19 @@ namespace CIMS.Services
     {
         private const string StageRequest = "REQUEST";
         private const string StageDocument = "DOCUMENT";
+        private const string StageProcurement = "PROCUREMENT";
+        private const string StageContract = "CONTRACT";
 
-        /// <summary>Tahap jenis lampiran yang boleh diunggah pada status request; null = tidak boleh.</summary>
+        /// <summary>
+        /// Tahap jenis lampiran yang boleh diunggah pada status request; null = tidak boleh.
+        /// Planning = TOR (Civil), Procurement = lampiran kontrak (Purchasing); role dicek di SP (fn_User_CanChangeAttachment).
+        /// </summary>
         public static string? StageForStatus(string? status) => status switch
         {
             RequestStatus.Draft or RequestStatus.Returned or RequestStatus.Feasibility => StageRequest,
             RequestStatus.DocPreparation => StageDocument,
+            RequestStatus.Planning => StageProcurement,
+            RequestStatus.Procurement => StageContract,
             _ => null
         };
 

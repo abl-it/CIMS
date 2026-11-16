@@ -14,6 +14,8 @@
          FEASIBILITY : request FEASIBILITY -> role civil (lingkup Civil = ABL dan NKM, BR-59).
          DOC_PREPARATION : request DOC_PREPARATION -> role civil (BOQ, Drawing, kirim ke management; T3-2).
          PLANNING    : request PLANNING -> role civil (aktif setelah management approval, T3).
+         PROCUREMENT : request PROCUREMENT (TOR dikirim) -> role purchasing (input kontrak; T4-1).
+         SCHEDULING  : request SCHEDULING -> role civil (schedule, action plan, estimasi biaya, site handover; T4-2).
        Jenis lain (TOR -> purchasing, BAPP, survei) ditambah di modulnya (T4/T6).
      - TaskSince = sejak kapan tugas menunggu (StartedAt langkah, atau waktu status terakhir dari history).
        Tidak ada penanda overdue (BR-32).
@@ -102,12 +104,22 @@ RETURN
 
     UNION ALL
 
-    -- Pekerjaan Civil (Feasibility / Document Preparation (T3-2) / Planning)
+    -- Pekerjaan Civil (Feasibility / Document Preparation (T3-2) / Planning / Scheduling (T4-2))
     SELECT  pr.Status, pr.Id, NULL,
             (SELECT MAX(h.ActionAt) FROM dbo.ApprovalHistory h WHERE h.RequestId = pr.Id AND h.ToStatus = pr.Status)
     FROM    dbo.ProjectRequest pr
-    WHERE   pr.Status IN ('FEASIBILITY', 'DOC_PREPARATION', 'PLANNING')
+    WHERE   pr.Status IN ('FEASIBILITY', 'DOC_PREPARATION', 'PLANNING', 'SCHEDULING')
       AND   EXISTS (SELECT 1 FROM r WHERE r.RoleCode = N'civil')
+      AND   pr.DepartmentID IN (SELECT DepartmentID FROM scope)
+
+    UNION ALL
+
+    -- Procurement (TOR dikirim Civil) -> purchasing input kontrak (T4-1, BR-11)
+    SELECT  pr.Status, pr.Id, NULL,
+            (SELECT MAX(h.ActionAt) FROM dbo.ApprovalHistory h WHERE h.RequestId = pr.Id AND h.ToStatus = pr.Status)
+    FROM    dbo.ProjectRequest pr
+    WHERE   pr.Status = 'PROCUREMENT'
+      AND   EXISTS (SELECT 1 FROM r WHERE r.RoleCode = N'purchasing')
       AND   pr.DepartmentID IN (SELECT DepartmentID FROM scope)
 );
 GO
@@ -124,7 +136,7 @@ BEGIN
     SELECT  t.TaskType, COUNT(*) AS TaskCount
     FROM    dbo.fn_User_Tasks(@Username) t
     GROUP BY t.TaskType
-    ORDER BY CHARINDEX(',' + t.TaskType + ',', ',APPROVAL,REVISE,REJECTED,FEASIBILITY,DOC_PREPARATION,PLANNING,');
+    ORDER BY CHARINDEX(',' + t.TaskType + ',', ',APPROVAL,REVISE,REJECTED,FEASIBILITY,DOC_PREPARATION,PLANNING,PROCUREMENT,SCHEDULING,');
 END
 GO
 

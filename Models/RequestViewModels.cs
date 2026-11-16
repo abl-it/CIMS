@@ -6,6 +6,10 @@ namespace CIMS.Models
     {
         /// <summary>Filter Company (BR-57); hanya ditampilkan untuk role lintas Company.</summary>
         public string? CoCode { get; set; }
+
+        /// <summary>Filter departemen (cascade dari Company); hanya departemen dalam lingkup user.</summary>
+        public int? DepartmentId { get; set; }
+
         public string? Search { get; set; }
         public string? Category { get; set; }
         public string? Status { get; set; }
@@ -16,6 +20,9 @@ namespace CIMS.Models
 
         public bool ShowCompanyFilter { get; set; }
         public bool CanCreate { get; set; }
+
+        /// <summary>Pilihan departemen (lingkup user); disaring per Company di browser.</summary>
+        public IReadOnlyList<DepartmentOption> Departments { get; set; } = Array.Empty<DepartmentOption>();
         public PagedResult<RequestListItem> Result { get; set; } = new();
     }
 
@@ -194,6 +201,125 @@ namespace CIMS.Models
         };
     }
 
+    /// <summary>Satu baris approval di luar sistem (BR-76); semua opsional, baris kosong diabaikan.</summary>
+    public class OutsideApprovalInput
+    {
+        [StringLength(100, ErrorMessage = "Step/role must be at most {1} characters.")]
+        public string? Step { get; set; }
+
+        [StringLength(100, ErrorMessage = "Approver name must be at most {1} characters.")]
+        public string? Name { get; set; }
+
+        [DataType(DataType.Date)]
+        public DateTime? Date { get; set; }
+
+        public bool IsEmpty => string.IsNullOrWhiteSpace(Step) && string.IsNullOrWhiteSpace(Name) && Date == null;
+    }
+
+    /// <summary>
+    /// Form input project berjalan (T4-3; FR-03, BR-76, BR-77), khusus civil.
+    /// Wajib: departemen, judul, kategori, sub-kategori, lokasi. Validasi akhir di SP.
+    /// </summary>
+    public class RunningProjectFormViewModel
+    {
+        public const int MaxOutsideApprovals = 10;
+
+        [Display(Name = "Requesting department")]
+        [Required(ErrorMessage = "{0} is required.")]
+        public int? DepartmentID { get; set; }
+
+        [Display(Name = "Request title")]
+        [Required(ErrorMessage = "{0} is required.")]
+        [StringLength(200, ErrorMessage = "{0} must be at most {1} characters.")]
+        public string Title { get; set; } = string.Empty;
+
+        [Display(Name = "Budget classification")]
+        [Required(ErrorMessage = "{0} is required.")]
+        [RegularExpression("^(CAPEX|OPEX|LVE)$", ErrorMessage = "{0} is invalid.")]
+        public string Category { get; set; } = string.Empty;
+
+        [Display(Name = "Sub-category")]
+        [Required(ErrorMessage = "{0} is required.")]
+        public int? SubCategoryId { get; set; }
+
+        [Display(Name = "Location")]
+        [Required(ErrorMessage = "{0} is required.")]
+        public int? LocationId { get; set; }
+
+        [Display(Name = "PIC of project")]
+        [StringLength(30)]
+        public string? PicEmployeeCode { get; set; }
+
+        [Display(Name = "Cost center")]
+        public int? SubDepartmentID { get; set; }
+
+        [Display(Name = "Budget remarks")]
+        [RegularExpression("^(BUDGETED|UNBUDGETED)$", ErrorMessage = "{0} is invalid.")]
+        public string? BudgetRemarks { get; set; }
+
+        [Display(Name = "Target completion")]
+        [DataType(DataType.Date)]
+        public DateTime? TargetCompletionDate { get; set; }
+
+        [Display(Name = "Budget expectation (IDR)")]
+        [Range(typeof(decimal), "0", "9999999999999999", ErrorMessage = "{0} cannot be negative.")]
+        public decimal? BudgetExpectation { get; set; }
+
+        [Display(Name = "Background")]
+        [StringLength(2000, ErrorMessage = "{0} must be at most {1} characters.")]
+        public string? Background { get; set; }
+
+        [Display(Name = "Objective")]
+        [StringLength(2000, ErrorMessage = "{0} must be at most {1} characters.")]
+        public string? Objective { get; set; }
+
+        [Display(Name = "Current status")]
+        [Required(ErrorMessage = "{0} is required.")]
+        [RegularExpression("^(PLANNING|SCHEDULING)$", ErrorMessage = "{0} must be Planning or Scheduling.")]
+        public string TargetStatus { get; set; } = RequestStatus.Planning;
+
+        [Display(Name = "Execution method")]
+        [RegularExpression("^(INHOUSE|OUTSOURCE)$", ErrorMessage = "{0} is invalid.")]
+        public string? ExecutionType { get; set; }
+
+        [Display(Name = "BOQ total (IDR)")]
+        [Range(typeof(decimal), "0.01", "9999999999999999", ErrorMessage = "{0} must be greater than 0.")]
+        public decimal? BoqTotal { get; set; }
+
+        [Display(Name = "Vendor")]
+        public int? VendorId { get; set; }
+
+        [Display(Name = "Contract number")]
+        [StringLength(50, ErrorMessage = "{0} must be at most {1} characters.")]
+        public string? ContractNo { get; set; }
+
+        [Display(Name = "Contract date")]
+        [DataType(DataType.Date)]
+        public DateTime? ContractDate { get; set; }
+
+        [Display(Name = "Contract value (IDR)")]
+        [Range(typeof(decimal), "0.01", "9999999999999999", ErrorMessage = "{0} must be greater than 0.")]
+        public decimal? ContractValue { get; set; }
+
+        [Display(Name = "Preparation start date")]
+        [DataType(DataType.Date)]
+        public DateTime? PreparationStartDate { get; set; }
+
+        [Display(Name = "Remarks")]
+        [StringLength(900, ErrorMessage = "{0} must be at most {1} characters.")]
+        public string? Remarks { get; set; }
+
+        public List<OutsideApprovalInput> Approvals { get; set; } = new();
+
+        // ---- Pilihan dropdown ----
+        public IReadOnlyList<DepartmentOption> Departments { get; set; } = Array.Empty<DepartmentOption>();
+        public IReadOnlyList<SubCategory> SubCategories { get; set; } = Array.Empty<SubCategory>();
+        public IReadOnlyList<LocationOption> Locations { get; set; } = Array.Empty<LocationOption>();
+        public IReadOnlyList<CostCenterOption> CostCenters { get; set; } = Array.Empty<CostCenterOption>();
+        public IReadOnlyList<EmployeeOption> Employees { get; set; } = Array.Empty<EmployeeOption>();
+        public IReadOnlyList<VendorOption> Vendors { get; set; } = Array.Empty<VendorOption>();
+    }
+
     public class RequestDetailsViewModel
     {
         public ProjectRequest Request { get; set; } = new();
@@ -232,5 +358,26 @@ namespace CIMS.Models
 
         /// <summary>Log perubahan kategori (BR-02), terbaru di atas.</summary>
         public IReadOnlyList<CategoryChangeItem> CategoryChanges { get; set; } = Array.Empty<CategoryChangeItem>();
+
+        /// <summary>Civil dan status Planning (T4-1): unggah TOR, pilih In-house / Outsource; validasi akhir di SP.</summary>
+        public bool CanChooseExecution { get; set; }
+
+        /// <summary>Purchasing dan status Procurement (T4-1): kontrak, lampiran kontrak, selesai / kembalikan TOR.</summary>
+        public bool CanProcure { get; set; }
+
+        /// <summary>Kontrak outsource (null = belum ada).</summary>
+        public ProjectContract? Contract { get; set; }
+
+        /// <summary>Vendor aktif (+ vendor kontrak saat ini) untuk form kontrak; hanya dimuat bila CanProcure.</summary>
+        public IReadOnlyList<VendorOption> Vendors { get; set; } = Array.Empty<VendorOption>();
+
+        /// <summary>Schedule, action plan, estimasi (T4-2); null = tidak ada akses (mis. purchasing).</summary>
+        public ProjectSchedule? Schedule { get; set; }
+
+        /// <summary>Civil dan status Scheduling / In Progress: ubah schedule, action plan, estimasi (In Progress: alasan wajib).</summary>
+        public bool CanEditSchedule { get; set; }
+
+        /// <summary>Civil dan status Scheduling: catat site handover (-> In Progress).</summary>
+        public bool CanHandover { get; set; }
     }
 }

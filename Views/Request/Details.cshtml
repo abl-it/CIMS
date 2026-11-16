@@ -24,12 +24,22 @@
         .Where(t => IsMandatory(t) && !Model.Attachments.Any(a => a.AttachmentTypeId == t.Id))
         .Select(t => t.Name)
         .ToList();
+
+    // T4-1: TOR (tahap PROCUREMENT) dan lampiran kontrak (tahap CONTRACT)
+    var hasTor = Model.Attachments.Any(a => a.Stage == "PROCUREMENT");
+    var hasContractAttachment = Model.Attachments.Any(a => a.Stage == "CONTRACT");
+    var contract = Model.Contract;
 }
 
 <div class="cims-page-header d-grid d-md-flex justify-content-md-between align-items-md-center gap-2">
     <div class="d-flex flex-wrap align-items-center gap-2">
         <h1 class="h3 mb-0">Request Details</h1>
         <span class="badge @RequestStatus.BadgeClass(r.Status)">@RequestStatus.Label(r.Status)</span>
+        @if (r.IsMigrated)
+        {
+            @* Project berjalan saat go-live (FR-03, BR-77) *@
+            <span class="badge text-bg-secondary" title="Running project entered by Civil (data migration); approvals were done outside CIMS">Migrated</span>
+        }
     </div>
     <div class="d-grid d-md-flex gap-2">
         <a href="@backUrl" class="btn btn-outline-secondary btn-lg"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Back</a>
@@ -235,6 +245,491 @@
     </div>
 }
 
+@* Planning oleh Civil (T4-1; PRD 3.3 langkah 1, ST-08/ST-09, BR-11, BR-12, BR-15); validasi akhir di SP *@
+@if (Model.CanChooseExecution)
+{
+    var boqReady = r.BoqTotal is > 0;
+    <div class="card mb-3 border-info">
+        <div class="card-header fw-semibold"><i class="bi bi-calendar3 me-1" aria-hidden="true"></i>Planning: Execution Method</div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-12 col-md-6">
+                    <h2 class="h6"><i class="bi bi-tools me-1" aria-hidden="true"></i>In-house</h2>
+                    <p class="small text-muted mb-2">Civil executes the project. Plan cost = BOQ total; the request moves to scheduling.</p>
+                    <p class="small mb-0 request-text">
+                        <i class="bi @(boqReady ? "bi-check-circle-fill text-success" : "bi-circle text-muted") me-1" aria-hidden="true"></i>
+                        BOQ total@(boqReady ? $": IDR {r.BoqTotal!.Value.ToString("#,0.##", culture)}" : " not set")
+                    </p>
+                </div>
+                <div class="col-12 col-md-6">
+                    <h2 class="h6"><i class="bi bi-cart me-1" aria-hidden="true"></i>Outsource</h2>
+                    <p class="small text-muted mb-2">Purchasing selects the vendor and enters the contract. Upload the TOR in the Attachments section below first.</p>
+                    <p class="small mb-0">
+                        <i class="bi @(hasTor ? "bi-check-circle-fill text-success" : "bi-circle text-muted") me-1" aria-hidden="true"></i>
+                        @(hasTor ? "TOR attached" : "TOR not attached")
+                    </p>
+                </div>
+            </div>
+
+            <hr />
+
+            <form asp-action="ChooseExecution" method="post">
+                <input type="hidden" name="id" value="@r.Id" />
+                <input type="hidden" name="returnUrl" value="@returnUrl" />
+                <div class="mb-3">
+                    <label for="executionRemarks" class="form-label">Remarks</label>
+                    <textarea id="executionRemarks" name="remarks" class="form-control" rows="2" maxlength="1000"></textarea>
+                    <div class="form-text">Optional. The project start date, action plans and monthly cost estimate are entered in the next step (Scheduling): right after In-house, or after Purchasing completes the contract for Outsource.</div>
+                </div>
+                <div class="d-grid d-md-flex justify-content-md-end gap-2">
+                    <button type="submit" name="executionType" value="@RequestExecutionType.Outsource" class="btn btn-outline-primary btn-lg"
+                            data-confirm="Send the TOR to Purchasing for outsourcing?" data-confirm-title="Outsource" data-confirm-ok="Send TOR">
+                        <i class="bi bi-cart me-1" aria-hidden="true"></i>Outsource (Send TOR)
+                    </button>
+                    <button type="submit" name="executionType" value="@RequestExecutionType.InHouse" class="btn btn-primary btn-lg"
+                            data-confirm="Execute this project in-house? Plan cost will be set to the BOQ total and the request moves to scheduling."
+                            data-confirm-title="In-house" data-confirm-ok="In-house">
+                        <i class="bi bi-tools me-1" aria-hidden="true"></i>In-house
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+@* Procurement oleh Purchasing (T4-1; PRD 3.3 langkah 2, BR-11, BR-12, BR-15); validasi akhir di SP *@
+@if (Model.CanProcure)
+{
+    <div class="card mb-3 border-info">
+        <div class="card-header fw-semibold"><i class="bi bi-cart me-1" aria-hidden="true"></i>Procurement</div>
+        <div class="card-body">
+            <ul class="list-unstyled mb-3 request-text">
+                <li>
+                    <i class="bi @(contract != null ? "bi-check-circle-fill text-success" : "bi-circle text-muted") me-1" aria-hidden="true"></i>
+                    @(contract != null ? "Contract data saved" : "Contract data not saved")
+                </li>
+                <li>
+                    <i class="bi @(hasContractAttachment ? "bi-check-circle-fill text-success" : "bi-circle text-muted") me-1" aria-hidden="true"></i>
+                    @(hasContractAttachment ? "Contract attached" : "Contract not attached (upload in the Attachments section below)")
+                </li>
+            </ul>
+
+            <form asp-action="SaveContract" method="post" class="row g-2 mb-3">
+                <input type="hidden" name="id" value="@r.Id" />
+                <input type="hidden" name="returnUrl" value="@returnUrl" />
+                <div class="col-12">
+                    <label for="contractVendor" class="form-label">Vendor</label>
+                    <select id="contractVendor" name="vendorId" class="form-select" required>
+                        <option value="">-- Select --</option>
+                        @foreach (var v in Model.Vendors)
+                        {
+                            <option value="@v.Id" selected="@(contract?.VendorId == v.Id)">@v.DisplayText</option>
+                        }
+                    </select>
+                    @if (!Model.Vendors.Any())
+                    {
+                        <div class="form-text">No active vendors. Add one in Master Data &gt; Vendor.</div>
+                    }
+                </div>
+                <div class="col-12 col-md-6 col-lg-4">
+                    <label for="contractNo" class="form-label">Contract number</label>
+                    <input id="contractNo" name="contractNo" class="form-control" maxlength="50" required autocomplete="off" value="@contract?.ContractNo" />
+                </div>
+                <div class="col-12 col-md-6 col-lg-4">
+                    <label for="contractDate" class="form-label">Contract date</label>
+                    <input id="contractDate" name="contractDate" type="date" class="form-control" required
+                           value="@(contract?.ContractDate.ToString("yyyy-MM-dd", culture))" />
+                </div>
+                <div class="col-12 col-lg-4">
+                    <label for="contractValue" class="form-label">Contract value (IDR)</label>
+                    <input id="contractValue" name="contractValue" type="number" class="form-control" min="1" step="0.01" required
+                           inputmode="decimal" value="@(contract?.ContractValue.ToString("0.##", culture))" />
+                </div>
+                <div class="col-12">
+                    <label for="contractRemarks" class="form-label">Remarks</label>
+                    <textarea id="contractRemarks" name="remarks" class="form-control" rows="2" maxlength="1000">@contract?.Remarks</textarea>
+                </div>
+                <div class="col-12 d-grid d-md-flex justify-content-md-end">
+                    <button type="submit" class="btn btn-outline-primary btn-lg"><i class="bi bi-save me-1" aria-hidden="true"></i>Save Contract</button>
+                </div>
+            </form>
+
+            <hr />
+
+            <div class="d-grid d-md-flex justify-content-md-end gap-2">
+                <button type="button" class="btn btn-outline-warning btn-lg" data-bs-toggle="collapse" data-bs-target="#returnTorPanel"
+                        aria-expanded="false" aria-controls="returnTorPanel">
+                    <i class="bi bi-arrow-return-left me-1" aria-hidden="true"></i>Return TOR to Civil
+                </button>
+                <form asp-action="CompleteProcurement" method="post" class="d-grid"
+                      data-confirm="Complete procurement? Plan cost will be set to the contract value and the request moves to scheduling."
+                      data-confirm-title="Complete Procurement" data-confirm-ok="Complete">
+                    <input type="hidden" name="id" value="@r.Id" />
+                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                    <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-file-earmark-check me-1" aria-hidden="true"></i>Complete Procurement</button>
+                </form>
+            </div>
+
+            @* Kembalikan TOR (Keputusan 14-11-2026): alasan wajib *@
+            <div id="returnTorPanel" class="collapse mt-3">
+                <form asp-action="ReturnTor" method="post"
+                      data-confirm="Return the TOR to Civil? The request goes back to planning." data-confirm-title="Return TOR"
+                      data-confirm-ok="Return" data-confirm-danger="true">
+                    <input type="hidden" name="id" value="@r.Id" />
+                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                    <div class="mb-3">
+                        <label for="returnTorReason" class="form-label">Reason</label>
+                        <textarea id="returnTorReason" name="reason" class="form-control" rows="2" maxlength="1000" required></textarea>
+                    </div>
+                    <div class="d-grid d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-warning btn-lg"><i class="bi bi-arrow-return-left me-1" aria-hidden="true"></i>Return TOR</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@* Schedule, action plan berbobot, estimasi biaya bulanan, site handover (T4-2; BR-13..BR-16, ST-10, ST-11) *@
+@if (Model.Schedule is { } sch)
+{
+    var sum = sch.Summary;
+    var inProgress = r.Status == RequestStatus.InProgress;
+    var firstMonth = sum.ProjectStartDate?.ToString("yyyy-MM", culture);
+    var lastMonth = sum.ProjectEndDate?.ToString("yyyy-MM", culture);
+    var planCostText = sum.PlanCost.HasValue ? "IDR " + sum.PlanCost.Value.ToString("#,0.##", culture) : "-";
+    <div class="card mb-3 @(Model.CanEditSchedule ? "border-info" : "")">
+        <div class="card-header fw-semibold"><i class="bi bi-calendar-range me-1" aria-hidden="true"></i>Schedule &amp; Cost Estimate</div>
+        <div class="card-body">
+            <dl class="row mb-3 request-detail">
+                <div class="col-12 col-md-6 cims-detail-item">
+                    <dt>Preparation start</dt>
+                    <dd>@(sum.PreparationStartAt?.ToString("dd MMM yyyy", culture) ?? "-")</dd>
+                </div>
+                <div class="col-12 col-md-6 cims-detail-item">
+                    <dt>Project period</dt>
+                    <dd>@(sum.ProjectStartDate?.ToString("dd MMM yyyy", culture) ?? "-") – @(sum.ProjectEndDate?.ToString("dd MMM yyyy", culture) ?? "-")</dd>
+                </div>
+                <div class="col-12 col-md-6 cims-detail-item">
+                    <dt>Action plan weight</dt>
+                    <dd>
+                        @sum.TotalWeight.ToString("0.##", culture)% of 100%
+                        @if (!sum.IsWeightComplete) { <span class="badge text-bg-warning ms-1">Incomplete</span> }
+                    </dd>
+                </div>
+                <div class="col-12 col-md-6 cims-detail-item">
+                    <dt>Cost estimate</dt>
+                    <dd>
+                        IDR @sum.TotalEstimate.ToString("#,0.##", culture) of @planCostText
+                        @if (!sum.IsEstimateComplete) { <span class="badge text-bg-warning ms-1">Incomplete</span> }
+                    </dd>
+                </div>
+                @if (sum.SiteHandoverDate.HasValue)
+                {
+                    <div class="col-12 col-md-6 cims-detail-item">
+                        <dt>Site handover</dt>
+                        <dd>@sum.SiteHandoverDate.Value.ToString("dd MMM yyyy", culture)</dd>
+                    </div>
+                }
+            </dl>
+
+            @if (Model.CanEditSchedule)
+            {
+                @* --- Form schedule + action plan --- *@
+                <h2 class="h6">Schedule and action plans</h2>
+                <form asp-action="SaveSchedule" method="post" id="scheduleForm" data-schedule-form
+                      data-require-complete="@(inProgress ? "true" : "false")">
+                    <input type="hidden" name="id" value="@r.Id" />
+                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                    <div class="row g-2 mb-3">
+                        <div class="col-12 col-md-6 col-lg-4">
+                            <label for="projectStartDate" class="form-label">Project start date</label>
+                            <input id="projectStartDate" name="projectStartDate" type="date" class="form-control" required
+                                   value="@(sum.ProjectStartDate?.ToString("yyyy-MM-dd", culture))" />
+                        </div>
+                    </div>
+
+                    <div data-plan-list>
+                        @for (var i = 0; i < sch.ActionPlans.Count; i++)
+                        {
+                            var ap = sch.ActionPlans[i];
+                            <div class="cims-plan-row" data-plan-row>
+                                <input type="hidden" name="actionPlans[@i].Id" value="@ap.Id" data-field="Id" />
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-12 col-lg-4">
+                                        <label class="form-label" for="ap@(i)Name">Action plan <span data-row-no>@(i + 1)</span></label>
+                                        <input id="ap@(i)Name" name="actionPlans[@i].Name" class="form-control" maxlength="200" required value="@ap.Name" data-field="Name" />
+                                    </div>
+                                    <div class="col-12 col-md-4 col-lg-2">
+                                        <label class="form-label" for="ap@(i)Weight">Weight (%)</label>
+                                        <input id="ap@(i)Weight" name="actionPlans[@i].WeightPercent" type="number" class="form-control" min="0.01" max="100" step="0.01"
+                                               inputmode="decimal" required value="@ap.WeightPercent.ToString("0.##", culture)" data-field="WeightPercent" data-weight />
+                                    </div>
+                                    <div class="col-12 col-md-4 col-lg-2">
+                                        <label class="form-label" for="ap@(i)Start">Plan start</label>
+                                        <input id="ap@(i)Start" name="actionPlans[@i].PlanStartDate" type="date" class="form-control" required
+                                               value="@ap.PlanStartDate.ToString("yyyy-MM-dd", culture)" data-field="PlanStartDate" data-plan-start />
+                                    </div>
+                                    <div class="col-12 col-md-4 col-lg-2">
+                                        <label class="form-label" for="ap@(i)End">Plan end</label>
+                                        <input id="ap@(i)End" name="actionPlans[@i].PlanEndDate" type="date" class="form-control" required
+                                               value="@ap.PlanEndDate.ToString("yyyy-MM-dd", culture)" data-field="PlanEndDate" data-plan-end />
+                                    </div>
+                                    <div class="col-12 col-lg-2 d-flex gap-2 justify-content-end">
+                                        <button type="button" class="btn btn-outline-secondary cims-icon-btn" data-move="up" title="Move up" aria-label="Move up"><i class="bi bi-arrow-up" aria-hidden="true"></i></button>
+                                        <button type="button" class="btn btn-outline-secondary cims-icon-btn" data-move="down" title="Move down" aria-label="Move down"><i class="bi bi-arrow-down" aria-hidden="true"></i></button>
+                                        <button type="button" class="btn btn-outline-danger cims-icon-btn" data-remove-row title="Remove" aria-label="Remove action plan"><i class="bi bi-trash" aria-hidden="true"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    <template data-plan-template>
+                        <div class="cims-plan-row" data-plan-row>
+                            <input type="hidden" value="0" data-field="Id" />
+                            <div class="row g-2 align-items-end">
+                                <div class="col-12 col-lg-4">
+                                    <label class="form-label">Action plan <span data-row-no></span></label>
+                                    <input class="form-control" maxlength="200" required data-field="Name" />
+                                </div>
+                                <div class="col-12 col-md-4 col-lg-2">
+                                    <label class="form-label">Weight (%)</label>
+                                    <input type="number" class="form-control" min="0.01" max="100" step="0.01" inputmode="decimal" required data-field="WeightPercent" data-weight />
+                                </div>
+                                <div class="col-12 col-md-4 col-lg-2">
+                                    <label class="form-label">Plan start</label>
+                                    <input type="date" class="form-control" required data-field="PlanStartDate" data-plan-start />
+                                </div>
+                                <div class="col-12 col-md-4 col-lg-2">
+                                    <label class="form-label">Plan end</label>
+                                    <input type="date" class="form-control" required data-field="PlanEndDate" data-plan-end />
+                                </div>
+                                <div class="col-12 col-lg-2 d-flex gap-2 justify-content-end">
+                                    <button type="button" class="btn btn-outline-secondary cims-icon-btn" data-move="up" title="Move up" aria-label="Move up"><i class="bi bi-arrow-up" aria-hidden="true"></i></button>
+                                    <button type="button" class="btn btn-outline-secondary cims-icon-btn" data-move="down" title="Move down" aria-label="Move down"><i class="bi bi-arrow-down" aria-hidden="true"></i></button>
+                                    <button type="button" class="btn btn-outline-danger cims-icon-btn" data-remove-row title="Remove" aria-label="Remove action plan"><i class="bi bi-trash" aria-hidden="true"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 my-3">
+                        <button type="button" class="btn btn-outline-primary" data-add-plan><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add Action Plan</button>
+                        <span class="small" aria-live="polite">Total weight: <span class="fw-semibold" data-weight-total>0</span>% of 100%</span>
+                    </div>
+
+                    @if (inProgress)
+                    {
+                        <div class="mb-3">
+                            <label for="scheduleReason" class="form-label">Reason for change</label>
+                            <textarea id="scheduleReason" name="reason" class="form-control" rows="2" maxlength="1000" required></textarea>
+                            <div class="form-text">Required while the project is in progress. Total weight must be 100%.</div>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="form-text">You can save an incomplete draft. Total weight must be 100% before site handover.</p>
+                    }
+                    <div class="d-grid d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-save me-1" aria-hidden="true"></i>Save Schedule</button>
+                    </div>
+                </form>
+
+                <hr />
+
+                @* --- Form estimasi biaya per bulan (BR-13) --- *@
+                <h2 class="h6">Monthly cost estimate</h2>
+                @if (firstMonth == null || lastMonth == null)
+                {
+                    <p class="text-muted small mb-0">Save the project start date and at least one action plan first.</p>
+                }
+                else
+                {
+                    <form asp-action="SaveCostEstimate" method="post" id="estimateForm" data-estimate-form
+                          data-require-complete="@(inProgress ? "true" : "false")"
+                          data-first-month="@firstMonth" data-last-month="@lastMonth"
+                          data-plan-cost="@(sum.PlanCost?.ToString("0.##", culture))">
+                        <input type="hidden" name="id" value="@r.Id" />
+                        <input type="hidden" name="returnUrl" value="@returnUrl" />
+                        <p class="form-text mt-0">Months from @sum.ProjectStartDate!.Value.ToString("MMM yyyy", culture) to @sum.ProjectEndDate!.Value.ToString("MMM yyyy", culture). Total must equal the plan cost (@planCostText).</p>
+
+                        <div data-estimate-list>
+                            @for (var i = 0; i < sch.CostEstimates.Count; i++)
+                            {
+                                var est = sch.CostEstimates[i];
+                                <div class="row g-2 align-items-end mb-2" data-estimate-row>
+                                    <div class="col-12 col-md-5">
+                                        <label class="form-label" for="est@(i)Month">Month</label>
+                                        <input id="est@(i)Month" name="estimates[@i].Month" type="month" class="form-control" required
+                                               min="@firstMonth" max="@lastMonth" value="@est.PeriodMonth.ToString("yyyy-MM", culture)" data-field="Month" data-month />
+                                    </div>
+                                    <div class="col-12 col-md-5">
+                                        <label class="form-label" for="est@(i)Amount">Amount (IDR)</label>
+                                        <input id="est@(i)Amount" name="estimates[@i].Amount" type="number" class="form-control" min="1" step="0.01" inputmode="decimal" required
+                                               value="@est.Amount.ToString("0.##", culture)" data-field="Amount" data-amount />
+                                    </div>
+                                    <div class="col-12 col-md-2 d-flex justify-content-end">
+                                        <button type="button" class="btn btn-outline-danger cims-icon-btn" data-remove-row title="Remove" aria-label="Remove month"><i class="bi bi-trash" aria-hidden="true"></i></button>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+
+                        <template data-estimate-template>
+                            <div class="row g-2 align-items-end mb-2" data-estimate-row>
+                                <div class="col-12 col-md-5">
+                                    <label class="form-label">Month</label>
+                                    <input type="month" class="form-control" required min="@firstMonth" max="@lastMonth" data-field="Month" data-month />
+                                </div>
+                                <div class="col-12 col-md-5">
+                                    <label class="form-label">Amount (IDR)</label>
+                                    <input type="number" class="form-control" min="1" step="0.01" inputmode="decimal" required data-field="Amount" data-amount />
+                                </div>
+                                <div class="col-12 col-md-2 d-flex justify-content-end">
+                                    <button type="button" class="btn btn-outline-danger cims-icon-btn" data-remove-row title="Remove" aria-label="Remove month"><i class="bi bi-trash" aria-hidden="true"></i></button>
+                                </div>
+                            </div>
+                        </template>
+
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 my-3">
+                            <button type="button" class="btn btn-outline-primary" data-add-estimate><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add Month</button>
+                            <span class="small" aria-live="polite">Total: IDR <span class="fw-semibold" data-estimate-total>0</span> of @planCostText</span>
+                        </div>
+
+                        @if (inProgress)
+                        {
+                            <div class="mb-3">
+                                <label for="estimateReason" class="form-label">Reason for change</label>
+                                <textarea id="estimateReason" name="reason" class="form-control" rows="2" maxlength="1000" required></textarea>
+                                <div class="form-text">Required while the project is in progress.</div>
+                            </div>
+                        }
+                        <div class="d-grid d-md-flex justify-content-md-end">
+                            <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-save me-1" aria-hidden="true"></i>Save Cost Estimate</button>
+                        </div>
+                    </form>
+                }
+
+                @if (Model.CanHandover)
+                {
+                    <hr />
+
+                    @* --- Site handover (ST-11) --- *@
+                    <h2 class="h6">Site handover</h2>
+                    <ul class="list-unstyled mb-3 request-text">
+                        <li>
+                            <i class="bi @(sum.ProjectStartDate.HasValue ? "bi-check-circle-fill text-success" : "bi-circle text-muted") me-1" aria-hidden="true"></i>
+                            Project start date@(sum.ProjectStartDate.HasValue ? ": " + sum.ProjectStartDate.Value.ToString("dd MMM yyyy", culture) : " not set")
+                        </li>
+                        <li>
+                            <i class="bi @(sum.IsWeightComplete ? "bi-check-circle-fill text-success" : "bi-circle text-muted") me-1" aria-hidden="true"></i>
+                            Action plan weights total 100% (currently @sum.TotalWeight.ToString("0.##", culture)%)
+                        </li>
+                        <li>
+                            <i class="bi @(sum.IsEstimateComplete ? "bi-check-circle-fill text-success" : "bi-circle text-muted") me-1" aria-hidden="true"></i>
+                            Cost estimate equals the plan cost (IDR @sum.TotalEstimate.ToString("#,0.##", culture) of @planCostText)
+                        </li>
+                    </ul>
+                    <form asp-action="SiteHandover" method="post" class="row g-2"
+                          data-confirm="Record the site handover and start execution? The status will change to In Progress."
+                          data-confirm-title="Site Handover" data-confirm-ok="Start Execution">
+                        <input type="hidden" name="id" value="@r.Id" />
+                        <input type="hidden" name="returnUrl" value="@returnUrl" />
+                        <div class="col-12 col-md-6 col-lg-4">
+                            <label for="handoverDate" class="form-label">Site handover date</label>
+                            <input id="handoverDate" name="handoverDate" type="date" class="form-control" required
+                                   min="@(sum.ProjectStartDate?.ToString("yyyy-MM-dd", culture))" max="@DateTime.Now.ToString("yyyy-MM-dd", culture)" />
+                        </div>
+                        <div class="col-12">
+                            <label for="handoverRemarks" class="form-label">Remarks</label>
+                            <textarea id="handoverRemarks" name="remarks" class="form-control" rows="2" maxlength="900"></textarea>
+                            <div class="form-text">Optional. The date must be on or after the project start date and not in the future.</div>
+                        </div>
+                        <div class="col-12 d-grid d-md-flex justify-content-md-end">
+                            <button type="submit" class="btn btn-success btn-lg"><i class="bi bi-flag me-1" aria-hidden="true"></i>Site Handover &amp; Start</button>
+                        </div>
+                    </form>
+                }
+            }
+            else
+            {
+                @* --- Tampilan baca saja --- *@
+                <h2 class="h6">Action plans</h2>
+                @if (!sch.ActionPlans.Any())
+                {
+                    <p class="text-muted small">No action plans yet.</p>
+                }
+                else
+                {
+                    <div class="table-responsive mb-3">
+                        <table class="table align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th class="cims-col-fit">#</th>
+                                    <th>Action plan</th>
+                                    <th class="cims-col-fit text-end">Weight</th>
+                                    <th class="d-none d-md-table-cell cims-col-fit">Plan start</th>
+                                    <th class="d-none d-md-table-cell cims-col-fit">Plan end</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var ap in sch.ActionPlans)
+                                {
+                                    <tr>
+                                        <td class="cims-col-fit">@ap.SortOrder</td>
+                                        <td class="request-text">
+                                            @ap.Name
+                                            <div class="small text-muted d-md-none">@ap.PlanStartDate.ToString("dd MMM yyyy", culture) – @ap.PlanEndDate.ToString("dd MMM yyyy", culture)</div>
+                                        </td>
+                                        <td class="cims-col-fit text-end">@ap.WeightPercent.ToString("0.##", culture)%</td>
+                                        <td class="d-none d-md-table-cell cims-col-fit">@ap.PlanStartDate.ToString("dd MMM yyyy", culture)</td>
+                                        <td class="d-none d-md-table-cell cims-col-fit">@ap.PlanEndDate.ToString("dd MMM yyyy", culture)</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+
+                <h2 class="h6">Monthly cost estimate</h2>
+                @if (!sch.CostEstimates.Any())
+                {
+                    <p class="text-muted small mb-0">No cost estimate yet.</p>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Month</th>
+                                    <th class="text-end">Amount (IDR)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var est in sch.CostEstimates)
+                                {
+                                    <tr>
+                                        <td>@est.PeriodMonth.ToString("MMM yyyy", culture)</td>
+                                        <td class="text-end">@est.Amount.ToString("#,0.##", culture)</td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot>
+                                <tr class="fw-semibold">
+                                    <td>Total</td>
+                                    <td class="text-end">@sum.TotalEstimate.ToString("#,0.##", culture)</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+}
+
 @* (i) Preliminary Data *@
 <div class="card mb-3">
     <div class="card-header fw-semibold">Preliminary Data</div>
@@ -306,6 +801,27 @@
                 <div class="col-12 col-md-6 cims-detail-item">
                     <dt>BOQ total</dt>
                     <dd>IDR @r.BoqTotal.Value.ToString("#,0.##", culture)</dd>
+                </div>
+            }
+            @if (!string.IsNullOrEmpty(r.ExecutionType))
+            {
+                <div class="col-12 col-md-6 cims-detail-item">
+                    <dt>Execution</dt>
+                    <dd>@RequestExecutionType.Label(r.ExecutionType)</dd>
+                </div>
+            }
+            @if (r.PlanCost.HasValue)
+            {
+                <div class="col-12 col-md-6 cims-detail-item">
+                    <dt>Plan cost</dt>
+                    <dd>IDR @r.PlanCost.Value.ToString("#,0.##", culture)</dd>
+                </div>
+            }
+            @if (r.PreparationStartAt.HasValue)
+            {
+                <div class="col-12 col-md-6 cims-detail-item">
+                    <dt>Preparation start</dt>
+                    <dd>@r.PreparationStartAt.Value.ToString("dd MMM yyyy HH:mm", culture)</dd>
                 </div>
             }
             <div class="col-12 col-md-6 cims-detail-item">
@@ -387,13 +903,49 @@
     </div>
 </div>
 
+@* Kontrak outsource (BR-11); hanya tampil (form ada di kartu Procurement) *@
+@if (contract != null && !Model.CanProcure)
+{
+    <div class="card mb-3">
+        <div class="card-header fw-semibold">Contract</div>
+        <div class="card-body">
+            <dl class="row mb-0 request-detail">
+                <div class="col-12 cims-detail-item">
+                    <dt>Vendor</dt>
+                    <dd>@contract.VendorCode - @contract.VendorName</dd>
+                </div>
+                <div class="col-12 col-md-6 cims-detail-item">
+                    <dt>Contract number</dt>
+                    <dd>@contract.ContractNo</dd>
+                </div>
+                <div class="col-12 col-md-6 cims-detail-item">
+                    <dt>Contract date</dt>
+                    <dd>@contract.ContractDate.ToString("dd MMM yyyy", culture)</dd>
+                </div>
+                <div class="col-12 col-md-6 cims-detail-item">
+                    <dt>Contract value</dt>
+                    <dd>IDR @contract.ContractValue.ToString("#,0.##", culture)</dd>
+                </div>
+                <div class="col-12 col-md-6 cims-detail-item">
+                    <dt>Entered by</dt>
+                    <dd>@(contract.UpdatedBy ?? contract.CreatedBy) · @((contract.UpdatedAt ?? contract.CreatedAt).ToString("dd MMM yyyy HH:mm", culture))</dd>
+                </div>
+                <div class="col-12 cims-detail-item">
+                    <dt>Remarks</dt>
+                    <dd class="request-text">@Text(contract.Remarks)</dd>
+                </div>
+            </dl>
+        </div>
+    </div>
+}
+
 @* Lampiran (BR-42..BR-46) *@
 <div class="card mb-3">
     <div class="card-header fw-semibold">Attachments</div>
     <div class="card-body">
         @if (Model.CanManageAttachments && missingMandatory.Count > 0)
         {
-            <p class="small text-warning-emphasis">Required before @(Model.CanPrepareDocuments ? "sending to management" : Model.CanDecideFeasibility ? "marking feasible" : "submit"): @string.Join(", ", missingMandatory).</p>
+            <p class="small text-warning-emphasis">Required before @(Model.CanPrepareDocuments ? "sending to management" : Model.CanDecideFeasibility ? "marking feasible" : Model.CanChooseExecution ? "outsourcing" : Model.CanProcure ? "completing procurement" : "submit"): @string.Join(", ", missingMandatory).</p>
         }
 
         @if (!Model.Attachments.Any())
@@ -627,4 +1179,8 @@
 
 @section Scripts {
     <script src="~/js/request-approval.js" asp-append-version="true"></script>
+    @if (Model.CanEditSchedule)
+    {
+        <script src="~/js/request-schedule.js" asp-append-version="true"></script>
+    }
 }

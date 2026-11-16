@@ -8,11 +8,12 @@ namespace CIMS.Controllers
     /// <summary>
     /// Request / business case (T2-1: Draft). Matriks PRD 5.2:
     ///   lihat  = adm, plan, spv, emp, kabag, mo, civil, gm, director, administrator (purchasing/fat tidak);
-    ///   buat/ubah draft + lampiran = adm, plan, spv (BR-01).
+    ///   buat/ubah draft + lampiran = adm, plan, spv (BR-01);
+    ///   purchasing = hanya request outsource (RL-06; difilter di SP lewat fn_User_OutsourceOnly).
     /// Lingkup data (departemen/Company) dibatasi di stored procedure (fn_AppUserAllowedDepartments).
     /// </summary>
     [RoleAuthorize(CimsRoles.Adm, CimsRoles.Plan, CimsRoles.Spv, CimsRoles.Emp, CimsRoles.Kabag, CimsRoles.Mo,
-        CimsRoles.Civil, CimsRoles.Gm, CimsRoles.Director, CimsRoles.Administrator)]
+        CimsRoles.Civil, CimsRoles.Gm, CimsRoles.Director, CimsRoles.Administrator, CimsRoles.Purchasing)]
     public class RequestController : Controller
     {
         private static readonly string[] AllowedSortBy = { "CreatedAt", "RequestNo", "Title", "Category", "Status" };
@@ -23,6 +24,9 @@ namespace CIMS.Controllers
 
         /// <summary>Role Feasibility / ubah kategori (matriks 5.2: civil).</summary>
         private static readonly string[] CivilRoles = { CimsRoles.Civil };
+
+        /// <summary>Role kontrak outsource (BR-11): purchasing.</summary>
+        private static readonly string[] PurchasingRoles = { CimsRoles.Purchasing };
 
         /// <summary>Role yang melihat ABL dan NKM (BR-57): tampil filter Company.</summary>
         private static readonly string[] CrossCompanyRoles = { CimsRoles.Administrator, CimsRoles.Civil, CimsRoles.Director, CimsRoles.Gm };
@@ -36,11 +40,13 @@ namespace CIMS.Controllers
         private readonly ISubCategoryService _subCategoryService;
         private readonly ICurrentUserService _currentUserService;
         private readonly IUserTaskService _taskService;
+        private readonly IVendorService _vendorService;
 
         public RequestController(IRequestService requestService, IRequestAttachmentService attachmentService,
             IRequestLookupService lookupService, ISubCategoryService subCategoryService, ICurrentUserService currentUserService,
-            IUserTaskService taskService)
+            IUserTaskService taskService, IVendorService vendorService)
         {
+            _vendorService = vendorService;
             _requestService = requestService;
             _attachmentService = attachmentService;
             _lookupService = lookupService;
@@ -68,6 +74,15 @@ namespace CIMS.Controllers
                 query.CoCode = null;
             }
 
+            // Filter departemen: hanya departemen dalam lingkup user dan milik Company terpilih (cascade)
+            query.Departments = await _lookupService.GetDepartmentsForUserAsync(AppUser!.Username, ct);
+            if (query.DepartmentId != null
+                && !query.Departments.Any(d => d.DepartmentID == query.DepartmentId
+                                               && (query.CoCode == null || d.CoCode == query.CoCode)))
+            {
+                query.DepartmentId = null;
+            }
+
             query.Category = ProjectRequest.Categories.FirstOrDefault(
                 c => string.Equals(c, query.Category, StringComparison.OrdinalIgnoreCase));
             query.Status = RequestStatus.All.Select(s => s.Key).FirstOrDefault(
@@ -79,8 +94,8 @@ namespace CIMS.Controllers
             query.PageSize = Math.Clamp(query.PageSize, 1, 10);
             if (query.Page < 1) query.Page = 1;
 
-            var result = await _requestService.GetPagedAsync(query.CoCode, query.Search, query.Category, query.Status,
-                query.SortBy, query.SortDir, query.Page, query.PageSize, ct);
+            var result = await _requestService.GetPagedAsync(query.CoCode, query.DepartmentId, query.Search, query.Category,
+                query.Status, query.SortBy, query.SortDir, query.Page, query.PageSize, ct);
 
             // Halaman melebihi total -> arahkan ke halaman terakhir.
             if (result.TotalCount > 0 && query.Page > result.TotalPages)
@@ -88,6 +103,7 @@ namespace CIMS.Controllers
                 return RedirectToAction(nameof(Index), new
                 {
                     coCode = query.ShowCompanyFilter ? query.CoCode ?? string.Empty : null,
+                    departmentId = query.DepartmentId,
                     search = query.Search,
                     category = query.Category,
                     status = query.Status,
@@ -124,9 +140,19 @@ namespace CIMS.Controllers
             var canDecideFeasibility = request.Status == RequestStatus.Feasibility && isCivil;
             // Document Preparation oleh Civil (T3-2): BOQ/Drawing, BOQ total, kirim ke management.
             var canPrepareDocuments = request.Status == RequestStatus.DocPreparation && isCivil;
-            var canManageAttachments = canEdit || canDecideFeasibility || canPrepareDocuments;
+            // Planning oleh Civil (T4-1): TOR + In-house/Outsource. Procurement oleh Purchasing: kontrak.
+            var canChooseExecution = request.Status == RequestStatus.Planning && isCivil;
+            var canProcure = request.Status == RequestStatus.Procurement && CimsRoles.HasAny(AppUser, PurchasingRoles);
+            var canManageAttachments = canEdit || canDecideFeasibility || canPrepareDocuments || canChooseExecution || canProcure;
             var attachmentStage = canManageAttachments ? RequestAttachmentService.StageForStatus(request.Status) : null;
             var steps = await _requestService.GetApprovalStepsAsync(id, ct);
+            var contract = await _requestService.GetContractAsync(id, ct);
+            // Schedule (T4-2): Civil mengubah saat Scheduling / In Progress; handover hanya saat Scheduling.
+            var canEditSchedule = isCivil && request.Status is RequestStatus.Scheduling or RequestStatus.InProgress;
+            var schedule = request.Status is RequestStatus.Scheduling or RequestStatus.InProgress or RequestStatus.BappReview
+                    or RequestStatus.Closed or RequestStatus.SurveyCompleted
+                ? await _requestService.GetScheduleAsync(id, ct)
+                : null;
 
             return View(new RequestDetailsViewModel
             {
@@ -139,6 +165,13 @@ namespace CIMS.Controllers
                 CanManageAttachments = canManageAttachments,
                 SubCategories = canDecideFeasibility ? await LoadSubCategoriesAsync(ct) : Array.Empty<SubCategory>(),
                 CategoryChanges = await _requestService.GetCategoryChangesAsync(id, ct),
+                CanChooseExecution = canChooseExecution,
+                CanProcure = canProcure,
+                Contract = contract,
+                Vendors = canProcure ? await _vendorService.GetActiveAsync(contract?.VendorId, ct) : Array.Empty<VendorOption>(),
+                Schedule = schedule,
+                CanEditSchedule = canEditSchedule && schedule != null,
+                CanHandover = canEditSchedule && schedule != null && request.Status == RequestStatus.Scheduling,
                 ApprovalSteps = steps,
                 History = await _requestService.GetHistoryAsync(id, ct),
                 CanEdit = canEdit,
@@ -347,6 +380,194 @@ namespace CIMS.Controllers
             return RedirectToAction(nameof(Details), new { id, returnUrl });
         }
 
+        /// <summary>Civil memilih In-house / Outsource saat Planning (T4-1; PRD 3.3, BR-11, BR-12, BR-15).</summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [RoleAuthorize(CimsRoles.Civil)]
+        public async Task<IActionResult> ChooseExecution(int id, string? executionType, string? remarks, string? returnUrl,
+            CancellationToken ct)
+        {
+            returnUrl = LocalOrNull(returnUrl);
+            if (!RequestExecutionType.IsValid(executionType))
+            {
+                TempData["Error"] = "Please choose in-house or outsource.";
+                return RedirectToAction(nameof(Details), new { id, returnUrl });
+            }
+
+            return await RunActionAsync(id, returnUrl, async () =>
+            {
+                var status = await _requestService.ChooseExecutionAsync(id, executionType!, remarks, ct);
+                TempData["Success"] = $"{RequestExecutionType.SuccessMessage(executionType!)} Status: {RequestStatus.Label(status)}.";
+            });
+        }
+
+        /// <summary>Purchasing menyimpan data kontrak saat Procurement (T4-1; BR-11).</summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [RoleAuthorize(CimsRoles.Purchasing)]
+        public async Task<IActionResult> SaveContract(int id, int? vendorId, string? contractNo, DateTime? contractDate,
+            decimal? contractValue, string? remarks, string? returnUrl, CancellationToken ct)
+        {
+            returnUrl = LocalOrNull(returnUrl);
+            var missing = new List<string>();
+            if (vendorId is null or <= 0) missing.Add("Vendor");
+            if (string.IsNullOrWhiteSpace(contractNo)) missing.Add("Contract number");
+            if (contractDate == null) missing.Add("Contract date");
+            if (contractValue is null or <= 0) missing.Add("Contract value (greater than 0)");
+            if (missing.Count > 0)
+            {
+                TempData["Error"] = $"Please complete: {string.Join(", ", missing)}.";
+                return RedirectToAction(nameof(Details), new { id, returnUrl });
+            }
+
+            return await RunActionAsync(id, returnUrl, async () =>
+            {
+                await _requestService.SaveContractAsync(id, vendorId!.Value, contractNo!, contractDate!.Value,
+                    contractValue!.Value, remarks, ct);
+                TempData["Success"] = "Contract saved.";
+            });
+        }
+
+        /// <summary>Purchasing menyelesaikan procurement (T4-1): wajib kontrak + lampiran kontrak -> Scheduling.</summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [RoleAuthorize(CimsRoles.Purchasing)]
+        public async Task<IActionResult> CompleteProcurement(int id, string? returnUrl, CancellationToken ct)
+        {
+            returnUrl = LocalOrNull(returnUrl);
+            return await RunActionAsync(id, returnUrl, async () =>
+            {
+                var status = await _requestService.CompleteProcurementAsync(id, ct);
+                TempData["Success"] = $"Procurement completed. Status: {RequestStatus.Label(status)}.";
+            });
+        }
+
+        /// <summary>Purchasing mengembalikan TOR ke Civil (T4-1; Keputusan 14-11-2026): alasan wajib -> Planning.</summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [RoleAuthorize(CimsRoles.Purchasing)]
+        public async Task<IActionResult> ReturnTor(int id, string? reason, string? returnUrl, CancellationToken ct)
+        {
+            returnUrl = LocalOrNull(returnUrl);
+            if (string.IsNullOrWhiteSpace(reason))
+            {
+                TempData["Error"] = "Reason is required.";
+                return RedirectToAction(nameof(Details), new { id, returnUrl });
+            }
+
+            return await RunActionAsync(id, returnUrl, async () =>
+            {
+                await _requestService.ReturnTorAsync(id, reason, ct);
+                TempData["Success"] = "TOR returned to Civil.";
+            });
+        }
+
+        /// <summary>Civil menyimpan tanggal mulai project + action plan (T4-2; BR-15, BR-16). In Progress: alasan wajib.</summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [RoleAuthorize(CimsRoles.Civil)]
+        public async Task<IActionResult> SaveSchedule(int id, DateTime? projectStartDate, List<ActionPlanInput>? actionPlans,
+            string? reason, string? returnUrl, CancellationToken ct)
+        {
+            returnUrl = LocalOrNull(returnUrl);
+            if (projectStartDate == null)
+            {
+                TempData["Error"] = "Project start date is required.";
+                return RedirectToAction(nameof(Details), new { id, returnUrl });
+            }
+
+            // Baris kosong total (belum diisi sama sekali) diabaikan; sisanya divalidasi SP.
+            var plans = (actionPlans ?? new List<ActionPlanInput>())
+                .Where(a => a.Id > 0 || !string.IsNullOrWhiteSpace(a.Name) || a.WeightPercent.HasValue
+                            || a.PlanStartDate.HasValue || a.PlanEndDate.HasValue)
+                .ToList();
+
+            return await RunActionAsync(id, returnUrl, async () =>
+            {
+                await _requestService.SaveScheduleAsync(id, projectStartDate.Value, plans, reason, ct);
+                TempData["Success"] = "Schedule saved.";
+            });
+        }
+
+        /// <summary>Civil menyimpan estimasi biaya per bulan (T4-2; BR-13). In Progress: alasan wajib, total = plan cost.</summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [RoleAuthorize(CimsRoles.Civil)]
+        public async Task<IActionResult> SaveCostEstimate(int id, List<CostEstimateInput>? estimates, string? reason,
+            string? returnUrl, CancellationToken ct)
+        {
+            returnUrl = LocalOrNull(returnUrl);
+            var rows = new List<(DateTime Month, decimal Amount)>();
+            var rowNo = 0;
+            foreach (var e in estimates ?? new List<CostEstimateInput>())
+            {
+                rowNo++;
+                if (string.IsNullOrWhiteSpace(e.Month) && e.Amount == null) continue;   // baris kosong
+                if (!DateTime.TryParseExact(e.Month, "yyyy-MM", System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.None, out var month))
+                {
+                    TempData["Error"] = $"Cost estimate row {rowNo}: month is required.";
+                    return RedirectToAction(nameof(Details), new { id, returnUrl });
+                }
+                if (e.Amount is null or <= 0)
+                {
+                    TempData["Error"] = $"Cost estimate row {rowNo}: amount must be greater than 0.";
+                    return RedirectToAction(nameof(Details), new { id, returnUrl });
+                }
+                rows.Add((month, e.Amount.Value));
+            }
+
+            return await RunActionAsync(id, returnUrl, async () =>
+            {
+                await _requestService.SaveCostEstimateAsync(id, rows, reason, ct);
+                TempData["Success"] = "Cost estimate saved.";
+            });
+        }
+
+        /// <summary>Civil mencatat site handover (T4-2; ST-11): Scheduling -> In Progress.</summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [RoleAuthorize(CimsRoles.Civil)]
+        public async Task<IActionResult> SiteHandover(int id, DateTime? handoverDate, string? remarks, string? returnUrl,
+            CancellationToken ct)
+        {
+            returnUrl = LocalOrNull(returnUrl);
+            if (handoverDate == null)
+            {
+                TempData["Error"] = "Site handover date is required.";
+                return RedirectToAction(nameof(Details), new { id, returnUrl });
+            }
+
+            return await RunActionAsync(id, returnUrl, async () =>
+            {
+                var status = await _requestService.SiteHandoverAsync(id, handoverDate.Value, remarks, ct);
+                TempData["Success"] = $"Site handover recorded. Status: {RequestStatus.Label(status)}.";
+            });
+        }
+
+        /// <summary>
+        /// Jalankan aksi workflow (PRG): error validasi/status/role -> TempData["Error"] lalu kembali ke Details;
+        /// request tidak ditemukan / di luar lingkup -> Index.
+        /// </summary>
+        private async Task<IActionResult> RunActionAsync(int id, string? returnUrl, Func<Task> action)
+        {
+            try
+            {
+                await action();
+            }
+            catch (Exception ex) when (ex is RequestValidationException or RequestInvalidStateException or RequestNotAuthorizedException)
+            {
+                TempData["Error"] = ex.Message;
+            }
+            catch (RequestNotFoundException ex)
+            {
+                TempData["Error"] = ex.Message;
+                return RedirectToAction(nameof(Index));
+            }
+
+            return RedirectToAction(nameof(Details), new { id, returnUrl });
+        }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         [RoleAuthorize(CimsRoles.Adm, CimsRoles.Plan, CimsRoles.Spv)]
@@ -531,10 +752,11 @@ namespace CIMS.Controllers
             return View(model);
         }
 
-        // Civil boleh saat Feasibility (mis. lampiran ROI); status + role dicek di service/SP.
+        // Civil: Feasibility (ROI), Document Preparation (BOQ/Drawing), Planning (TOR);
+        // Purchasing: Procurement (lampiran kontrak). Status + role dicek di service/SP.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [RoleAuthorize(CimsRoles.Adm, CimsRoles.Plan, CimsRoles.Spv, CimsRoles.Civil)]
+        [RoleAuthorize(CimsRoles.Adm, CimsRoles.Plan, CimsRoles.Spv, CimsRoles.Civil, CimsRoles.Purchasing)]
         [RequestSizeLimit(UploadBodyLimit)]
         [RequestFormLimits(MultipartBodyLengthLimit = UploadBodyLimit)]
         public async Task<IActionResult> UploadAttachment(int id, int attachmentTypeId, IFormFile? file, string? returnUrl, CancellationToken ct)
@@ -564,7 +786,7 @@ namespace CIMS.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [RoleAuthorize(CimsRoles.Adm, CimsRoles.Plan, CimsRoles.Spv, CimsRoles.Civil)]
+        [RoleAuthorize(CimsRoles.Adm, CimsRoles.Plan, CimsRoles.Spv, CimsRoles.Civil, CimsRoles.Purchasing)]
         public async Task<IActionResult> DeactivateAttachment(int id, int attachmentId, string? returnUrl, CancellationToken ct)
         {
             returnUrl = LocalOrNull(returnUrl);
@@ -593,6 +815,110 @@ namespace CIMS.Controllers
 
             var (attachment, fullPath) = found.Value;
             return PhysicalFile(fullPath, attachment.ContentType, attachment.OriginalFileName);
+        }
+
+        /// <summary>Input project berjalan (T4-3; FR-03): form, khusus Civil.</summary>
+        [HttpGet]
+        [RoleAuthorize(CimsRoles.Civil)]
+        public async Task<IActionResult> CreateRunning(string? returnUrl, CancellationToken ct)
+        {
+            ViewData["ReturnUrl"] = LocalOrNull(returnUrl);
+            var model = new RunningProjectFormViewModel();
+            for (var i = 0; i < 2; i++) model.Approvals.Add(new OutsideApprovalInput());
+            await LoadRunningFormAsync(model, ct);
+            return View(model);
+        }
+
+        /// <summary>Simpan project berjalan (T4-3; FR-03, BR-76, BR-77) -> Details.</summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [RoleAuthorize(CimsRoles.Civil)]
+        public async Task<IActionResult> CreateRunning(RunningProjectFormViewModel model, string? returnUrl, CancellationToken ct)
+        {
+            returnUrl = LocalOrNull(returnUrl);
+            ViewData["ReturnUrl"] = returnUrl;
+
+            // Aturan bersyarat (SP tetap memvalidasi ulang)
+            if (model.TargetStatus == RequestStatus.Scheduling)
+            {
+                if (!RequestExecutionType.IsValid(model.ExecutionType))
+                    ModelState.AddModelError(nameof(model.ExecutionType), "Execution method is required for projects in scheduling.");
+                else if (model.ExecutionType == RequestExecutionType.InHouse && model.BoqTotal == null)
+                    ModelState.AddModelError(nameof(model.BoqTotal), "BOQ total is required for in-house execution.");
+                else if (model.ExecutionType == RequestExecutionType.Outsource)
+                {
+                    if (model.VendorId is null or <= 0) ModelState.AddModelError(nameof(model.VendorId), "Vendor is required.");
+                    if (string.IsNullOrWhiteSpace(model.ContractNo)) ModelState.AddModelError(nameof(model.ContractNo), "Contract number is required.");
+                    if (model.ContractDate == null) ModelState.AddModelError(nameof(model.ContractDate), "Contract date is required.");
+                    if (model.ContractValue == null) ModelState.AddModelError(nameof(model.ContractValue), "Contract value is required.");
+                }
+            }
+            if (model.Approvals.Count(a => !a.IsEmpty) > RunningProjectFormViewModel.MaxOutsideApprovals)
+                ModelState.AddModelError(string.Empty, $"At most {RunningProjectFormViewModel.MaxOutsideApprovals} outside approval rows are allowed.");
+
+            if (ModelState.IsValid)
+            {
+                try
+                {
+                    var (newId, requestNo, status) = await _requestService.CreateRunningAsync(model, ct);
+                    TempData["Success"] = $"Running project {requestNo} entered ({RequestStatus.Label(status)}).";
+                    return RedirectToAction(nameof(Details), new { id = newId, returnUrl });
+                }
+                catch (RequestValidationException ex)
+                {
+                    ModelState.AddModelError(string.Empty, ex.Message);
+                }
+                catch (RequestNotAuthorizedException ex)
+                {
+                    TempData["Error"] = ex.Message;
+                    return RedirectToAction(nameof(Index));
+                }
+            }
+
+            await LoadRunningFormAsync(model, ct);
+            return View(model);
+        }
+
+        /// <summary>
+        /// Pilihan yang bergantung departemen untuk form project berjalan (AJAX): cost center, PIC, lokasi Company.
+        /// Departemen harus dalam lingkup user.
+        /// </summary>
+        [HttpGet]
+        [RoleAuthorizeApi(CimsRoles.Civil)]
+        public async Task<IActionResult> RunningLookups(int departmentId, CancellationToken ct)
+        {
+            var dept = (await _lookupService.GetDepartmentsForUserAsync(AppUser!.Username, ct))
+                .FirstOrDefault(d => d.DepartmentID == departmentId);
+            if (dept == null)
+                return NotFound(new { success = false, message = "Department not found." });
+
+            return Json(new
+            {
+                success = true,
+                coCode = dept.CoCode,
+                costCenters = (await _lookupService.GetCostCentersAsync(departmentId, ct))
+                    .Select(c => new { id = c.SubDepartmentID, text = $"{c.SubDepartmentCode} {c.SubDepartmentName}" }),
+                employees = (await _lookupService.GetActiveEmployeesAsync(departmentId, null, ct))
+                    .Select(e => new { id = e.EmployeeCode, text = $"{e.FullName} ({e.EmployeeCode})" }),
+                locations = (await _lookupService.GetLocationsAsync(dept.CoCode, ct))
+                    .Select(l => new { id = l.Id, text = l.Name })
+            });
+        }
+
+        /// <summary>Isi dropdown form project berjalan; pilihan per departemen dimuat bila departemen sudah dipilih.</summary>
+        private async Task LoadRunningFormAsync(RunningProjectFormViewModel model, CancellationToken ct)
+        {
+            model.Departments = await _lookupService.GetDepartmentsForUserAsync(AppUser!.Username, ct);
+            model.SubCategories = await LoadSubCategoriesAsync(ct);
+            model.Vendors = await _vendorService.GetActiveAsync(model.VendorId, ct);
+
+            var dept = model.Departments.FirstOrDefault(d => d.DepartmentID == model.DepartmentID);
+            if (dept != null)
+            {
+                model.CostCenters = await _lookupService.GetCostCentersAsync(dept.DepartmentID, ct);
+                model.Employees = await _lookupService.GetActiveEmployeesAsync(dept.DepartmentID, null, ct);
+                model.Locations = await _lookupService.GetLocationsAsync(dept.CoCode, ct);
+            }
         }
 
         /// <summary>Isi dropdown dan daftar pertanyaan assessment (jawaban digabung per QuestionId).</summary>

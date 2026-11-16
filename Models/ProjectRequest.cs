@@ -108,6 +108,117 @@ namespace CIMS.Models
         };
     }
 
+    /// <summary>Cara eksekusi project (usp_Request_ChooseExecution; PRD 3.3, ST-08/ST-09).</summary>
+    public static class RequestExecutionType
+    {
+        public const string InHouse = "INHOUSE";
+        public const string Outsource = "OUTSOURCE";
+
+        public static bool IsValid(string? code) => code is InHouse or Outsource;
+
+        public static string Label(string? code) => code switch
+        {
+            InHouse => "In-house",
+            Outsource => "Outsource",
+            _ => code ?? string.Empty
+        };
+
+        public static string SuccessMessage(string code) => code switch
+        {
+            InHouse => "In-house execution chosen. The request moved to scheduling.",
+            Outsource => "TOR sent to Purchasing.",
+            _ => "Done."
+        };
+    }
+
+    /// <summary>Ringkasan schedule (usp_Request_GetSchedule result 1; T4-2, BR-13, BR-15, BR-16).</summary>
+    public class ProjectScheduleSummary
+    {
+        public int RequestId { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public string? ExecutionType { get; set; }
+        public decimal? PlanCost { get; set; }
+        public DateTime? PreparationStartAt { get; set; }
+        public DateTime? ProjectStartDate { get; set; }
+
+        /// <summary>Tanggal selesai plan terakhir dari action plan.</summary>
+        public DateTime? ProjectEndDate { get; set; }
+
+        public DateTime? SiteHandoverDate { get; set; }
+        public decimal TotalWeight { get; set; }
+        public decimal TotalEstimate { get; set; }
+
+        public bool IsWeightComplete => TotalWeight == 100m;
+        public bool IsEstimateComplete => PlanCost.HasValue && TotalEstimate == PlanCost.Value;
+    }
+
+    /// <summary>Action plan berbobot (dbo.ProjectActionPlan; BR-16). Progress/aktual diisi di T5.</summary>
+    public class ProjectActionPlanItem
+    {
+        public int Id { get; set; }
+        public int RequestId { get; set; }
+        public int SortOrder { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public decimal WeightPercent { get; set; }
+        public DateTime PlanStartDate { get; set; }
+        public DateTime PlanEndDate { get; set; }
+        public decimal ProgressPercent { get; set; }
+        public DateTime? ActualStartDate { get; set; }
+        public DateTime? ActualEndDate { get; set; }
+    }
+
+    /// <summary>Estimasi biaya total per bulan (dbo.ProjectCostEstimate; BR-13).</summary>
+    public class ProjectCostEstimateItem
+    {
+        public int Id { get; set; }
+        public int RequestId { get; set; }
+        public DateTime PeriodMonth { get; set; }
+        public decimal Amount { get; set; }
+    }
+
+    /// <summary>Schedule lengkap untuk Details: ringkasan, action plan, estimasi.</summary>
+    public class ProjectSchedule
+    {
+        public ProjectScheduleSummary Summary { get; set; } = new();
+        public IReadOnlyList<ProjectActionPlanItem> ActionPlans { get; set; } = Array.Empty<ProjectActionPlanItem>();
+        public IReadOnlyList<ProjectCostEstimateItem> CostEstimates { get; set; } = Array.Empty<ProjectCostEstimateItem>();
+    }
+
+    /// <summary>Baris action plan dari form (Id 0 = baru). Validasi akhir di SP.</summary>
+    public class ActionPlanInput
+    {
+        public int Id { get; set; }
+        public string? Name { get; set; }
+        public decimal? WeightPercent { get; set; }
+        public DateTime? PlanStartDate { get; set; }
+        public DateTime? PlanEndDate { get; set; }
+    }
+
+    /// <summary>Baris estimasi dari form. Month = "yyyy-MM" (input type="month").</summary>
+    public class CostEstimateInput
+    {
+        public string? Month { get; set; }
+        public decimal? Amount { get; set; }
+    }
+
+    /// <summary>Kontrak outsource dari Purchasing (dbo.ProjectContract; BR-11).</summary>
+    public class ProjectContract
+    {
+        public int Id { get; set; }
+        public int RequestId { get; set; }
+        public int VendorId { get; set; }
+        public string VendorCode { get; set; } = string.Empty;
+        public string VendorName { get; set; } = string.Empty;
+        public string ContractNo { get; set; } = string.Empty;
+        public DateTime ContractDate { get; set; }
+        public decimal ContractValue { get; set; }
+        public string? Remarks { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public string? CreatedBy { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+        public string? UpdatedBy { get; set; }
+    }
+
     /// <summary>Log perubahan kategori / sub-kategori oleh Civil (usp_Request_GetCategoryChanges; BR-02, BR-54).</summary>
     public class CategoryChangeItem
     {
@@ -201,6 +312,15 @@ namespace CIMS.Models
             "CATEGORY_CHANGE" => "Category changed",
             "BOQ_TOTAL" => "BOQ total",
             "SEND_TO_MGMT" => "Sent to management",
+            "INHOUSE" => "In-house chosen",
+            "SEND_TOR" => "TOR sent to Purchasing",
+            "RETURN_TOR" => "TOR returned",
+            "CONTRACT" => "Contract completed",
+            "SITE_HANDOVER" => "Site handover",
+            "SCHEDULE_CHANGE" => "Schedule changed",
+            "ESTIMATE_CHANGE" => "Cost estimate changed",
+            "MIGRATION" => "Running project entered",
+            "OUTSIDE_APPROVAL" => "Approved outside CIMS",
             _ => Action
         };
 
@@ -216,17 +336,26 @@ namespace CIMS.Models
             "CATEGORY_CHANGE" => "bi-tag",
             "BOQ_TOTAL" => "bi-calculator",
             "SEND_TO_MGMT" => "bi-send-check",
+            "INHOUSE" => "bi-tools",
+            "SEND_TOR" => "bi-cart",
+            "RETURN_TOR" => "bi-arrow-return-left",
+            "CONTRACT" => "bi-file-earmark-check",
+            "SITE_HANDOVER" => "bi-flag",
+            "SCHEDULE_CHANGE" => "bi-calendar-event",
+            "ESTIMATE_CHANGE" => "bi-cash-stack",
+            "MIGRATION" => "bi-box-arrow-in-right",
+            "OUTSIDE_APPROVAL" => "bi-patch-check",
             _ => "bi-dot"
         };
 
         /// <summary>Warna badge/ikon per aksi.</summary>
         public string ActionBadgeClass => Action switch
         {
-            "SUBMIT" or "RESUBMIT" or "SEND_TO_MGMT" => "text-bg-primary",
-            "APPROVE" or "FEASIBLE" => "text-bg-success",
-            "REVISE" => "text-bg-warning",
+            "SUBMIT" or "RESUBMIT" or "SEND_TO_MGMT" or "SEND_TOR" => "text-bg-primary",
+            "APPROVE" or "FEASIBLE" or "INHOUSE" or "CONTRACT" or "SITE_HANDOVER" => "text-bg-success",
+            "REVISE" or "RETURN_TOR" or "SCHEDULE_CHANGE" or "ESTIMATE_CHANGE" => "text-bg-warning",
             "REJECT" => "text-bg-danger",
-            "CATEGORY_CHANGE" or "BOQ_TOTAL" => "text-bg-info",
+            "CATEGORY_CHANGE" or "BOQ_TOTAL" or "MIGRATION" or "OUTSIDE_APPROVAL" => "text-bg-info",
             _ => "text-bg-secondary"
         };
     }
@@ -287,6 +416,18 @@ namespace CIMS.Models
         /// <summary>Nilai BOQ total (IDR) dari Civil di Document Preparation (T3-2; BR-05, BR-12).</summary>
         public decimal? BoqTotal { get; set; }
 
+        /// <summary>Cara eksekusi (T4-1): INHOUSE | OUTSOURCE; null = belum dipilih (lihat <see cref="RequestExecutionType"/>).</summary>
+        public string? ExecutionType { get; set; }
+
+        /// <summary>Plan cost (BR-12): in-house = BOQ total, outsource = nilai kontrak.</summary>
+        public decimal? PlanCost { get; set; }
+
+        /// <summary>Awal periode Preparation (BR-15).</summary>
+        public DateTime? PreparationStartAt { get; set; }
+
+        /// <summary>Project berjalan yang diinput Civil saat go-live (data migrasi; FR-03, BR-77).</summary>
+        public bool IsMigrated { get; set; }
+
         public DateTime? SubmittedAt { get; set; }
         public DateTime CreatedAt { get; set; }
         public string? CreatedBy { get; set; }
@@ -339,6 +480,17 @@ namespace CIMS.Models
         public long FileSizeBytes { get; set; }
         public DateTime CreatedAt { get; set; }
         public string? CreatedBy { get; set; }
+    }
+
+    /// <summary>Departemen (home..APP_Departments) dalam lingkup user.</summary>
+    public class DepartmentOption
+    {
+        public int DepartmentID { get; set; }
+        public string CoCode { get; set; } = string.Empty;
+        public string? DeptName { get; set; }
+        public string? ABRV { get; set; }
+
+        public string DisplayText => $"{CoCode} · {DeptName} ({ABRV})";
     }
 
     /// <summary>Cost center (home..APP_SubDepartments).</summary>

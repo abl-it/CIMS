@@ -50,3 +50,15 @@ Pendamping `docs/PRD.md`.
 | 2026-11-13 | Civil mengisi nilai "BOQ total (IDR)" di Document Preparation, wajib sebelum dikirim ke management (dasar plan cost in-house) | BR-05, BR-12 |
 | 2026-11-13 | Civil boleh mengubah kategori ke CAPEX saat Feasibility; Civil boleh mengunggah lampiran ROI; lampiran wajib kategori baru harus lengkap sebelum Feasibility = Yes. ROI dikosongkan bila kategori bukan CAPEX lagi | BR-02, BR-42, BR-54 |
 | 2026-11-13 | BOQ total disimpan di `ProjectRequest.BoqTotal` (migrasi kolom nullable), perubahan dicatat di riwayat. Kirim ke management menyusun langkah MGMT dari tabel saat itu (ronde baru); tanpa langkah MGMT langsung Planning | BR-05, BR-12, BR-53 |
+| 2026-11-14 | T4 dipecah 3: T4-1 master Vendor + In-house/Outsource + TOR + kontrak Purchasing; T4-2 schedule, action plan berbobot, estimasi biaya bulanan, site handover; T4-3 input project berjalan | 9.1, 3.3, MD-03 |
+| 2026-11-14 | Purchasing boleh mengembalikan TOR ke Civil (status kembali Planning, alasan wajib, tercatat di riwayat) | BR-11 |
+| 2026-11-14 | Schedule, action plan, dan estimasi biaya tetap boleh diubah Civil saat In Progress, dengan alasan wajib yang tercatat | BR-13, BR-14, BR-16 |
+| 2026-11-14 | Plan progress per minggu (kurva S): bobot action plan disebar linear per hari antara tanggal mulai dan selesai plan | BR-17 |
+| 2026-11-14 | Master Vendor punya Nomor Vendor ERP (opsional, unik bila diisi) | MD-03 |
+| 2026-11-14 | T4-2: tanggal mulai project diisi Civil; tanggal selesai project = tanggal selesai plan terakhir dari action plan. Total bobot 100% dan total estimasi = plan cost wajib saat site handover (draft boleh belum lengkap); saat In Progress setiap simpan wajib lengkap + alasan | BR-13, BR-15, BR-16 |
+| 2026-11-14 | Estimasi biaya bulanan hanya untuk bulan mulai s.d. bulan selesai project | BR-13 |
+| 2026-11-14 | Tanggal site handover: pada/sesudah tanggal mulai project dan tidak di masa depan | ST-11 |
+| 2026-11-16 | Input project berjalan: dicatat langsung di Planning atau Scheduling; project yang sudah In Progress masuk Scheduling lalu schedule + site handover (tanggal lampau) lewat alur T4-2 | FR-03 |
+| 2026-11-16 | Project berjalan outsource: kontrak (vendor, nomor, tanggal, nilai) diinput Civil di form input; plan cost = nilai kontrak. In-house: plan cost = BOQ total | FR-03, BR-11, BR-12 |
+| 2026-11-16 | Field wajib project berjalan: departemen, judul, kategori, sub-kategori, lokasi; lainnya opsional | FR-03 |
+| 2026-11-16 | Approval di luar sistem: baris opsional (langkah/role, nama, tanggal), tercatat di riwayat "Approved outside CIMS"; requester data migrasi = user civil penginput | BR-76, BR-77 |

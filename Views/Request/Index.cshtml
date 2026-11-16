@@ -16,6 +16,7 @@
             ["pageSize"] = Model.PageSize.ToString()
         };
         if (Model.ShowCompanyFilter) d["coCode"] = Model.CoCode ?? string.Empty;
+        if (Model.DepartmentId.HasValue) d["departmentId"] = Model.DepartmentId.Value.ToString();
         if (!string.IsNullOrWhiteSpace(Model.Search)) d["search"] = Model.Search;
         if (!string.IsNullOrWhiteSpace(Model.Category)) d["category"] = Model.Category;
         if (!string.IsNullOrWhiteSpace(Model.Status)) d["status"] = Model.Status;
@@ -57,10 +58,24 @@
     {
         <div class="col-12 col-md-auto">
             <label for="coCode" class="form-label visually-hidden">Company</label>
-            <select id="coCode" name="coCode" class="form-select">
+            <select id="coCode" name="coCode" class="form-select" data-filter-company>
                 <option value="" selected="@(string.IsNullOrEmpty(Model.CoCode))">All companies</option>
                 <option value="ABL" selected="@(Model.CoCode == "ABL")">ABL</option>
                 <option value="NKM" selected="@(Model.CoCode == "NKM")">NKM</option>
+            </select>
+        </div>
+    }
+    @if (Model.Departments.Count > 1)
+    {
+        @* Departemen: hanya milik Company terpilih (cascade di request-list.js; disaring ulang di server) *@
+        <div class="col-12 col-md-auto">
+            <label for="departmentId" class="form-label visually-hidden">Department</label>
+            <select id="departmentId" name="departmentId" class="form-select" data-filter-department>
+                <option value="" selected="@(!Model.DepartmentId.HasValue)">All departments</option>
+                @foreach (var d in Model.Departments)
+                {
+                    <option value="@d.DepartmentID" data-cocode="@d.CoCode" selected="@(Model.DepartmentId == d.DepartmentID)">@d.DeptName (@d.ABRV)</option>
+                }
             </select>
         </div>
     }
@@ -203,4 +218,8 @@ else
             </nav>
         }
     </div>
+}
+
+@section Scripts {
+    <script src="~/js/request-list.js" asp-append-version="true"></script>
 }

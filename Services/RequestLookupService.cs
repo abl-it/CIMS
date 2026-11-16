@@ -49,6 +49,13 @@ namespace CIMS.Services
             }).ToList();
         }
 
+        public Task<IReadOnlyList<DepartmentOption>> GetDepartmentsForUserAsync(string username, CancellationToken ct = default)
+        {
+            var p = new DynamicParameters();
+            p.Add("@Username", username, DbType.String);
+            return QueryAsync<DepartmentOption>("dbo.usp_Lookup_DepartmentsForUser", p, ct);
+        }
+
         public Task<IReadOnlyList<AttachmentType>> GetAttachmentTypesByStageAsync(string stage, CancellationToken ct = default)
         {
             var p = new DynamicParameters();

@@ -393,6 +393,7 @@ a.app-sidebar-link.active {
 .setting-card .setting-text,
 .subcategory-card .subcategory-text,
 .request-card .request-text,
+.vendor-card .vendor-text,
 .request-text,
 .setting-text {
   word-break: break-word;
@@ -521,6 +522,13 @@ a.app-sidebar-link.active {
   .cims-card-toggle { min-height: 2.75rem; }
 }
 
+/* Baris action plan yang bisa diedit (Details: Schedule, T4-2) */
+.cims-plan-row {
+  padding: var(--cims-space-2) 0;
+  border-bottom: 1px solid var(--bs-border-color);
+}
+.cims-plan-row:first-child { border-top: 1px solid var(--bs-border-color); }
+
 /* Notifikasi (toast + SweetAlert2) */
 /* Pojok kanan bawah agar tidak menimpa tombol aksi di bagian atas halaman */
 .app-toast-container {
@@ -619,7 +627,8 @@ a.app-sidebar-link.active {
   .cims-compact .survey-card .card-body,
   .cims-compact .setting-card .card-body,
   .cims-compact .subcategory-card .card-body,
-  .cims-compact .request-card .card-body {
+  .cims-compact .request-card .card-body,
+  .cims-compact .vendor-card .card-body {
     padding: var(--cims-space-3);
   }
 }

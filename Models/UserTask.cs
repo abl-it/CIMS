@@ -9,9 +9,11 @@ namespace CIMS.Models
         public const string Feasibility = "FEASIBILITY";
         public const string DocPreparation = "DOC_PREPARATION";
         public const string Planning = "PLANNING";
+        public const string Procurement = "PROCUREMENT";
+        public const string Scheduling = "SCHEDULING";
 
         /// <summary>Urutan tampil (sama dengan usp_Task_GetSummary).</summary>
-        public static readonly string[] All = { Approval, Revise, Rejected, Feasibility, DocPreparation, Planning };
+        public static readonly string[] All = { Approval, Revise, Rejected, Feasibility, DocPreparation, Planning, Procurement, Scheduling };
 
         public static bool IsValid(string? code) => code != null && All.Contains(code);
 
@@ -23,6 +25,8 @@ namespace CIMS.Models
             Feasibility => "Feasibility",
             DocPreparation => "Document preparation",
             Planning => "Planning",
+            Procurement => "Procurement (contract)",
+            Scheduling => "Scheduling / site handover",
             _ => code ?? string.Empty
         };
 
@@ -43,6 +47,8 @@ namespace CIMS.Models
             Feasibility => "bi-clipboard-check",
             DocPreparation => "bi-file-earmark-ruled",
             Planning => "bi-calendar3",
+            Procurement => "bi-cart",
+            Scheduling => "bi-calendar-range",
             _ => "bi-list-task"
         };
     }

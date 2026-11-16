@@ -5,8 +5,8 @@ namespace CIMS.Services
     /// <summary>Request / business case (T2). Semua akses dibatasi lingkup data user (fn_User_AllowedDepartments).</summary>
     public interface IRequestService
     {
-        Task<PagedResult<RequestListItem>> GetPagedAsync(string? coCode, string? search, string? category, string? status,
-            string? sortBy, string? sortDir, int pageNumber, int pageSize, CancellationToken ct = default);
+        Task<PagedResult<RequestListItem>> GetPagedAsync(string? coCode, int? departmentId, string? search, string? category,
+            string? status, string? sortBy, string? sortDir, int pageNumber, int pageSize, CancellationToken ct = default);
 
         /// <returns>null bila tidak ada atau di luar lingkup user.</returns>
         Task<ProjectRequest?> GetByIdAsync(int id, CancellationToken ct = default);
@@ -82,6 +82,75 @@ namespace CIMS.Services
         /// <exception cref="RequestInvalidStateException">SP error 50074.</exception>
         /// <exception cref="RequestNotAuthorizedException">SP error 50075 (bukan Civil).</exception>
         Task<string> SendToManagementAsync(int id, string? remarks, CancellationToken ct = default);
+
+        /// <summary>Civil memilih In-house (-> SCHEDULING, plan cost = BOQ) atau Outsource (-> PROCUREMENT, wajib TOR) (T4-1; BR-11, BR-12, BR-15).</summary>
+        /// <param name="executionType">INHOUSE | OUTSOURCE (lihat <see cref="RequestExecutionType"/>).</param>
+        /// <returns>Status request yang baru.</returns>
+        /// <exception cref="RequestValidationException">SP error 50072 (BOQ / TOR belum ada).</exception>
+        /// <exception cref="RequestNotFoundException">SP error 50073.</exception>
+        /// <exception cref="RequestInvalidStateException">SP error 50074.</exception>
+        /// <exception cref="RequestNotAuthorizedException">SP error 50075 (bukan Civil).</exception>
+        Task<string> ChooseExecutionAsync(int id, string executionType, string? remarks, CancellationToken ct = default);
+
+        /// <summary>Purchasing menyimpan / mengubah data kontrak saat PROCUREMENT (BR-11).</summary>
+        /// <exception cref="RequestValidationException">SP error 50072.</exception>
+        /// <exception cref="RequestNotFoundException">SP error 50073.</exception>
+        /// <exception cref="RequestInvalidStateException">SP error 50074.</exception>
+        /// <exception cref="RequestNotAuthorizedException">SP error 50075 (bukan Purchasing).</exception>
+        Task SaveContractAsync(int id, int vendorId, string contractNo, DateTime contractDate, decimal contractValue,
+            string? remarks, CancellationToken ct = default);
+
+        /// <summary>Purchasing menyelesaikan procurement (wajib kontrak + lampiran kontrak) -> SCHEDULING, plan cost = nilai kontrak.</summary>
+        /// <returns>Status request yang baru.</returns>
+        /// <exception cref="RequestValidationException">SP error 50072 (pesan memuat daftar kekurangan).</exception>
+        /// <exception cref="RequestNotFoundException">SP error 50073.</exception>
+        /// <exception cref="RequestInvalidStateException">SP error 50074.</exception>
+        /// <exception cref="RequestNotAuthorizedException">SP error 50075 (bukan Purchasing).</exception>
+        Task<string> CompleteProcurementAsync(int id, CancellationToken ct = default);
+
+        /// <summary>Purchasing mengembalikan TOR ke Civil (-> PLANNING); alasan wajib (Keputusan 14-11-2026).</summary>
+        /// <exception cref="RequestValidationException">SP error 50072.</exception>
+        /// <exception cref="RequestNotFoundException">SP error 50073.</exception>
+        /// <exception cref="RequestInvalidStateException">SP error 50074.</exception>
+        /// <exception cref="RequestNotAuthorizedException">SP error 50075 (bukan Purchasing).</exception>
+        Task ReturnTorAsync(int id, string? reason, CancellationToken ct = default);
+
+        /// <summary>Kontrak request (null = belum ada / di luar lingkup).</summary>
+        Task<ProjectContract?> GetContractAsync(int requestId, CancellationToken ct = default);
+
+        /// <summary>Schedule, action plan, estimasi (T4-2); null = tidak ada / di luar lingkup / tanpa akses.</summary>
+        Task<ProjectSchedule?> GetScheduleAsync(int requestId, CancellationToken ct = default);
+
+        /// <summary>Simpan tanggal mulai project + seluruh action plan (BR-15, BR-16). In Progress: alasan wajib, total bobot 100%.</summary>
+        /// <exception cref="RequestValidationException">SP error 50072.</exception>
+        /// <exception cref="RequestNotFoundException">SP error 50073.</exception>
+        /// <exception cref="RequestInvalidStateException">SP error 50074.</exception>
+        /// <exception cref="RequestNotAuthorizedException">SP error 50075 (bukan Civil).</exception>
+        Task SaveScheduleAsync(int id, DateTime projectStartDate, IEnumerable<ActionPlanInput> actionPlans, string? reason,
+            CancellationToken ct = default);
+
+        /// <summary>Ganti seluruh estimasi biaya bulanan (BR-13). In Progress: alasan wajib, total = plan cost.</summary>
+        /// <param name="estimates">Bulan (tanggal 1) dan nilai.</param>
+        /// <exception cref="RequestValidationException">SP error 50072.</exception>
+        /// <exception cref="RequestNotFoundException">SP error 50073.</exception>
+        /// <exception cref="RequestInvalidStateException">SP error 50074.</exception>
+        /// <exception cref="RequestNotAuthorizedException">SP error 50075 (bukan Civil).</exception>
+        Task SaveCostEstimateAsync(int id, IEnumerable<(DateTime Month, decimal Amount)> estimates, string? reason,
+            CancellationToken ct = default);
+
+        /// <summary>Site handover (ST-11): Scheduling -> In Progress; wajib bobot 100% dan estimasi = plan cost.</summary>
+        /// <returns>Status request yang baru.</returns>
+        /// <exception cref="RequestValidationException">SP error 50072 (pesan memuat daftar kekurangan).</exception>
+        /// <exception cref="RequestNotFoundException">SP error 50073.</exception>
+        /// <exception cref="RequestInvalidStateException">SP error 50074.</exception>
+        /// <exception cref="RequestNotAuthorizedException">SP error 50075 (bukan Civil).</exception>
+        Task<string> SiteHandoverAsync(int id, DateTime handoverDate, string? remarks, CancellationToken ct = default);
+
+        /// <summary>Input project berjalan oleh Civil (T4-3; FR-03, BR-76, BR-77): langsung Planning / Scheduling, IsMigrated = 1.</summary>
+        /// <returns>Id, nomor request, dan status.</returns>
+        /// <exception cref="RequestValidationException">SP error 50072.</exception>
+        /// <exception cref="RequestNotAuthorizedException">SP error 50075 (bukan Civil).</exception>
+        Task<(int Id, string RequestNo, string Status)> CreateRunningAsync(RunningProjectFormViewModel model, CancellationToken ct = default);
 
         /// <summary>Log perubahan kategori (BR-02), terbaru di atas.</summary>
         Task<IReadOnlyList<CategoryChangeItem>> GetCategoryChangesAsync(int requestId, CancellationToken ct = default);

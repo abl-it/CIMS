@@ -3,6 +3,9 @@
 // - Total bobot dan total estimasi tampil langsung.
 // - Validasi sebelum kirim (urutan tanggal, total, bulan ganda) supaya isian tidak hilang karena ditolak server.
 //   Listener submit dipasang di form (fase target), jadi berjalan sebelum konfirmasi notify.js di document.
+// - Penyesuaian addendum (T4-4): satu form memuat schedule + estimasi (data-schedule-form dan data-estimate-form),
+//   data-dynamic-months = rentang bulan dari tanggal mulai project s.d. tanggal selesai plan terakhir di form,
+//   data-min-new-month = bulan paling awal untuk baris estimasi baru (bulan lalu terkunci, BR-85).
 // Validasi akhir tetap di stored procedure.
 (function () {
     'use strict';
@@ -55,7 +58,7 @@
         var planList = scheduleForm.querySelector('[data-plan-list]');
         var planTemplate = scheduleForm.querySelector('template[data-plan-template]');
         var weightTotal = scheduleForm.querySelector('[data-weight-total]');
-        var projectStart = scheduleForm.querySelector('#projectStartDate');
+        var projectStart = scheduleForm.querySelector('[data-project-start]');
         var requireComplete = scheduleForm.getAttribute('data-require-complete') === 'true';
 
         var planRows = function () { return Array.from(planList.querySelectorAll('[data-plan-row]')); };
@@ -124,7 +127,7 @@
                 stop(e); fail('Total action plan weight must not exceed 100% (currently ' + fmtNumber.format(total) + '%).'); return;
             }
             if (requireComplete && total !== 100) {
-                stop(e); fail('Total action plan weight must be 100% while the project is in progress (currently ' + fmtNumber.format(total) + '%).');
+                stop(e); fail('Total action plan weight must be 100% (currently ' + fmtNumber.format(total) + '%).');
             }
         });
 
@@ -137,11 +140,25 @@
         var estList = estimateForm.querySelector('[data-estimate-list]');
         var estTemplate = estimateForm.querySelector('template[data-estimate-template]');
         var estTotal = estimateForm.querySelector('[data-estimate-total]');
-        var firstMonth = estimateForm.getAttribute('data-first-month');
-        var lastMonth = estimateForm.getAttribute('data-last-month');
         var planCostAttr = estimateForm.getAttribute('data-plan-cost');
         var planCost = planCostAttr ? parseFloat(planCostAttr) : null;
+        var planCostLabel = estimateForm.getAttribute('data-plan-cost-label') || 'the plan cost';
         var estRequireComplete = estimateForm.getAttribute('data-require-complete') === 'true';
+        var dynamicMonths = estimateForm.getAttribute('data-dynamic-months') === 'true';
+        var minNewMonth = estimateForm.getAttribute('data-min-new-month') || '';
+
+        // Rentang bulan: tetap dari atribut, atau (penyesuaian addendum) dari tanggal di form saat ini
+        var firstMonth = function () {
+            if (!dynamicMonths) return estimateForm.getAttribute('data-first-month');
+            var s = estimateForm.querySelector('[data-project-start]');
+            return s && s.value ? s.value.substring(0, 7) : '';
+        };
+        var lastMonth = function () {
+            if (!dynamicMonths) return estimateForm.getAttribute('data-last-month');
+            var ends = Array.from(estimateForm.querySelectorAll('[data-plan-row] [data-plan-end]'))
+                .map(function (i) { return i.value; }).filter(Boolean).sort();
+            return ends.length ? ends[ends.length - 1].substring(0, 7) : '';
+        };
 
         var estRows = function () { return Array.from(estList.querySelectorAll('[data-estimate-row]')); };
 
@@ -160,16 +177,25 @@
 
         // Bulan berikutnya (yyyy-MM) setelah bulan terakhir yang sudah diisi
         var nextMonth = function () {
+            var first = firstMonth(), last = lastMonth();
             var months = estRows().map(function (r) { return r.querySelector('[data-month]').value; }).filter(Boolean).sort();
-            if (!months.length) return firstMonth;
-            var parts = months[months.length - 1].split('-');
-            var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10), 1);   // bulan JS 0-based -> +1 bulan
-            var m = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-            return m > lastMonth ? '' : m;
+            var m = first;
+            if (months.length) {
+                var parts = months[months.length - 1].split('-');
+                var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10), 1);   // bulan JS 0-based -> +1 bulan
+                m = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+            }
+            if (minNewMonth && m < minNewMonth) m = minNewMonth;
+            return !m || (last && m > last) ? '' : m;
         };
 
         estimateForm.querySelector('[data-add-estimate]').addEventListener('click', function () {
             var row = estTemplate.content.firstElementChild.cloneNode(true);
+            if (dynamicMonths) {
+                var monthInput = row.querySelector('[data-month]');
+                if (minNewMonth) monthInput.min = minNewMonth;
+                if (lastMonth()) monthInput.max = lastMonth();
+            }
             row.querySelector('[data-month]').value = nextMonth() || '';
             estList.appendChild(row);
             refreshEstimates();
@@ -192,9 +218,10 @@
         estimateForm.addEventListener('submit', function (e) {
             var seen = {};
             var rows = estRows();
+            var first = firstMonth(), last = lastMonth();
             for (var i = 0; i < rows.length; i++) {
                 var m = rows[i].querySelector('[data-month]').value;
-                if (m && (m < firstMonth || m > lastMonth)) {
+                if (m && ((first && m < first) || (last && m > last))) {
                     stop(e); fail('Cost estimate row ' + (i + 1) + ': month must be within the project schedule.'); return;
                 }
                 if (m && seen[m]) {
@@ -204,10 +231,10 @@
             }
             var total = updateTotal();
             if (planCost !== null && total > planCost) {
-                stop(e); fail('Total cost estimate must not exceed the plan cost (IDR ' + fmtNumber.format(planCost) + ').'); return;
+                stop(e); fail('Total cost estimate must not exceed ' + planCostLabel + ' (IDR ' + fmtNumber.format(planCost) + ').'); return;
             }
             if (estRequireComplete && planCost !== null && total !== planCost) {
-                stop(e); fail('Total cost estimate must equal the plan cost (IDR ' + fmtNumber.format(planCost) + ') while the project is in progress.');
+                stop(e); fail('Total cost estimate must equal ' + planCostLabel + ' (IDR ' + fmtNumber.format(planCost) + ').');
             }
         });
 

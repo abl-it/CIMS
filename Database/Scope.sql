@@ -15,10 +15,13 @@
    DepartmentID + CoCode (APP_Departments, Disabled = 0) yang boleh dilihat user,
    gabungan semua role CIMS user (any-of):
      administrator, civil, purchasing, director, gm -> semua departemen ABL dan NKM
-     fat                                            -> semua departemen pada CoCode karyawan
+     fat, dgo                                       -> semua departemen pada CoCode karyawan
      kabag, adm, plan, spv, emp                     -> ABRV dan CoCode sama dengan departemen karyawan
      mo                                             -> anggota grup aktif MILL pada CoCode karyawan
    Tanpa role CIMS / user tidak ada -> 0 baris.
+   Kolom FatOnlyScope (Keputusan 18-11-2026) = 1 bila departemen ini terlihat HANYA karena role fat / dgo; data
+   departemen tsb dibatasi ke project In Progress ke atas (dbo.fn_Request_VisibleToUser, Request.sql).
+   Contoh 'kabag;fat': departemen sendiri FatOnlyScope = 0 (semua status), departemen lain FatOnlyScope = 1.
    --------------------------------------------------------------------- */
 CREATE OR ALTER FUNCTION dbo.fn_User_AllowedDepartments
 (
@@ -44,29 +47,35 @@ RETURN
         WHERE  u.Username = @Username
           AND  LTRIM(RTRIM(s.value)) <> N''
     )
-    SELECT  d.DepartmentID, d.CoCode
+    SELECT  d.DepartmentID, d.CoCode,
+            CAST(CASE WHEN x.ViaOther = 0 THEN 1 ELSE 0 END AS BIT) AS FatOnlyScope
     FROM    home..APP_Departments d
             CROSS JOIN me
+            CROSS APPLY
+            (
+                SELECT
+                    -- fat / dgo (RL-13, 18-11-2026): Company karyawan
+                    CASE WHEN EXISTS (SELECT 1 FROM r WHERE r.RoleCode IN (N'fat', N'dgo')) AND d.CoCode = me.CoCode
+                         THEN 1 ELSE 0 END AS ViaFat,
+                    CASE WHEN
+                            -- semua departemen ABL dan NKM
+                            (EXISTS (SELECT 1 FROM r WHERE r.RoleCode IN (N'administrator', N'civil', N'purchasing', N'director', N'gm'))
+                             AND d.CoCode IN (N'ABL', N'NKM'))
+                            -- kabag / adm / plan / spv / emp: ABRV + Company yang sama
+                         OR (EXISTS (SELECT 1 FROM r WHERE r.RoleCode IN (N'kabag', N'adm', N'plan', N'spv', N'emp'))
+                             AND d.ABRV = me.ABRV AND d.CoCode = me.CoCode)
+                            -- mo: anggota grup MILL pada Company karyawan
+                         OR (EXISTS (SELECT 1 FROM r WHERE r.RoleCode = N'mo')
+                             AND d.CoCode = me.CoCode
+                             AND EXISTS (SELECT 1
+                                         FROM   dbo.DepartmentGroup g
+                                                JOIN dbo.DepartmentGroupMember m ON m.GroupId = g.Id
+                                         WHERE  g.CoCode = me.CoCode AND g.GroupCode = N'MILL' AND g.IsActive = 1
+                                           AND  m.DepartmentID = d.DepartmentID))
+                         THEN 1 ELSE 0 END AS ViaOther
+            ) x
     WHERE   ISNULL(d.Disabled, 0) = 0
-      AND   (
-                -- semua departemen ABL dan NKM
-                (EXISTS (SELECT 1 FROM r WHERE r.RoleCode IN (N'administrator', N'civil', N'purchasing', N'director', N'gm'))
-                 AND d.CoCode IN (N'ABL', N'NKM'))
-                -- fat: Company karyawan
-             OR (EXISTS (SELECT 1 FROM r WHERE r.RoleCode = N'fat')
-                 AND d.CoCode = me.CoCode)
-                -- kabag / adm / plan / spv / emp: ABRV + Company yang sama
-             OR (EXISTS (SELECT 1 FROM r WHERE r.RoleCode IN (N'kabag', N'adm', N'plan', N'spv', N'emp'))
-                 AND d.ABRV = me.ABRV AND d.CoCode = me.CoCode)
-                -- mo: anggota grup MILL pada Company karyawan
-             OR (EXISTS (SELECT 1 FROM r WHERE r.RoleCode = N'mo')
-                 AND d.CoCode = me.CoCode
-                 AND EXISTS (SELECT 1
-                             FROM   dbo.DepartmentGroup g
-                                    JOIN dbo.DepartmentGroupMember m ON m.GroupId = g.Id
-                             WHERE  g.CoCode = me.CoCode AND g.GroupCode = N'MILL' AND g.IsActive = 1
-                               AND  m.DepartmentID = d.DepartmentID))
-            )
+      AND   (x.ViaFat = 1 OR x.ViaOther = 1)
 );
 GO
 
@@ -100,6 +109,10 @@ GO
    SELECT * FROM dbo.fn_User_AllowedDepartments(N'<user-emp>');
    -- User tanpa role CIMS (mis. hanya komisaris/creator) atau tidak ada: 0 baris
    SELECT * FROM dbo.fn_User_AllowedDepartments(N'tidak-ada-xyz');
+
+   -- 5b) User 'kabag;fat': departemen sendiri FatOnlyScope = 0, departemen lain di Company yang sama = 1
+   SELECT f.DepartmentID, ad.ABRV, f.FatOnlyScope FROM dbo.fn_User_AllowedDepartments(N'<user-kabag-fat>') f
+          JOIN home..APP_Departments ad ON ad.DepartmentID = f.DepartmentID ORDER BY f.FatOnlyScope, ad.ABRV;
 
    -- 6) Jika error "Invalid column name 'Disabled'" / konversi tipe: laporkan tipe kolom
    --    home..APP_Departments.Disabled (diasumsikan bit/int, NULL dianggap aktif).

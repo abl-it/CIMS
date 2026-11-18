@@ -164,7 +164,7 @@ RETURN
 (
     SELECT TOP (1) 1 AS Allowed
     FROM   dbo.fn_User_Roles(@Username) r
-    WHERE  r.RoleCode IN (N'civil', N'fat', N'gm', N'director', N'administrator')
+    WHERE  r.RoleCode IN (N'civil', N'fat', N'dgo', N'gm', N'director', N'administrator')   -- dgo: 18-11-2026
 );
 GO
 

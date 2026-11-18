@@ -26,10 +26,12 @@ namespace CIMS.Services
         }
 
         public async Task<PagedResult<RequestListItem>> GetPagedAsync(string? coCode, int? departmentId, string? search,
-            string? category, string? status, string? sortBy, string? sortDir, int pageNumber, int pageSize, CancellationToken ct = default)
+            string? category, string? status, string? sortBy, string? sortDir, int pageNumber, int pageSize,
+            bool addendumOpen = false, CancellationToken ct = default)
         {
             var p = new DynamicParameters();
             p.Add("@DepartmentID", departmentId, DbType.Int32);
+            p.Add("@AddendumOpen", addendumOpen ? true : null, DbType.Boolean);
             p.Add("@Username", Username, DbType.String);
             p.Add("@CoCode", coCode, DbType.AnsiString);
             p.Add("@Search", search, DbType.String);

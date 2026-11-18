@@ -810,3 +810,8 @@ a.app-sidebar-link.active {
 .cims-gantt-key-plan    { background: linear-gradient(90deg, var(--bs-primary) 50%, var(--bs-primary-bg-subtle) 50%); }
 .cims-gantt-key-done    { background-color: var(--bs-success); }
 .cims-gantt-key-running { background-color: var(--bs-warning); }
+
+/* Kartu tujuan link #anchor di Details (mis. #attachments setelah upload): tidak tertutup header sticky */
+.cims-anchor {
+    scroll-margin-top: 5rem;
+}

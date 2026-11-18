@@ -12,10 +12,12 @@ namespace CIMS.Services
         private const string StageDocument = "DOCUMENT";
         private const string StageProcurement = "PROCUREMENT";
         private const string StageContract = "CONTRACT";
+        private const string StageBapp = "BAPP";
 
         /// <summary>
         /// Tahap jenis lampiran yang boleh diunggah pada status request; null = tidak boleh.
-        /// Planning = TOR (Civil), Procurement = lampiran kontrak (Purchasing); role dicek di SP (fn_User_CanChangeAttachment).
+        /// Planning = TOR (Civil), Procurement = lampiran kontrak (Purchasing), In Progress = BAPP (Civil);
+        /// role dicek di SP (fn_User_CanChangeAttachment).
         /// </summary>
         public static string? StageForStatus(string? status) => status switch
         {
@@ -23,6 +25,7 @@ namespace CIMS.Services
             RequestStatus.DocPreparation => StageDocument,
             RequestStatus.Planning => StageProcurement,
             RequestStatus.Procurement => StageContract,
+            RequestStatus.InProgress => StageBapp,          // T6-1: lampiran BAPP oleh Civil (BR-88)
             _ => null
         };
 

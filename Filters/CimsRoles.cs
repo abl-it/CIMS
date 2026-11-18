@@ -13,6 +13,9 @@ namespace CIMS.Filters
         public const string Gm = "gm";
         public const string Civil = "civil";
         public const string Fat = "fat";
+
+        /// <summary>DGO (RL-13, Keputusan 18-11-2026): approval BAPP; lingkup dan hak lihat sama dengan fat.</summary>
+        public const string Dgo = "dgo";
         public const string Mo = "mo";
         public const string Purchasing = "purchasing";
         public const string Kabag = "kabag";
@@ -24,7 +27,7 @@ namespace CIMS.Filters
         /// <summary>Semua role CIMS. User tanpa satu pun role ini ditolak di seluruh aplikasi.</summary>
         public static readonly string[] All =
         {
-            Administrator, Director, Gm, Civil, Fat, Mo, Purchasing, Kabag, Plan, Spv, Adm, Emp
+            Administrator, Director, Gm, Civil, Fat, Dgo, Mo, Purchasing, Kabag, Plan, Spv, Adm, Emp
         };
 
         /// <summary>Any-of, case-insensitive: true bila salah satu role user ada di daftar <paramref name="allowed"/>.</summary>

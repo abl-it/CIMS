@@ -5,8 +5,10 @@ namespace CIMS.Services
     /// <summary>Request / business case (T2). Semua akses dibatasi lingkup data user (fn_User_AllowedDepartments).</summary>
     public interface IRequestService
     {
+        /// <param name="addendumOpen">true = hanya project dengan addendum terbuka (T4-4, follow up).</param>
         Task<PagedResult<RequestListItem>> GetPagedAsync(string? coCode, int? departmentId, string? search, string? category,
-            string? status, string? sortBy, string? sortDir, int pageNumber, int pageSize, CancellationToken ct = default);
+            string? status, string? sortBy, string? sortDir, int pageNumber, int pageSize, bool addendumOpen = false,
+            CancellationToken ct = default);
 
         /// <returns>null bila tidak ada atau di luar lingkup user.</returns>
         Task<ProjectRequest?> GetByIdAsync(int id, CancellationToken ct = default);

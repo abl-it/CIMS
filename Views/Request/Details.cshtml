@@ -69,6 +69,14 @@
                 <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-send me-1" aria-hidden="true"></i>@(r.Status == RequestStatus.Returned ? "Resubmit" : "Submit")</button>
             </form>
         }
+        @if (Model.CanCreateAddendum && Model.AddendumFileType != null)
+        {
+            @* T4-4: kartu / form addendum baru hanya muncul setelah diminta (collapse .js-addendum-new di _AddendumCard) *@
+            <button type="button" class="btn btn-outline-primary btn-lg" data-bs-toggle="collapse" data-bs-target=".js-addendum-new"
+                    aria-controls="addendum addendumCreatePanel" aria-expanded="false" data-addendum-new>
+                <i class="bi bi-file-earmark-plus me-1" aria-hidden="true"></i>New Addendum
+            </button>
+        }
     </div>
 </div>
 
@@ -85,6 +93,10 @@
                     <span class="text-muted small">(waiting since @act.StartedAt.Value.ToString("dd MMM yyyy HH:mm", culture))</span>
                 }
             </p>
+            @{
+                // T6-1: titik BAPP memakai Accept / No (PRD 3.4); No = Revise ke Civil, kembali In Progress (BR-89)
+                var isBappStep = act.Point == "BAPP";
+            }
             <form asp-action="ApprovalAct" method="post" id="approvalForm" data-remarks-form>
                 <input type="hidden" name="id" value="@r.Id" />
                 <input type="hidden" name="stepId" value="@act.Id" />
@@ -94,9 +106,16 @@
                     <textarea id="approvalRemarks" name="remarks" class="form-control" rows="3" maxlength="1000"
                               aria-describedby="approvalRemarksHelp approvalRemarksError"></textarea>
                     <div id="approvalRemarksHelp" class="form-text">
-                        Optional for approval; required for revision or rejection.@(act.ReviseTo == "CIVIL" ? " Revision returns the request to Civil (feasibility)." : "")
+                        @if (isBappStep)
+                        {
+                            <span>Optional for Accept; required for No. No returns the project to Civil (In Progress) for rework.</span>
+                        }
+                        else
+                        {
+                            <span>Optional for approval; required for revision or rejection.@(act.ReviseTo == "CIVIL" ? " Revision returns the request to Civil (feasibility)." : "")</span>
+                        }
                     </div>
-                    <div id="approvalRemarksError" class="invalid-feedback">Remarks are required to revise or reject.</div>
+                    <div id="approvalRemarksError" class="invalid-feedback">Remarks are required to @(isBappStep ? "return the BAPP" : "revise or reject").</div>
                 </div>
                 <div class="d-grid d-md-flex justify-content-md-end gap-2">
                     @if (act.AllowReject)
@@ -109,7 +128,16 @@
                         </button>
                     }
                     @* Tujuan Revise dari snapshot langkah: REQUESTER (T2-3) atau CIVIL / Feasibility (T3-3, BR-06, BR-07) *@
-                    @if (act.ReviseTo is "REQUESTER" or "CIVIL")
+                    @if (isBappStep && act.ReviseTo == "CIVIL")
+                    {
+                        <button type="submit" name="approvalAction" value="@ApprovalAction.Revise" class="btn btn-outline-warning btn-lg"
+                                data-requires-remarks="true"
+                                data-confirm="Return the BAPP to Civil? The project goes back to In Progress."
+                                data-confirm-title="BAPP: No" data-confirm-ok="No, return">
+                            <i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>No
+                        </button>
+                    }
+                    else if (act.ReviseTo is "REQUESTER" or "CIVIL")
                     {
                         <button type="submit" name="approvalAction" value="@ApprovalAction.Revise" class="btn btn-outline-warning btn-lg"
                                 data-requires-remarks="true"
@@ -120,8 +148,10 @@
                         </button>
                     }
                     <button type="submit" name="approvalAction" value="@ApprovalAction.Approve" class="btn btn-success btn-lg"
-                            data-confirm="Approve this request?" data-confirm-title="Approve Request" data-confirm-ok="Approve">
-                        <i class="bi bi-check2-circle me-1" aria-hidden="true"></i>Approve
+                            data-confirm="@(isBappStep ? "Accept this BAPP?" : "Approve this request?")"
+                            data-confirm-title="@(isBappStep ? "Accept BAPP" : "Approve Request")"
+                            data-confirm-ok="@(isBappStep ? "Accept" : "Approve")">
+                        <i class="bi bi-check2-circle me-1" aria-hidden="true"></i>@(isBappStep ? "Accept" : "Approve")
                     </button>
                 </div>
             </form>
@@ -403,6 +433,18 @@
     </div>
 }
 
+@* BAPP (T6-1; BR-88, BR-89): terbit, ronde, alasan No *@
+@if (Model.Bapps.Any() || Model.CanIssueBapp)
+{
+    <partial name="_BappCard" model="Model" />
+}
+
+@* Addendum kontrak / budget (T4-4; BR-78 s.d. BR-86): daftar, input, approval, penyesuaian *@
+@if (Model.Addenda.Any() || Model.CanCreateAddendum || Model.AddendumActionableStep != null)
+{
+    <partial name="_AddendumCard" model="Model" />
+}
+
 @* Schedule, action plan berbobot, estimasi biaya bulanan, site handover (T4-2; BR-13..BR-16, ST-10, ST-11) *@
 @if (Model.Schedule is { } sch)
 {
@@ -445,6 +487,15 @@
                     </div>
                 }
             </dl>
+
+            @if (r.Status == RequestStatus.Scheduling && Model.OpenAddendum is { } handoverBlock)
+            {
+                @* Site handover diblok selama addendum terbuka (Keputusan 18-11-2026) *@
+                <div class="alert alert-info small" role="status">
+                    <i class="bi bi-flag me-1" aria-hidden="true"></i>
+                    Site handover is available after addendum @handoverBlock.DisplayCode is completed or rejected.
+                </div>
+            }
 
             @if (sch.ActionPlans.Any())
             {
@@ -499,74 +550,21 @@
                     <div class="row g-2 mb-3">
                         <div class="col-12 col-md-6 col-lg-4">
                             <label for="projectStartDate" class="form-label">Project start date</label>
-                            <input id="projectStartDate" name="projectStartDate" type="date" class="form-control" required
+                            <input id="projectStartDate" name="projectStartDate" type="date" class="form-control" required data-project-start
                                    value="@(sum.ProjectStartDate?.ToString("yyyy-MM-dd", culture))" />
                         </div>
                     </div>
 
+                    @* BR-83: saat In Progress action plan yang sudah punya progress terkunci sebagian (lihat _ActionPlanRow) *@
                     <div data-plan-list>
                         @for (var i = 0; i < sch.ActionPlans.Count; i++)
                         {
-                            var ap = sch.ActionPlans[i];
-                            <div class="cims-plan-row" data-plan-row>
-                                <input type="hidden" name="actionPlans[@i].Id" value="@ap.Id" data-field="Id" />
-                                <div class="row g-2 align-items-end">
-                                    <div class="col-12 col-lg-4">
-                                        <label class="form-label" for="ap@(i)Name">Action plan <span data-row-no>@(i + 1)</span></label>
-                                        <input id="ap@(i)Name" name="actionPlans[@i].Name" class="form-control" maxlength="200" required value="@ap.Name" data-field="Name" />
-                                    </div>
-                                    <div class="col-12 col-md-4 col-lg-2">
-                                        <label class="form-label" for="ap@(i)Weight">Weight (%)</label>
-                                        <input id="ap@(i)Weight" name="actionPlans[@i].WeightPercent" type="number" class="form-control" min="0.01" max="100" step="0.01"
-                                               inputmode="decimal" required value="@ap.WeightPercent.ToString("0.##", culture)" data-field="WeightPercent" data-weight />
-                                    </div>
-                                    <div class="col-12 col-md-4 col-lg-2">
-                                        <label class="form-label" for="ap@(i)Start">Plan start</label>
-                                        <input id="ap@(i)Start" name="actionPlans[@i].PlanStartDate" type="date" class="form-control" required
-                                               value="@ap.PlanStartDate.ToString("yyyy-MM-dd", culture)" data-field="PlanStartDate" data-plan-start />
-                                    </div>
-                                    <div class="col-12 col-md-4 col-lg-2">
-                                        <label class="form-label" for="ap@(i)End">Plan end</label>
-                                        <input id="ap@(i)End" name="actionPlans[@i].PlanEndDate" type="date" class="form-control" required
-                                               value="@ap.PlanEndDate.ToString("yyyy-MM-dd", culture)" data-field="PlanEndDate" data-plan-end />
-                                    </div>
-                                    <div class="col-12 col-lg-2 d-flex gap-2 justify-content-end">
-                                        <button type="button" class="btn btn-outline-secondary cims-icon-btn" data-move="up" title="Move up" aria-label="Move up"><i class="bi bi-arrow-up" aria-hidden="true"></i></button>
-                                        <button type="button" class="btn btn-outline-secondary cims-icon-btn" data-move="down" title="Move down" aria-label="Move down"><i class="bi bi-arrow-down" aria-hidden="true"></i></button>
-                                        <button type="button" class="btn btn-outline-danger cims-icon-btn" data-remove-row title="Remove" aria-label="Remove action plan"><i class="bi bi-trash" aria-hidden="true"></i></button>
-                                    </div>
-                                </div>
-                            </div>
+                            <partial name="_ActionPlanRow" model="(i, sch.ActionPlans[i], inProgress)" />
                         }
                     </div>
 
                     <template data-plan-template>
-                        <div class="cims-plan-row" data-plan-row>
-                            <input type="hidden" value="0" data-field="Id" />
-                            <div class="row g-2 align-items-end">
-                                <div class="col-12 col-lg-4">
-                                    <label class="form-label">Action plan <span data-row-no></span></label>
-                                    <input class="form-control" maxlength="200" required data-field="Name" />
-                                </div>
-                                <div class="col-12 col-md-4 col-lg-2">
-                                    <label class="form-label">Weight (%)</label>
-                                    <input type="number" class="form-control" min="0.01" max="100" step="0.01" inputmode="decimal" required data-field="WeightPercent" data-weight />
-                                </div>
-                                <div class="col-12 col-md-4 col-lg-2">
-                                    <label class="form-label">Plan start</label>
-                                    <input type="date" class="form-control" required data-field="PlanStartDate" data-plan-start />
-                                </div>
-                                <div class="col-12 col-md-4 col-lg-2">
-                                    <label class="form-label">Plan end</label>
-                                    <input type="date" class="form-control" required data-field="PlanEndDate" data-plan-end />
-                                </div>
-                                <div class="col-12 col-lg-2 d-flex gap-2 justify-content-end">
-                                    <button type="button" class="btn btn-outline-secondary cims-icon-btn" data-move="up" title="Move up" aria-label="Move up"><i class="bi bi-arrow-up" aria-hidden="true"></i></button>
-                                    <button type="button" class="btn btn-outline-secondary cims-icon-btn" data-move="down" title="Move down" aria-label="Move down"><i class="bi bi-arrow-down" aria-hidden="true"></i></button>
-                                    <button type="button" class="btn btn-outline-danger cims-icon-btn" data-remove-row title="Remove" aria-label="Remove action plan"><i class="bi bi-trash" aria-hidden="true"></i></button>
-                                </div>
-                            </div>
-                        </div>
+                        <partial name="_ActionPlanRow" model="(-1, (ProjectActionPlanItem?)null, false)" />
                     </template>
 
                     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 my-3">
@@ -579,7 +577,7 @@
                         <div class="mb-3">
                             <label for="scheduleReason" class="form-label">Reason for change</label>
                             <textarea id="scheduleReason" name="reason" class="form-control" rows="2" maxlength="1000" required></textarea>
-                            <div class="form-text">Required while the project is in progress. Total weight must be 100%.</div>
+                            <div class="form-text">Required while the project is in progress. Total weight must be 100%. Action plans with progress cannot be removed; only their weight and plan end date can change.</div>
                         </div>
                     }
                     else
@@ -612,39 +610,12 @@
                         <div data-estimate-list>
                             @for (var i = 0; i < sch.CostEstimates.Count; i++)
                             {
-                                var est = sch.CostEstimates[i];
-                                <div class="row g-2 align-items-end mb-2" data-estimate-row>
-                                    <div class="col-12 col-md-5">
-                                        <label class="form-label" for="est@(i)Month">Month</label>
-                                        <input id="est@(i)Month" name="estimates[@i].Month" type="month" class="form-control" required
-                                               min="@firstMonth" max="@lastMonth" value="@est.PeriodMonth.ToString("yyyy-MM", culture)" data-field="Month" data-month />
-                                    </div>
-                                    <div class="col-12 col-md-5">
-                                        <label class="form-label" for="est@(i)Amount">Amount (IDR)</label>
-                                        <input id="est@(i)Amount" name="estimates[@i].Amount" type="number" class="form-control" min="1" step="0.01" inputmode="decimal" required
-                                               value="@est.Amount.ToString("0.##", culture)" data-field="Amount" data-amount />
-                                    </div>
-                                    <div class="col-12 col-md-2 d-flex justify-content-end">
-                                        <button type="button" class="btn btn-outline-danger cims-icon-btn" data-remove-row title="Remove" aria-label="Remove month"><i class="bi bi-trash" aria-hidden="true"></i></button>
-                                    </div>
-                                </div>
+                                <partial name="_EstimateRow" model="(i, sch.CostEstimates[i], firstMonth, lastMonth, false)" />
                             }
                         </div>
 
                         <template data-estimate-template>
-                            <div class="row g-2 align-items-end mb-2" data-estimate-row>
-                                <div class="col-12 col-md-5">
-                                    <label class="form-label">Month</label>
-                                    <input type="month" class="form-control" required min="@firstMonth" max="@lastMonth" data-field="Month" data-month />
-                                </div>
-                                <div class="col-12 col-md-5">
-                                    <label class="form-label">Amount (IDR)</label>
-                                    <input type="number" class="form-control" min="1" step="0.01" inputmode="decimal" required data-field="Amount" data-amount />
-                                </div>
-                                <div class="col-12 col-md-2 d-flex justify-content-end">
-                                    <button type="button" class="btn btn-outline-danger cims-icon-btn" data-remove-row title="Remove" aria-label="Remove month"><i class="bi bi-trash" aria-hidden="true"></i></button>
-                                </div>
-                            </div>
+                            <partial name="_EstimateRow" model="(-1, (ProjectCostEstimateItem?)null, firstMonth, lastMonth, false)" />
                         </template>
 
                         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 my-3">
@@ -686,6 +657,18 @@
                             Cost estimate equals the plan cost (IDR @sum.TotalEstimate.ToString("#,0.##", culture) of @planCostText)
                         </li>
                     </ul>
+                    @if (sum.ProjectStartDate is { } handoverFrom && handoverFrom.Date > DateTime.Today)
+                    {
+                        @* ST-11: tanggal handover >= tanggal mulai project dan tidak di masa depan -> belum ada tanggal yang valid *@
+                        <div class="alert alert-info mb-0" role="status">
+                            <i class="bi bi-calendar-event me-1" aria-hidden="true"></i>
+                            Site handover can be recorded from <strong>@handoverFrom.ToString("dd MMM yyyy", culture)</strong> (the project start date).
+                            The handover date must be on or after the project start date and cannot be in the future.
+                            To start earlier, change the project start date in the schedule above.
+                        </div>
+                    }
+                    else
+                    {
                     <form asp-action="SiteHandover" method="post" class="row g-2"
                           data-confirm="Record the site handover and start execution? The status will change to In Progress."
                           data-confirm-title="Site Handover" data-confirm-ok="Start Execution">
@@ -705,6 +688,7 @@
                             <button type="submit" class="btn btn-success btn-lg"><i class="bi bi-flag me-1" aria-hidden="true"></i>Site Handover &amp; Start</button>
                         </div>
                     </form>
+                    }
                 }
             }
             else
@@ -1413,12 +1397,13 @@
 }
 
 @* Lampiran (BR-42..BR-46) *@
-<div class="card mb-3">
+@* id dipakai redirect setelah upload/hapus lampiran dan link dari kartu BAPP *@
+<div class="card mb-3 cims-anchor" id="attachments">
     <div class="card-header fw-semibold">Attachments</div>
     <div class="card-body">
         @if (Model.CanManageAttachments && missingMandatory.Count > 0)
         {
-            <p class="small text-warning-emphasis">Required before @(Model.CanPrepareDocuments ? "sending to management" : Model.CanDecideFeasibility ? "marking feasible" : Model.CanChooseExecution ? "outsourcing" : Model.CanProcure ? "completing procurement" : "submit"): @string.Join(", ", missingMandatory).</p>
+            <p class="small text-warning-emphasis">Required before @(Model.CanPrepareDocuments ? "sending to management" : Model.CanDecideFeasibility ? "marking feasible" : Model.CanChooseExecution ? "outsourcing" : Model.CanProcure ? "completing procurement" : Model.CanIssueBapp ? "issuing the BAPP" : "submit"): @string.Join(", ", missingMandatory).</p>
         }
 
         @if (!Model.Attachments.Any())
@@ -1652,7 +1637,7 @@
 
 @section Scripts {
     <script src="~/js/request-approval.js" asp-append-version="true"></script>
-    @if (Model.CanEditSchedule)
+    @if (Model.CanEditSchedule || Model.CanAdjustAddendum)
     {
         <script src="~/js/request-schedule.js" asp-append-version="true"></script>
     }

@@ -55,6 +55,8 @@ builder.Services.Configure<FileStorageOptions>(builder.Configuration.GetSection(
 builder.Services.AddScoped<IRequestLookupService, RequestLookupService>();
 builder.Services.AddScoped<IRequestService, RequestService>();
 builder.Services.AddScoped<IRequestAttachmentService, RequestAttachmentService>();
+builder.Services.AddScoped<IAddendumService, AddendumService>();
+builder.Services.AddScoped<IBappService, BappService>();
 builder.Services.AddScoped<IUserTaskService, UserTaskService>();
 
 var app = builder.Build();

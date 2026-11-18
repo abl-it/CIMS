@@ -10,7 +10,7 @@ namespace CIMS.Controllers
     /// Upload actual cost via template Excel (T5-3; PRD 6.4, BR-18, BR-19). Matriks 5.2 "Upload actual cost":
     /// civil = C; fat, gm, director, administrator = R (riwayat + unduh arsip).
     /// </summary>
-    [RoleAuthorize(CimsRoles.Civil, CimsRoles.Fat, CimsRoles.Gm, CimsRoles.Director, CimsRoles.Administrator)]
+    [RoleAuthorize(CimsRoles.Civil, CimsRoles.Fat, CimsRoles.Dgo, CimsRoles.Gm, CimsRoles.Director, CimsRoles.Administrator)]
     public class ActualCostUploadController : Controller
     {
         /// <summary>Batas body upload: di atas ukuran maksimum jenis lampiran COST (5 MB) + overhead multipart.</summary>

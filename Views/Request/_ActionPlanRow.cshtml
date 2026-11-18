@@ -1,0 +1,53 @@
+@model (int Index, ProjectActionPlanItem? Item, bool LockProgress)
+@{
+    // Satu baris action plan (BR-16). Index -1 = baris template (nama field diisi request-schedule.js).
+    // LockProgress (In Progress / penyesuaian addendum, BR-83): action plan yang sudah punya progress tidak bisa
+    // dihapus; nama dan tanggal mulai plan terkunci (bobot dan tanggal selesai tetap bisa diubah). Validasi akhir di SP.
+    var culture = System.Globalization.CultureInfo.InvariantCulture;
+    var ap = Model.Item;
+    var i = Model.Index;
+    var locked = Model.LockProgress && ap?.HasProgress == true;
+    string? Name(string field) => i >= 0 ? $"actionPlans[{i}].{field}" : null;
+    string? Id(string field) => i >= 0 ? $"ap{i}{field}" : null;
+}
+<div class="cims-plan-row" data-plan-row>
+    <input type="hidden" name="@Name("Id")" value="@(ap?.Id ?? 0)" data-field="Id" />
+    <div class="row g-2 align-items-end">
+        <div class="col-12 col-lg-4">
+            <label class="form-label" for="@Id("Name")">
+                Action plan <span data-row-no>@(i >= 0 ? (i + 1).ToString(culture) : "")</span>
+                @if (locked)
+                {
+                    <span class="badge text-bg-light border ms-1" title="Has progress (@ap!.ProgressPercent.ToString("0.##", culture)%): only the weight and plan end date can be changed">
+                        <i class="bi bi-lock" aria-hidden="true"></i> @ap.ProgressPercent.ToString("0.##", culture)%
+                    </span>
+                }
+            </label>
+            <input id="@Id("Name")" name="@Name("Name")" class="form-control" maxlength="200" required value="@ap?.Name" data-field="Name"
+                   readonly="@locked" />
+        </div>
+        <div class="col-12 col-md-4 col-lg-2">
+            <label class="form-label" for="@Id("WeightPercent")">Weight (%)</label>
+            <input id="@Id("WeightPercent")" name="@Name("WeightPercent")" type="number" class="form-control" min="0.01" max="100" step="0.01"
+                   inputmode="decimal" required value="@(ap?.WeightPercent.ToString("0.##", culture))" data-field="WeightPercent" data-weight />
+        </div>
+        <div class="col-12 col-md-4 col-lg-2">
+            <label class="form-label" for="@Id("PlanStartDate")">Plan start</label>
+            <input id="@Id("PlanStartDate")" name="@Name("PlanStartDate")" type="date" class="form-control" required
+                   value="@(ap?.PlanStartDate.ToString("yyyy-MM-dd", culture))" data-field="PlanStartDate" data-plan-start readonly="@locked" />
+        </div>
+        <div class="col-12 col-md-4 col-lg-2">
+            <label class="form-label" for="@Id("PlanEndDate")">Plan end</label>
+            <input id="@Id("PlanEndDate")" name="@Name("PlanEndDate")" type="date" class="form-control" required
+                   value="@(ap?.PlanEndDate.ToString("yyyy-MM-dd", culture))" data-field="PlanEndDate" data-plan-end />
+        </div>
+        <div class="col-12 col-lg-2 d-flex gap-2 justify-content-end">
+            <button type="button" class="btn btn-outline-secondary cims-icon-btn" data-move="up" title="Move up" aria-label="Move up"><i class="bi bi-arrow-up" aria-hidden="true"></i></button>
+            <button type="button" class="btn btn-outline-secondary cims-icon-btn" data-move="down" title="Move down" aria-label="Move down"><i class="bi bi-arrow-down" aria-hidden="true"></i></button>
+            @if (!locked)
+            {
+                <button type="button" class="btn btn-outline-danger cims-icon-btn" data-remove-row title="Remove" aria-label="Remove action plan"><i class="bi bi-trash" aria-hidden="true"></i></button>
+            }
+        </div>
+    </div>
+</div>

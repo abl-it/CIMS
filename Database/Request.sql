@@ -141,12 +141,61 @@ RETURN
 GO
 
 /* ---------------------------------------------------------------------
+   1a-2. dbo.fn_Request_VisibleToUser(@Status, @DepartmentID, @Username)  (RL-05 FAT; Keputusan 18-11-2026)
+       1 baris = request boleh dilihat menurut aturan FAT. Departemen yang terlihat HANYA karena role fat
+       (fn_User_AllowedDepartments.FatOnlyScope = 1) dibatasi ke In Progress, BAPP Review, Closed, Survey Completed;
+       departemen yang terlihat lewat role lain (mis. 'kabag;fat' -> departemen sendiri) tetap semua status.
+       Lingkup departemen tetap dicek pemanggil (fn_User_AllowedDepartments).
+   --------------------------------------------------------------------- */
+DROP FUNCTION IF EXISTS dbo.fn_User_FatOnly;   -- versi awal (FAT-only per user) diganti aturan per departemen
+GO
+
+CREATE OR ALTER FUNCTION dbo.fn_Request_VisibleToUser
+(
+    @Status       VARCHAR(20),
+    @DepartmentID INT,
+    @Username     NVARCHAR(100)
+)
+RETURNS TABLE
+AS
+RETURN
+(
+    SELECT 1 AS Visible
+    WHERE  @Status IN ('IN_PROGRESS', 'BAPP_REVIEW', 'CLOSED', 'SURVEY_COMPLETED')
+       OR  EXISTS (SELECT 1 FROM dbo.fn_User_AllowedDepartments(@Username) f
+                   WHERE f.DepartmentID = @DepartmentID AND f.FatOnlyScope = 0)
+);
+GO
+
+/* ---------------------------------------------------------------------
+   1a-3. dbo.fn_User_CanSeeBapp(@Username)  (matriks 5.2 baris BAPP; T6-1, Keputusan 18-11-2026)
+       1 baris = boleh melihat BAPP (data, langkah, lampiran tahap BAPP): kabag, mo, civil, fat, gm, director,
+       administrator. adm / plan / spv / emp / purchasing tidak.
+   --------------------------------------------------------------------- */
+CREATE OR ALTER FUNCTION dbo.fn_User_CanSeeBapp
+(
+    @Username NVARCHAR(100)
+)
+RETURNS TABLE
+AS
+RETURN
+(
+    SELECT TOP (1) 1 AS Allowed
+    FROM   home..users u
+           CROSS APPLY STRING_SPLIT(u.[Role], N';') s
+    WHERE  u.Username = @Username
+      AND  LTRIM(RTRIM(s.value)) IN (N'kabag', N'mo', N'civil', N'fat', N'dgo', N'gm', N'director', N'administrator')
+);
+GO
+
+/* ---------------------------------------------------------------------
    1b. dbo.fn_User_CanChangeAttachment(@Stage, @Status, @Username)  (satu tempat aturan lampiran)
        1 baris = user boleh upload/hapus lampiran jenis tahap @Stage pada request berstatus @Status:
          REQUEST     : DRAFT / RETURNED (requester; role dicek di aplikasi), FEASIBILITY oleh civil (T3-1)
          DOCUMENT    : DOC_PREPARATION oleh civil (BOQ, Drawing; T3-2)
          PROCUREMENT : PLANNING oleh civil (TOR; T4-1, BR-11)
          CONTRACT    : PROCUREMENT oleh purchasing (lampiran kontrak; T4-1, BR-11)
+         BAPP        : IN_PROGRESS oleh civil (foto dokumentasi / dokumen pendukung BAPP; T6-1, BR-88)
    --------------------------------------------------------------------- */
 CREATE OR ALTER FUNCTION dbo.fn_User_CanChangeAttachment
 (
@@ -171,6 +220,7 @@ RETURN
        OR  (@Stage = 'DOCUMENT'    AND @Status = 'DOC_PREPARATION' AND EXISTS (SELECT 1 FROM r WHERE RoleCode = N'civil'))
        OR  (@Stage = 'PROCUREMENT' AND @Status = 'PLANNING'        AND EXISTS (SELECT 1 FROM r WHERE RoleCode = N'civil'))
        OR  (@Stage = 'CONTRACT'    AND @Status = 'PROCUREMENT'     AND EXISTS (SELECT 1 FROM r WHERE RoleCode = N'purchasing'))
+       OR  (@Stage = 'BAPP'        AND @Status = 'IN_PROGRESS'     AND EXISTS (SELECT 1 FROM r WHERE RoleCode = N'civil'))
 );
 GO
 
@@ -596,7 +646,9 @@ BEGIN
     WHERE   r.Id = @Id
       AND   EXISTS (SELECT 1 FROM dbo.fn_User_AllowedDepartments(@Username) f WHERE f.DepartmentID = r.DepartmentID)
       -- RL-06: purchasing (tanpa role lain) hanya project outsource
-      AND   (r.ExecutionType = 'OUTSOURCE' OR NOT EXISTS (SELECT 1 FROM dbo.fn_User_OutsourceOnly(@Username)));
+      AND   (r.ExecutionType = 'OUTSOURCE' OR NOT EXISTS (SELECT 1 FROM dbo.fn_User_OutsourceOnly(@Username)))
+      -- RL-05: departemen yang terlihat hanya karena role fat -> In Progress ke atas (18-11-2026)
+      AND   EXISTS (SELECT 1 FROM dbo.fn_Request_VisibleToUser(r.Status, r.DepartmentID, @Username));
 END
 GO
 
@@ -641,6 +693,11 @@ GO
        filter departemen @DepartmentID, tetap dibatasi lingkup user)
        @SortBy  : CreatedAt | RequestNo | Title | Category | Status   (default CreatedAt)
        @SortDir : ASC | DESC                                          (default DESC)
+       T4-4 (Keputusan 18-11-2026): kolom OpenAddendumStatus / OpenAddendumCode = addendum yang masih terbuka
+       (PENDING_APPROVAL / FINAL_CONTRACT / ADJUSTMENT) untuk tanda follow up; @AddendumOpen = 1 -> hanya project dengan addendum
+       terbuka. Hak lihat BR-86: addendum outsource hanya untuk civil, purchasing, fat, gm, director, administrator
+       (sama dengan fn_User_CanSeeAddendum; ditulis inline agar script ini tidak bergantung pada RequestAddendum.sql).
+       Tabel ProjectAddendum dibaca saat dijalankan: jalankan RequestAddendum.sql sebelum memakai list.
    --------------------------------------------------------------------- */
 CREATE OR ALTER PROCEDURE dbo.usp_Request_GetPaged
     @Username    NVARCHAR(100),
@@ -649,6 +706,7 @@ CREATE OR ALTER PROCEDURE dbo.usp_Request_GetPaged
     @Search      NVARCHAR(100) = NULL,
     @Category    VARCHAR(10)   = NULL,
     @Status      VARCHAR(20)   = NULL,
+    @AddendumOpen BIT          = NULL,
     @SortBy      NVARCHAR(20)  = N'CreatedAt',
     @SortDir     NVARCHAR(4)   = N'DESC',
     @PageNumber  INT           = 1,
@@ -670,17 +728,27 @@ BEGIN
                            WHEN @PageSize   > 5000 THEN 5000
                            ELSE @PageSize END;
 
-    DECLARE @Scope TABLE (DepartmentID INT PRIMARY KEY);
-    INSERT INTO @Scope (DepartmentID)
-    SELECT DISTINCT f.DepartmentID FROM dbo.fn_User_AllowedDepartments(@Username) f;
+    -- FatOnlyScope = 1: departemen terlihat hanya karena role fat -> In Progress ke atas (RL-05, Keputusan 18-11-2026)
+    DECLARE @Scope TABLE (DepartmentID INT PRIMARY KEY, FatOnlyScope BIT NOT NULL);
+    INSERT INTO @Scope (DepartmentID, FatOnlyScope)
+    SELECT f.DepartmentID, MIN(CAST(f.FatOnlyScope AS INT)) FROM dbo.fn_User_AllowedDepartments(@Username) f GROUP BY f.DepartmentID;
 
     -- RL-06: purchasing (tanpa role lain) hanya project outsource
     DECLARE @OutsourceOnly BIT = CASE WHEN EXISTS (SELECT 1 FROM dbo.fn_User_OutsourceOnly(@Username)) THEN 1 ELSE 0 END;
+
+    -- BR-86: boleh melihat addendum outsource (baris Kontrak matriks 5.2); in-house = semua yang melihat request
+    DECLARE @SeeOutsourceAddendum BIT =
+        CASE WHEN EXISTS (SELECT 1 FROM home..users u CROSS APPLY STRING_SPLIT(u.[Role], N';') x
+                          WHERE u.Username = @Username
+                            AND LTRIM(RTRIM(x.value)) IN (N'civil', N'purchasing', N'fat', N'dgo', N'gm', N'director', N'administrator'))
+             THEN 1 ELSE 0 END;
+    SET @AddendumOpen = CASE WHEN @AddendumOpen = 1 THEN 1 ELSE NULL END;
 
     SELECT @TotalCount = COUNT(*)
     FROM   dbo.ProjectRequest r
            JOIN @Scope s ON s.DepartmentID = r.DepartmentID
     WHERE  (@OutsourceOnly = 0 OR r.ExecutionType = 'OUTSOURCE')
+      AND  (s.FatOnlyScope = 0 OR r.Status IN ('IN_PROGRESS', 'BAPP_REVIEW', 'CLOSED', 'SURVEY_COMPLETED'))
       AND  (@CoCode   IS NULL OR r.CoCode   = @CoCode)
       AND  (@DepartmentID IS NULL OR r.DepartmentID = @DepartmentID)
       AND  (@Category IS NULL OR r.Category = @Category)
@@ -688,23 +756,34 @@ BEGIN
       AND  (@Search   IS NULL OR r.Title LIKE N'%' + @Search + N'%' OR r.RequestNo LIKE '%' + @Search + '%'
             -- BR-54: nomor lama (sebelum ganti kategori) tetap bisa dicari
             OR EXISTS (SELECT 1 FROM dbo.RequestNoHistory nh WHERE nh.RequestId = r.Id AND nh.RequestNo LIKE '%' + @Search + '%'))
+      AND  (@AddendumOpen IS NULL
+            OR EXISTS (SELECT 1 FROM dbo.ProjectAddendum ad
+                       WHERE ad.RequestId = r.Id AND ad.Status IN ('PENDING_APPROVAL', 'FINAL_CONTRACT', 'ADJUSTMENT')
+                         AND (ad.ExecutionType = 'INHOUSE' OR @SeeOutsourceAddendum = 1)))
     OPTION (RECOMPILE);
 
     SELECT  r.Id, r.CoCode, r.RequestNo, r.Title, r.Category, sc.Name AS SubCategoryName, r.Status,
             r.DepartmentID, d.DeptName, d.ABRV, req.FullName AS RequesterName,
-            r.TargetCompletionDate, r.BudgetExpectation, r.SubmittedAt, r.CreatedAt, r.UpdatedAt
+            r.TargetCompletionDate, r.BudgetExpectation, r.SubmittedAt, r.CreatedAt, r.UpdatedAt,
+            oa.Status AS OpenAddendumStatus, oa.AddendumCode AS OpenAddendumCode
     FROM    dbo.ProjectRequest r
             JOIN @Scope s ON s.DepartmentID = r.DepartmentID
             LEFT JOIN dbo.SubCategory sc      ON sc.Id = r.SubCategoryId
             LEFT JOIN home..APP_Departments d ON d.DepartmentID = r.DepartmentID
             LEFT JOIN home..app_employees req ON req.EmployeeCode = r.RequesterEmployeeCode
+            OUTER APPLY (SELECT TOP (1) ad.Status, ad.AddendumCode
+                         FROM   dbo.ProjectAddendum ad
+                         WHERE  ad.RequestId = r.Id AND ad.Status IN ('PENDING_APPROVAL', 'FINAL_CONTRACT', 'ADJUSTMENT')
+                           AND  (ad.ExecutionType = 'INHOUSE' OR @SeeOutsourceAddendum = 1)) oa
     WHERE   (@OutsourceOnly = 0 OR r.ExecutionType = 'OUTSOURCE')
+      AND   (s.FatOnlyScope = 0 OR r.Status IN ('IN_PROGRESS', 'BAPP_REVIEW', 'CLOSED', 'SURVEY_COMPLETED'))
       AND   (@CoCode   IS NULL OR r.CoCode   = @CoCode)
       AND   (@DepartmentID IS NULL OR r.DepartmentID = @DepartmentID)
       AND   (@Category IS NULL OR r.Category = @Category)
       AND   (@Status   IS NULL OR r.Status   = @Status)
       AND   (@Search   IS NULL OR r.Title LIKE N'%' + @Search + N'%' OR r.RequestNo LIKE '%' + @Search + '%'
              OR EXISTS (SELECT 1 FROM dbo.RequestNoHistory nh WHERE nh.RequestId = r.Id AND nh.RequestNo LIKE '%' + @Search + '%'))
+      AND   (@AddendumOpen IS NULL OR oa.Status IS NOT NULL)
     ORDER BY
         CASE WHEN @SortBy = N'CreatedAt' AND @SortDir = N'ASC'  THEN r.CreatedAt END ASC,
         CASE WHEN @SortBy = N'CreatedAt' AND @SortDir = N'DESC' THEN r.CreatedAt END DESC,
@@ -767,7 +846,7 @@ BEGIN
 
     IF @Stage IS NULL
         THROW 50072, N'Attachment type is invalid.', 1;
-    IF @Stage NOT IN ('REQUEST', 'DOCUMENT', 'PROCUREMENT', 'CONTRACT')
+    IF @Stage NOT IN ('REQUEST', 'DOCUMENT', 'PROCUREMENT', 'CONTRACT', 'BAPP')
         THROW 50072, N'This attachment type cannot be uploaded at this stage.', 1;
 
     -- Aturan tahap x status x role: dbo.fn_User_CanChangeAttachment (T2, T3-1, T3-2, T4-1)
@@ -816,6 +895,8 @@ BEGIN
       AND   a.IsActive = 1
       AND   EXISTS (SELECT 1 FROM dbo.fn_User_AllowedDepartments(@Username) f WHERE f.DepartmentID = r.DepartmentID)
       AND   (r.ExecutionType = 'OUTSOURCE' OR NOT EXISTS (SELECT 1 FROM dbo.fn_User_OutsourceOnly(@Username)))
+      AND   EXISTS (SELECT 1 FROM dbo.fn_Request_VisibleToUser(r.Status, r.DepartmentID, @Username))   -- RL-05 FAT
+      AND   (t.Stage <> 'BAPP' OR EXISTS (SELECT 1 FROM dbo.fn_User_CanSeeBapp(@Username)))   -- 5.2 BAPP (T6-1)
     ORDER BY t.Name, a.CreatedAt, a.Id;
 END
 GO
@@ -838,7 +919,9 @@ BEGIN
     WHERE   a.Id = @Id
       AND   a.IsActive = 1
       AND   EXISTS (SELECT 1 FROM dbo.fn_User_AllowedDepartments(@Username) f WHERE f.DepartmentID = r.DepartmentID)
-      AND   (r.ExecutionType = 'OUTSOURCE' OR NOT EXISTS (SELECT 1 FROM dbo.fn_User_OutsourceOnly(@Username)));
+      AND   (r.ExecutionType = 'OUTSOURCE' OR NOT EXISTS (SELECT 1 FROM dbo.fn_User_OutsourceOnly(@Username)))
+      AND   EXISTS (SELECT 1 FROM dbo.fn_Request_VisibleToUser(r.Status, r.DepartmentID, @Username))   -- RL-05 FAT
+      AND   (t.Stage <> 'BAPP' OR EXISTS (SELECT 1 FROM dbo.fn_User_CanSeeBapp(@Username)));   -- 5.2 BAPP (T6-1)
 END
 GO
 

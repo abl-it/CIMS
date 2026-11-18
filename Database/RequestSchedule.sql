@@ -16,6 +16,16 @@
        (tercatat di riwayat: SCHEDULE_CHANGE / ESTIMATE_CHANGE), dan setiap simpan harus tetap valid penuh.
      - Tanggal site handover: >= tanggal mulai project dan <= hari ini (ST-11).
      - Lihat: semua role yang boleh melihat request, kecuali purchasing-only (matriks PRD 5.2).
+   Addendum (T4-4, Keputusan 17-11-2026; BR-81, BR-83, BR-84, BR-85):
+     - Selama addendum terbuka (PENDING_APPROVAL / FINAL_CONTRACT / ADJUSTMENT) perubahan schedule dan estimasi biasa dikunci;
+       penyesuaian addendum lewat usp_Addendum_SaveAdjustment (RequestAddendum.sql) yang memanggil kedua SP
+       ini dengan @AddendumId.
+     - Action plan "sudah punya progress" = progress mingguan tersimpan > 0% atau mulai aktual terisi:
+       tidak boleh dihapus; nama dan tanggal mulai plan terkunci (bobot dan tanggal selesai boleh diubah).
+       Action plan yang selalu 0% boleh dihapus (baris progress 0% minggu lalu ikut dihapus).
+     - Saat IN_PROGRESS, setelah schedule disimpan, % aktual / % plan / status jadwal di ringkasan project
+       dihitung ulang (usp_Request_RefreshScheduleSummary, RequestProgress.sql); minggu lama tidak diubah.
+     - Penyesuaian addendum: estimasi bulan sebelum bulan berjalan tidak boleh berubah.
    Error   : 50072 = Input wajib kosong / tidak valid / data belum lengkap
              50073 = Request tidak ditemukan atau di luar lingkup user
              50074 = Status request tidak mengizinkan aksi ini
@@ -143,13 +153,15 @@ GO
       @ActionPlanJson: [{"id":0,"name":"Excavation","weight":25,"start":"2026-12-01","end":"2026-12-10"}, ...]
         id 0 / null = baris baru; baris lama yang tidak ada di JSON dihapus. Urutan JSON = SortOrder.
       @Reason wajib saat IN_PROGRESS (Keputusan 14-11-2026).
+      @AddendumId: hanya dari usp_Addendum_SaveAdjustment (tanpa alasan dan riwayat sendiri).
    --------------------------------------------------------------------- */
 CREATE OR ALTER PROCEDURE dbo.usp_Request_SaveSchedule
     @Id                INT,
     @Username          NVARCHAR(100),
     @ProjectStartDate  DATE,
     @ActionPlanJson    NVARCHAR(MAX),
-    @Reason            NVARCHAR(MAX) = NULL
+    @Reason            NVARCHAR(MAX) = NULL,
+    @AddendumId        INT = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -232,6 +244,22 @@ BEGIN
     IF @Status NOT IN ('SCHEDULING', 'IN_PROGRESS')
         THROW 50074, N'The schedule can only be changed during scheduling or while in progress.', 1;
 
+    -- T4-4: addendum terbuka mengunci perubahan biasa (BR-81). Statement di dalam IF dikompilasi saat dijalankan.
+    IF OBJECT_ID(N'dbo.ProjectAddendum', N'U') IS NOT NULL
+    BEGIN
+        DECLARE @OpenAddendumId INT, @OpenAddendumStatus VARCHAR(20);
+        SELECT TOP (1) @OpenAddendumId = d.Id, @OpenAddendumStatus = d.Status
+        FROM   dbo.ProjectAddendum d
+        WHERE  d.RequestId = @Id AND d.Status IN ('PENDING_APPROVAL', 'FINAL_CONTRACT', 'ADJUSTMENT');
+
+        IF @AddendumId IS NULL AND @OpenAddendumId IS NOT NULL
+            THROW 50074, N'An addendum is in progress. Schedule changes are locked until the addendum is completed.', 1;
+        IF @AddendumId IS NOT NULL AND (@OpenAddendumId IS NULL OR @OpenAddendumId <> @AddendumId OR @OpenAddendumStatus <> 'ADJUSTMENT')
+            THROW 50074, N'This addendum is not awaiting adjustment.', 1;
+    END
+    ELSE IF @AddendumId IS NOT NULL
+        THROW 50074, N'This addendum is not awaiting adjustment.', 1;
+
     -- Id lama harus milik request ini
     IF EXISTS (SELECT 1 FROM @Items i WHERE i.ItemId IS NOT NULL
                AND NOT EXISTS (SELECT 1 FROM dbo.ProjectActionPlan a WHERE a.Id = i.ItemId AND a.RequestId = @Id))
@@ -242,7 +270,7 @@ BEGIN
     IF @Status = 'IN_PROGRESS'
     BEGIN
         -- Perubahan saat berjalan: alasan wajib dan data tetap lengkap (Keputusan 14-11-2026)
-        IF @Reason IS NULL
+        IF @Reason IS NULL AND @AddendumId IS NULL
             THROW 50072, N'Reason is required to change the schedule while the project is in progress.', 1;
         IF @TotalWeight <> 100
         BEGIN
@@ -251,26 +279,41 @@ BEGIN
         END
         IF @HandoverDate IS NOT NULL AND @ProjectStartDate > @HandoverDate
             THROW 50072, N'Project start date cannot be after the site handover date.', 1;
-        IF EXISTS (SELECT 1 FROM dbo.ProjectCostEstimate e
-                   WHERE e.RequestId = @Id
-                     AND (e.PeriodMonth < DATEFROMPARTS(YEAR(@ProjectStartDate), MONTH(@ProjectStartDate), 1)
-                          OR e.PeriodMonth > DATEFROMPARTS(YEAR(@NewEnd), MONTH(@NewEnd), 1)))
+        -- Penyesuaian addendum menyimpan estimasi sesudah schedule (dicek di usp_Request_SaveCostEstimate)
+        IF @AddendumId IS NULL
+           AND EXISTS (SELECT 1 FROM dbo.ProjectCostEstimate e
+                       WHERE e.RequestId = @Id
+                         AND (e.PeriodMonth < DATEFROMPARTS(YEAR(@ProjectStartDate), MONTH(@ProjectStartDate), 1)
+                              OR e.PeriodMonth > DATEFROMPARTS(YEAR(@NewEnd), MONTH(@NewEnd), 1)))
             THROW 50072, N'Some cost estimate months fall outside the new schedule. Adjust the cost estimate first.', 1;
     END
 
-    -- T5-1: action plan yang sudah punya progress mingguan tidak boleh dihapus (RequestProgress.sql).
-    -- Dicek hanya bila tabel progress sudah ada (urutan script); statement di dalam IF dikompilasi saat dijalankan.
+    -- BR-83 (Keputusan 17-11-2026): action plan yang sudah punya progress (> 0% tersimpan atau mulai aktual terisi)
+    -- tidak boleh dihapus; nama dan tanggal mulai plan terkunci. Dicek hanya bila tabel progress sudah ada
+    -- (urutan script); statement di dalam IF dikompilasi saat dijalankan.
     IF OBJECT_ID(N'dbo.ProjectProgressItem', N'U') IS NOT NULL
     BEGIN
-        SELECT TOP (1) @Msg = N'Action plan "' + a.Name + N'" already has weekly progress and cannot be removed.'
+        SELECT TOP (1) @Msg = N'Action plan "' + a.Name + N'" already has progress: '
+               + CASE WHEN i.Seq IS NULL       THEN N'it cannot be removed.'
+                      WHEN i.Name <> a.Name    THEN N'its name cannot be changed.'
+                      ELSE N'its plan start date cannot be changed.' END
         FROM   dbo.ProjectActionPlan a
+               LEFT JOIN @Items i ON i.ItemId = a.Id
         WHERE  a.RequestId = @Id
-          AND  NOT EXISTS (SELECT 1 FROM @Items i WHERE i.ItemId = a.Id)
-          AND  EXISTS (SELECT 1 FROM dbo.ProjectProgressItem p WHERE p.ActionPlanId = a.Id)
+          AND  (a.ActualStartDate IS NOT NULL
+                OR EXISTS (SELECT 1 FROM dbo.ProjectProgressItem p WHERE p.ActionPlanId = a.Id AND p.ProgressPercent > 0))
+          AND  (i.Seq IS NULL OR i.Name <> a.Name OR i.StartDate <> a.PlanStartDate)
         ORDER BY a.SortOrder;
 
         IF @Msg IS NOT NULL
             THROW 50072, @Msg, 1;
+
+        -- Action plan 0% yang dihapus: baris progress 0% minggu lalu ikut dihapus (% minggu itu tidak berubah)
+        DELETE p
+        FROM   dbo.ProjectProgressItem p
+               JOIN dbo.ProjectActionPlan a ON a.Id = p.ActionPlanId
+        WHERE  a.RequestId = @Id
+          AND  NOT EXISTS (SELECT 1 FROM @Items i WHERE i.ItemId = a.Id);
     END
 
     UPDATE dbo.ProjectRequest
@@ -294,9 +337,21 @@ BEGIN
     FROM   @Items i
     WHERE  i.ItemId IS NULL;
 
-    IF @Status = 'IN_PROGRESS'
+    -- BR-84: ringkasan progress dihitung ulang dengan bobot/schedule baru (RequestProgress.sql; EXEC diselesaikan
+    -- saat dijalankan, jadi aman walau script itu belum dijalankan ulang)
+    DECLARE @OldPercent DECIMAL(5, 2), @NewPercent DECIMAL(5, 2);
+    IF @Status = 'IN_PROGRESS' AND OBJECT_ID(N'dbo.usp_Request_RefreshScheduleSummary', N'P') IS NOT NULL
+        EXEC dbo.usp_Request_RefreshScheduleSummary @Id = @Id, @Username = @Username,
+             @OldPercent = @OldPercent OUTPUT, @NewPercent = @NewPercent OUTPUT;
+
+    IF @Status = 'IN_PROGRESS' AND @AddendumId IS NULL
         INSERT INTO dbo.ApprovalHistory (RequestId, Action, FromStatus, ToStatus, Remarks, ActionBy, ActionAt)
-        VALUES (@Id, 'SCHEDULE_CHANGE', @Status, @Status, LEFT(@Reason, 1000), @Username, @Now);
+        VALUES (@Id, 'SCHEDULE_CHANGE', @Status, @Status,
+                LEFT(@Reason + CASE WHEN ISNULL(@OldPercent, -1) <> ISNULL(@NewPercent, -1)
+                                    THEN N' · Progress ' + FORMAT(ISNULL(@OldPercent, 0), N'0.##', 'en-US') + N'% -> '
+                                         + FORMAT(ISNULL(@NewPercent, 0), N'0.##', 'en-US') + N'%'
+                                    ELSE N'' END, 1000),
+                @Username, @Now);
 
     COMMIT TRANSACTION;
 END
@@ -306,12 +361,15 @@ GO
    6. usp_Request_SaveCostEstimate  (civil; SCHEDULING atau IN_PROGRESS; ganti seluruh estimasi)
       @EstimateJson: [{"month":"2026-12-01","amount":1500000}, ...]  (tanggal apa pun di bulan itu boleh)
       Bulan hanya dari bulan mulai s.d. bulan selesai project (Keputusan 14-11-2026); wajib schedule dulu.
+      @AddendumId: hanya dari usp_Addendum_SaveAdjustment (tanpa alasan dan riwayat sendiri; bulan sebelum
+      bulan berjalan tidak boleh berubah, BR-85).
    --------------------------------------------------------------------- */
 CREATE OR ALTER PROCEDURE dbo.usp_Request_SaveCostEstimate
     @Id            INT,
     @Username      NVARCHAR(100),
     @EstimateJson  NVARCHAR(MAX),
-    @Reason        NVARCHAR(MAX) = NULL
+    @Reason        NVARCHAR(MAX) = NULL,
+    @AddendumId    INT = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -369,6 +427,22 @@ BEGIN
     IF @Status NOT IN ('SCHEDULING', 'IN_PROGRESS')
         THROW 50074, N'The cost estimate can only be changed during scheduling or while in progress.', 1;
 
+    -- T4-4: addendum terbuka mengunci perubahan biasa (BR-81)
+    IF OBJECT_ID(N'dbo.ProjectAddendum', N'U') IS NOT NULL
+    BEGIN
+        DECLARE @OpenAddendumId INT, @OpenAddendumStatus VARCHAR(20);
+        SELECT TOP (1) @OpenAddendumId = d.Id, @OpenAddendumStatus = d.Status
+        FROM   dbo.ProjectAddendum d
+        WHERE  d.RequestId = @Id AND d.Status IN ('PENDING_APPROVAL', 'FINAL_CONTRACT', 'ADJUSTMENT');
+
+        IF @AddendumId IS NULL AND @OpenAddendumId IS NOT NULL
+            THROW 50074, N'An addendum is in progress. Cost estimate changes are locked until the addendum is completed.', 1;
+        IF @AddendumId IS NOT NULL AND (@OpenAddendumId IS NULL OR @OpenAddendumId <> @AddendumId OR @OpenAddendumStatus <> 'ADJUSTMENT')
+            THROW 50074, N'This addendum is not awaiting adjustment.', 1;
+    END
+    ELSE IF @AddendumId IS NOT NULL
+        THROW 50074, N'This addendum is not awaiting adjustment.', 1;
+
     DECLARE @EndDate DATE = (SELECT MAX(a.PlanEndDate) FROM dbo.ProjectActionPlan a WHERE a.RequestId = @Id);
 
     IF @StartDate IS NULL OR @EndDate IS NULL
@@ -384,6 +458,21 @@ BEGIN
         THROW 50072, @Msg, 1;
     END
 
+    -- BR-85: penyesuaian addendum tidak boleh mengubah estimasi bulan sebelum bulan berjalan
+    DECLARE @CurMonth DATE = DATEFROMPARTS(YEAR(@Now), MONTH(@Now), 1);
+    IF @AddendumId IS NOT NULL
+       AND (EXISTS (SELECT i.Month, i.Amount FROM @Items i WHERE i.Month < @CurMonth
+                    EXCEPT
+                    SELECT e.PeriodMonth, e.Amount FROM dbo.ProjectCostEstimate e WHERE e.RequestId = @Id AND e.PeriodMonth < @CurMonth)
+            OR EXISTS (SELECT e.PeriodMonth, e.Amount FROM dbo.ProjectCostEstimate e WHERE e.RequestId = @Id AND e.PeriodMonth < @CurMonth
+                       EXCEPT
+                       SELECT i.Month, i.Amount FROM @Items i WHERE i.Month < @CurMonth))
+    BEGIN
+        SET @Msg = N'Cost estimates before ' + FORMAT(@CurMonth, N'MMM yyyy', 'en-US')
+                 + N' cannot be changed in an addendum adjustment.';
+        THROW 50072, @Msg, 1;
+    END
+
     DECLARE @Total DECIMAL(18, 2) = ISNULL((SELECT SUM(Amount) FROM @Items), 0);
 
     IF @PlanCost IS NOT NULL AND @Total > @PlanCost
@@ -395,7 +484,7 @@ BEGIN
 
     IF @Status = 'IN_PROGRESS'
     BEGIN
-        IF @Reason IS NULL
+        IF @Reason IS NULL AND @AddendumId IS NULL
             THROW 50072, N'Reason is required to change the cost estimate while the project is in progress.', 1;
         IF @PlanCost IS NULL OR @Total <> @PlanCost
         BEGIN
@@ -412,7 +501,7 @@ BEGIN
 
     UPDATE dbo.ProjectRequest SET UpdatedAt = @Now, UpdatedBy = @Username WHERE Id = @Id;
 
-    IF @Status = 'IN_PROGRESS'
+    IF @Status = 'IN_PROGRESS' AND @AddendumId IS NULL
         INSERT INTO dbo.ApprovalHistory (RequestId, Action, FromStatus, ToStatus, Remarks, ActionBy, ActionAt)
         VALUES (@Id, 'ESTIMATE_CHANGE', @Status, @Status, LEFT(@Reason, 1000), @Username, @Now);
 
@@ -463,6 +552,12 @@ BEGIN
         THROW 50073, N'Request not found.', 1;
     IF @Status <> 'SCHEDULING'
         THROW 50074, N'Site handover can only be recorded during scheduling.', 1;
+
+    -- T4-4 (Keputusan 18-11-2026): site handover diblok selama addendum masih terbuka (konsisten dengan BR-81)
+    IF OBJECT_ID(N'dbo.ProjectAddendum', N'U') IS NOT NULL
+       AND EXISTS (SELECT 1 FROM dbo.ProjectAddendum d
+                   WHERE d.RequestId = @Id AND d.Status IN ('PENDING_APPROVAL', 'FINAL_CONTRACT', 'ADJUSTMENT'))
+        THROW 50074, N'Complete or reject the open addendum before recording the site handover.', 1;
 
     DECLARE @EndDate DATE, @Weight DECIMAL(9, 2), @PlanCount INT;
     SELECT  @EndDate = MAX(a.PlanEndDate), @Weight = SUM(a.WeightPercent), @PlanCount = COUNT(*)

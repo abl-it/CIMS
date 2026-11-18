@@ -11,7 +11,7 @@ namespace CIMS.Controllers
     /// semua role CIMS kecuali purchasing. Lingkup data dibatasi di SP (fn_User_AllowedDepartments).
     /// </summary>
     [RoleAuthorize(CimsRoles.Adm, CimsRoles.Plan, CimsRoles.Spv, CimsRoles.Emp, CimsRoles.Kabag, CimsRoles.Mo,
-        CimsRoles.Civil, CimsRoles.Fat, CimsRoles.Gm, CimsRoles.Director, CimsRoles.Administrator)]
+        CimsRoles.Civil, CimsRoles.Fat, CimsRoles.Dgo, CimsRoles.Gm, CimsRoles.Director, CimsRoles.Administrator)]
     public class DashboardController : Controller
     {
         private static readonly string[] CoCodes = { "ABL", "NKM" };

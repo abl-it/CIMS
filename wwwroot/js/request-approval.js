@@ -42,4 +42,20 @@
         category.addEventListener('change', applyCategory);
         applyCategory();
     }
+
+    // Addendum (T4-4): form addendum baru muncul setelah "New Addendum" diklik -> gulir ke form dan fokus field pertama;
+    // tombol header ditandai aktif selama form terbuka.
+    var addendumPanel = document.getElementById('addendumCreatePanel');
+    if (addendumPanel) {
+        var newButton = document.querySelector('[data-addendum-new]');
+        addendumPanel.addEventListener('shown.bs.collapse', function () {
+            addendumPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            var first = addendumPanel.querySelector('input:not([type="hidden"])');
+            if (first) first.focus({ preventScroll: true });
+            if (newButton) newButton.setAttribute('aria-expanded', 'true');
+        });
+        addendumPanel.addEventListener('hidden.bs.collapse', function () {
+            if (newButton) newButton.setAttribute('aria-expanded', 'false');
+        });
+    }
 })();

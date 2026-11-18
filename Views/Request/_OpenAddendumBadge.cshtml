@@ -1,0 +1,16 @@
+@model RequestListItem
+@* Tanda addendum terbuka di Request List (T4-4, Keputusan 18-11-2026): untuk follow up approval / kontrak final / penyesuaian *@
+@{
+    var text = Model.OpenAddendumStatus switch
+    {
+        AddendumStatus.PendingApproval => "Addendum: approval",
+        AddendumStatus.FinalContract => "Addendum: signed contract",
+        _ => "Addendum: adjustment"
+    };
+}
+<span class="d-block mt-1">
+    <span class="badge @AddendumStatus.BadgeClass(Model.OpenAddendumStatus)"
+          title="@Model.OpenAddendumCode: @AddendumStatus.Label(Model.OpenAddendumStatus)">
+        <i class="bi bi-file-earmark-diff me-1" aria-hidden="true"></i>@text
+    </span>
+</span>

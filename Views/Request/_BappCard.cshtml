@@ -1,0 +1,281 @@
+@model RequestDetailsViewModel
+@{
+    // BAPP online (T6-1; PRD 3.4, BR-88, BR-89, BR-93, BR-94, BR-95). Lihat dibatasi di SP (matriks 5.2);
+    // semua syarat dan isian per langkah divalidasi ulang di SP.
+    var r = Model.Request;
+    var returnUrl = ViewData["ReturnUrl"] as string;
+    var culture = System.Globalization.CultureInfo.InvariantCulture;
+    var latest = Model.Bapps.FirstOrDefault();
+    var returned = r.Status == RequestStatus.InProgress && latest?.Status == BappStatus.Returned ? latest : null;
+    var noOpenAddendum = Model.OpenAddendum == null;
+    // BR-88 (diubah 18-11-2026): foto dokumentasi wajib, masing-masing minimal satu
+    var photoCodes = new[] { "BAPP_PHOTO_INITIAL", "BAPP_PHOTO_PROGRESS", "BAPP_PHOTO_FINAL" };
+    var hasPhotos = photoCodes.All(c => Model.Attachments.Any(a => a.AttachmentTypeCode == c));
+    var ready = Model.AllPlansComplete && noOpenAddendum && hasPhotos;
+    var step = Model.BappActionableStep;
+    var stepBapp = step != null ? Model.Bapps.FirstOrDefault(b => b.Round == step.Round) : null;
+    string Who(string? name, string? user) => string.IsNullOrEmpty(name) ? user ?? "-" : name;
+}
+
+<div class="card mb-3 cims-anchor @(Model.CanIssueBapp || returned != null || step != null ? "border-info" : "")" id="bapp">
+    <div class="card-header fw-semibold d-flex flex-wrap align-items-center gap-2">
+        <span><i class="bi bi-clipboard2-check me-1" aria-hidden="true"></i>BAPP</span>
+        @if (latest != null)
+        {
+            <span class="badge @BappStatus.BadgeClass(latest.Status)">@(latest.BappNo ?? "Round " + latest.Round): @BappStatus.Label(latest.Status)</span>
+        }
+        @if (Model.CanPrintBapp && latest?.Status == BappStatus.Accepted)
+        {
+            @* BR-94: cetak Berita Acara (Print / Save as PDF) setelah Closed *@
+            <a asp-action="PrintBapp" asp-route-id="@r.Id" target="_blank" rel="noopener" class="btn btn-outline-primary ms-md-auto">
+                <i class="bi bi-printer me-1" aria-hidden="true"></i>Print BAPP
+            </a>
+        }
+    </div>
+    <div class="card-body">
+
+        @if (returned != null)
+        {
+            @* BR-89: BAPP dikembalikan (No) -> Civil merevisi lalu menerbitkan ulang *@
+            var rs = returned.ReturnedStep;
+            <div class="alert alert-warning small" role="status">
+                <div class="fw-semibold mb-1"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>BAPP round @returned.Round was returned to Civil</div>
+                @if (rs != null)
+                {
+                    <div>
+                        @(string.IsNullOrEmpty(rs.RoleName) ? rs.RoleCode : rs.RoleName) · @Who(rs.ActedByName, rs.ActedBy)
+                        @if (rs.ActedAt.HasValue) { <span>· @rs.ActedAt.Value.ToString("dd MMM yyyy HH:mm", culture)</span> }
+                    </div>
+                    <div class="request-text">Reason: @rs.Remarks</div>
+                }
+                @if (!string.IsNullOrEmpty(returned.InspectionResult))
+                {
+                    <div>Inspection: @BappInspection.Label(returned.InspectionResult)@(string.IsNullOrEmpty(returned.InspectionNotes) ? "" : " · " + returned.InspectionNotes)</div>
+                }
+                <div class="mt-1">
+                    If rework is needed, add a rework action plan in the schedule (reduce the other weights), enter weekly progress
+                    until every action plan is 100%, then issue the BAPP again (same BAPP number).
+                </div>
+            </div>
+        }
+
+        @* --- Approval langkah aktif (form online per langkah; BR-89, BR-93) --- *@
+        @if (step != null && stepBapp != null)
+        {
+            var role = step.RoleCode;
+            <div class="cims-plan-row mb-3 request-approval">
+                <h2 class="h6">Your review: @(stepBapp.BappNo ?? "BAPP") · @(string.IsNullOrEmpty(step.RoleName) ? step.RoleCode : step.RoleName)</h2>
+                <dl class="row mb-2 request-detail small">
+                    <div class="col-12 col-md-6 cims-detail-item">
+                        <dt>BAPP date</dt>
+                        <dd>@stepBapp.BappDate.ToString("dd MMM yyyy", culture)</dd>
+                    </div>
+                    <div class="col-12 col-md-6 cims-detail-item">
+                        <dt>Issued by</dt>
+                        <dd>@Who(stepBapp.IssuedByName, stepBapp.IssuedBy)</dd>
+                    </div>
+                    <div class="col-12 cims-detail-item">
+                        <dt>Scope of work</dt>
+                        <dd class="request-text">@stepBapp.ScopeOfWork</dd>
+                    </div>
+                    @if (!string.IsNullOrEmpty(stepBapp.InspectionResult))
+                    {
+                        <div class="col-12 cims-detail-item">
+                            <dt>Inspection</dt>
+                            <dd class="request-text">@BappInspection.Label(stepBapp.InspectionResult)@(string.IsNullOrEmpty(stepBapp.InspectionNotes) ? "" : " · " + stepBapp.InspectionNotes)</dd>
+                        </div>
+                    }
+                </dl>
+                <form asp-action="BappApprovalAct" method="post" id="bappApprovalForm" data-remarks-form>
+                    <input type="hidden" name="id" value="@r.Id" />
+                    <input type="hidden" name="stepId" value="@step.Id" />
+                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+
+                    @if (role == CIMS.Filters.CimsRoles.Kabag)
+                    {
+                        @* Bagian D: hasil pemeriksaan (BR-89) *@
+                        <fieldset class="mb-3">
+                            <legend class="form-label fs-6">Inspection result</legend>
+                            @foreach (var code in BappInspection.All)
+                            {
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="InspectionResult" id="insp@(code)" value="@code" />
+                                    <label class="form-check-label" for="insp@(code)">@BappInspection.Label(code)</label>
+                                </div>
+                            }
+                            <div class="form-text">"Not as specified" can only be submitted with No.</div>
+                        </fieldset>
+                        <div class="mb-3">
+                            <label for="inspNotes" class="form-label">Inspection notes</label>
+                            <textarea id="inspNotes" name="InspectionNotes" class="form-control" rows="2" maxlength="1000"></textarea>
+                            <div class="form-text">Required for "with correction notes" and "not as specified".</div>
+                        </div>
+                    }
+                    else if (role == CIMS.Filters.CimsRoles.Fat)
+                    {
+                        @* Bagian F (BR-93) *@
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="Confirm" id="bappConfirm" value="true" />
+                            <label class="form-check-label" for="bappConfirm">No outstanding cost or invoice for this project (confirmed by Accounting)</label>
+                        </div>
+                    }
+                    else if (role == CIMS.Filters.CimsRoles.Dgo)
+                    {
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="Confirm" id="bappConfirm" value="true" />
+                            <label class="form-check-label" for="bappConfirm">Project status is updated to CLOSED in project tracking</label>
+                        </div>
+                    }
+
+                    <div class="mb-3">
+                        <label for="bappApprovalRemarks" class="form-label">Remarks</label>
+                        <textarea id="bappApprovalRemarks" name="remarks" class="form-control" rows="2" maxlength="1000"
+                                  aria-describedby="bappApprovalRemarksHelp bappApprovalRemarksError"></textarea>
+                        <div id="bappApprovalRemarksHelp" class="form-text">Optional for Accept; required for No. No returns the project to Civil (In Progress).</div>
+                        <div id="bappApprovalRemarksError" class="invalid-feedback">Remarks are required to return the BAPP.</div>
+                    </div>
+                    <div class="d-grid d-md-flex justify-content-md-end gap-2">
+                        <button type="submit" name="approvalAction" value="@ApprovalAction.Revise" class="btn btn-outline-warning btn-lg"
+                                data-requires-remarks="true"
+                                data-confirm="Return the BAPP to Civil? The project goes back to In Progress."
+                                data-confirm-title="BAPP: No" data-confirm-ok="No, return">
+                            <i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>No
+                        </button>
+                        <button type="submit" name="approvalAction" value="@ApprovalAction.Approve" class="btn btn-success btn-lg"
+                                data-confirm="Accept this BAPP? Your acceptance is recorded as a digital signature."
+                                data-confirm-title="Accept BAPP" data-confirm-ok="Accept">
+                            <i class="bi bi-check2-circle me-1" aria-hidden="true"></i>Accept
+                        </button>
+                    </div>
+                </form>
+            </div>
+        }
+
+        @* --- Terbitkan BAPP online (Civil, In Progress; BR-88) --- *@
+        @if (Model.CanIssueBapp)
+        {
+            <h2 class="h6">Issue BAPP</h2>
+            <ul class="list-unstyled mb-3 request-text">
+                <li>
+                    <i class="bi @(Model.AllPlansComplete ? "bi-check-circle-fill text-success" : "bi-circle text-muted") me-1" aria-hidden="true"></i>
+                    All action plans at 100% with an actual end date (weekly progress)
+                </li>
+                <li>
+                    <i class="bi @(noOpenAddendum ? "bi-check-circle-fill text-success" : "bi-circle text-muted") me-1" aria-hidden="true"></i>
+                    No open addendum
+                </li>
+                <li>
+                    <i class="bi @(hasPhotos ? "bi-check-circle-fill text-success" : "bi-circle text-muted") me-1" aria-hidden="true"></i>
+                    Documentation photos uploaded: initial, progress, and final
+                    <a href="#attachments" class="ms-1">Go to Attachments</a>
+                </li>
+            </ul>
+            <form asp-action="IssueBapp" method="post" class="row g-2" id="bappIssueForm"
+                  data-confirm="Issue the BAPP and send it for approval? Weekly progress and schedule changes stop while it is in review."
+                  data-confirm-title="Issue BAPP" data-confirm-ok="Issue">
+                <input type="hidden" name="id" value="@r.Id" />
+                <input type="hidden" name="returnUrl" value="@returnUrl" />
+                <div class="col-12 col-md-6 col-lg-4">
+                    <label for="bappNoPreview" class="form-label">BAPP number</label>
+                    <input id="bappNoPreview" class="form-control" readonly tabindex="-1" aria-describedby="bappNoHelp"
+                           value="@(latest?.BappNo ?? "Generated on issue")" />
+                    <div id="bappNoHelp" class="form-text">NNN/BAPP/@r.CoCode/month/year; a re-issue keeps the same number.</div>
+                </div>
+                <div class="col-12 col-md-6 col-lg-4">
+                    <label for="bappDate" class="form-label">BAPP date</label>
+                    <input id="bappDate" name="BappDate" type="date" class="form-control" required
+                           value="@DateTime.Today.ToString("yyyy-MM-dd", culture)" />
+                </div>
+                <div class="col-12">
+                    <label for="bappScope" class="form-label">Scope of work</label>
+                    <textarea id="bappScope" name="ScopeOfWork" class="form-control" rows="3" maxlength="2000" required>@latest?.ScopeOfWork</textarea>
+                </div>
+                <div class="col-12">
+                    <label for="bappRemarks" class="form-label">Remarks (optional)</label>
+                    <textarea id="bappRemarks" name="Remarks" class="form-control" rows="2" maxlength="1000"></textarea>
+                </div>
+                <div class="col-12 d-grid d-md-flex justify-content-md-end">
+                    <button type="submit" class="btn btn-primary btn-lg" disabled="@(!ready)"
+                            title="@(ready ? null : "Complete the checklist above first")">
+                        <i class="bi bi-send-check me-1" aria-hidden="true"></i>Issue BAPP
+                    </button>
+                </div>
+            </form>
+            if (Model.Bapps.Any())
+            {
+                <hr />
+            }
+        }
+
+        @* --- Riwayat BAPP per ronde --- *@
+        @if (Model.Bapps.Any())
+        {
+            <ul class="list-unstyled mb-0">
+                @foreach (var b in Model.Bapps)
+                {
+                    <li class="cims-plan-row">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
+                            <span class="fw-semibold">
+                                @(b.BappNo ?? "BAPP") · round @b.Round
+                                <span class="fw-normal text-muted">· @b.BappDate.ToString("dd MMM yyyy", culture)</span>
+                            </span>
+                            <span class="badge @BappStatus.BadgeClass(b.Status)">@BappStatus.Label(b.Status)</span>
+                        </div>
+                        <dl class="row mb-0 request-detail small">
+                            <div class="col-12 col-md-6 cims-detail-item">
+                                <dt>Issued by</dt>
+                                <dd>@Who(b.IssuedByName, b.IssuedBy) · @b.IssuedAt.ToString("dd MMM yyyy HH:mm", culture)</dd>
+                            </div>
+                            <div class="col-12 col-md-6 cims-detail-item">
+                                <dt>Inspection</dt>
+                                <dd class="request-text">
+                                    @(string.IsNullOrEmpty(b.InspectionResult) ? "-" : BappInspection.Label(b.InspectionResult))
+                                    @if (!string.IsNullOrEmpty(b.InspectionNotes)) { <span class="d-block text-muted">@b.InspectionNotes</span> }
+                                </dd>
+                            </div>
+                            <div class="col-12 cims-detail-item">
+                                <dt>Scope of work</dt>
+                                <dd class="request-text">@(b.ScopeOfWork ?? "-")</dd>
+                            </div>
+                            @if (!string.IsNullOrEmpty(b.Remarks))
+                            {
+                                <div class="col-12 cims-detail-item">
+                                    <dt>Remarks</dt>
+                                    <dd class="request-text">@b.Remarks</dd>
+                                </div>
+                            }
+                            <div class="col-12 col-md-6 cims-detail-item">
+                                <dt>No outstanding cost</dt>
+                                <dd>@(b.NoOutstandingAt.HasValue ? "Confirmed · " + b.NoOutstandingAt.Value.ToString("dd MMM yyyy", culture) : "-")</dd>
+                            </div>
+                            <div class="col-12 col-md-6 cims-detail-item">
+                                <dt>Status CLOSED</dt>
+                                <dd>@(b.ClosedStatusAt.HasValue ? "Confirmed · " + b.ClosedStatusAt.Value.ToString("dd MMM yyyy", culture) + (b.ClosedStatusBy == "system" ? " (system)" : "") : "-")</dd>
+                            </div>
+                            <div class="col-12 cims-detail-item">
+                                <dt>Approval</dt>
+                                <dd>
+                                    @foreach (var s in b.Steps)
+                                    {
+                                        <span class="d-inline-block me-2">
+                                            @(string.IsNullOrEmpty(s.RoleName) ? s.RoleCode : s.RoleName)
+                                            <span class="badge @s.StatusBadgeClass">@s.StatusLabel</span>
+                                            @if (s.ActedAt.HasValue)
+                                            {
+                                                <span class="text-muted">@Who(s.ActedByName, s.ActedBy) · @s.ActedAt.Value.ToString("dd MMM yyyy", culture)</span>
+                                            }
+                                            @if (!string.IsNullOrEmpty(s.Remarks))
+                                            {
+                                                <span class="request-text">“@s.Remarks”</span>
+                                            }
+                                        </span>
+                                    }
+                                </dd>
+                            </div>
+                        </dl>
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+</div>

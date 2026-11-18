@@ -61,8 +61,9 @@ GO
        lalu isi Description 12 role CIMS HANYA bila masih NULL (tidak menimpa perubahan administrator).
        plan, spv, emp: role CIMS hanya-lihat (PRD RL-10..RL-12). komisaris dan creator tidak memberi akses CIMS.
    --------------------------------------------------------------------- */
+-- dgo (5): Keputusan 18-11-2026, RL-13 (approval BAPP, lingkup sama dengan fat)
 MERGE dbo.HierarchyLevel AS t
-USING (VALUES (N'fat', 5), (N'purchasing', 6)) AS s ([Role], HierarchyLevel)
+USING (VALUES (N'fat', 5), (N'purchasing', 6), (N'dgo', 5)) AS s ([Role], HierarchyLevel)
    ON t.[Role] = s.[Role]
 WHEN NOT MATCHED BY TARGET THEN
     INSERT ([Role], HierarchyLevel, Description)
@@ -77,6 +78,7 @@ FROM   dbo.HierarchyLevel h
                     (N'gm',            N'General Manager'),
                     (N'civil',         N'Civil Department'),
                     (N'fat',           N'Finance, Accounting & Tax'),
+                    (N'dgo',           N'DGO'),
                     (N'mo',            N'Manager Operational'),
                     (N'purchasing',    N'Purchasing'),
                     (N'kabag',         N'Department Head'),

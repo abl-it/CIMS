@@ -13,10 +13,12 @@
                     PLANT = cukup Company sama;
          * bukan requester request tersebut (BR-30).
      - Langkah aktif = PENDING + StartedAt terisi pada ronde terakhir titiknya, dan status request sesuai
-       titik (REQUEST -> WAITING_APPROVAL, MGMT -> MGMT_APPROVAL, BAPP -> BAPP_REVIEW).
+       titik (REQUEST -> WAITING_APPROVAL, MGMT -> MGMT_APPROVAL, BAPP -> BAPP_REVIEW,
+       ADDENDUM -> SCHEDULING / IN_PROGRESS; aksinya lewat usp_Addendum_ApprovalAct, RequestAddendum.sql).
      - BR-39 (yang pertama berlaku): baris request dikunci (UPDLOCK) dan aksi wajib menyebut @StepId yang
        dilihat user; bila langkah itu sudah diproses orang lain -> 50074.
-     - Titik REQUEST (T2-3) dan MGMT (T3-3: GM, lalu Director untuk CAPEX; NKM: Director). BAPP menyusul (T5).
+     - Titik REQUEST (T2-3), MGMT (T3-3: GM, lalu Director untuk CAPEX; NKM: Director), BAPP (T6-1: APPROVE terakhir
+       -> CLOSED; REVISE (No) -> IN_PROGRESS, RequestBapp.sql).
      - Aksi:
          APPROVE -> langkah berikut aktif; tanpa langkah berikut -> REQUEST: FEASIBILITY (ST-04),
                     MGMT: PLANNING (ST-08)
@@ -83,9 +85,11 @@ RETURN
     WHERE   s.Status = 'PENDING'
       AND   s.StartedAt IS NOT NULL
       AND   s.Round = (SELECT MAX(x.Round) FROM dbo.ApprovalStep x WHERE x.RequestId = s.RequestId AND x.[Point] = s.[Point])
-      AND   pr.Status = CASE s.[Point] WHEN 'REQUEST' THEN 'WAITING_APPROVAL'
-                                       WHEN 'MGMT'    THEN 'MGMT_APPROVAL'
-                                       WHEN 'BAPP'    THEN 'BAPP_REVIEW' END
+      AND   (pr.Status = CASE s.[Point] WHEN 'REQUEST' THEN 'WAITING_APPROVAL'
+                                        WHEN 'MGMT'    THEN 'MGMT_APPROVAL'
+                                        WHEN 'BAPP'    THEN 'BAPP_REVIEW' END
+             -- T4-4: approval addendum berjalan tanpa mengubah status request (BR-80)
+             OR (s.[Point] = 'ADDENDUM' AND pr.Status IN ('SCHEDULING', 'IN_PROGRESS')))
       AND   pr.CoCode = me.CoCode                                   -- BR-63
       AND   pr.RequesterUsername <> @Username                       -- BR-30
       AND   EXISTS (SELECT 1 FROM r WHERE r.RoleCode = s.RoleCode)  -- BR-39: satu langkah = satu role
@@ -126,7 +130,7 @@ END
 GO
 
 /* ---------------------------------------------------------------------
-   4. usp_Request_ApprovalAct  (Approve / Revise / Reject langkah titik REQUEST dan MGMT)
+   4. usp_Request_ApprovalAct  (Approve / Revise / Reject langkah titik REQUEST, MGMT, dan BAPP (T6-1: Revise = No))
       @StepId  = langkah yang ditampilkan ke user (BR-39: cegah aksi ganda).
       @Action  = APPROVE | REVISE | REJECT
       @Remarks = opsional untuk APPROVE; wajib untuk REVISE dan REJECT (maks. 1000 karakter).
@@ -179,11 +183,16 @@ BEGIN
 
     IF @Point IS NULL
         THROW 50073, N'Approval step not found.', 1;
-    -- T2-3: REQUEST · T3-3: MGMT (GM / Director). BAPP menyusul (T5).
-    IF @Point NOT IN ('REQUEST', 'MGMT')
+    -- T2-3: REQUEST · T3-3: MGMT (GM / Director) · T6-1: BAPP (Kabag -> FAT -> GM/Director). ADDENDUM: usp_Addendum_ApprovalAct.
+    IF @Point NOT IN ('REQUEST', 'MGMT', 'BAPP')
         THROW 50074, N'This approval step cannot be processed here.', 1;
+    -- BAPP online (18-11-2026): isian form per langkah divalidasi usp_Bapp_ApprovalAct (RequestBapp.sql)
+    IF @Point = 'BAPP' AND SESSION_CONTEXT(N'BappAct') IS NULL
+        THROW 50074, N'Please use the BAPP approval form.', 1;
 
-    DECLARE @PointStatus VARCHAR(20) = CASE @Point WHEN 'REQUEST' THEN 'WAITING_APPROVAL' ELSE 'MGMT_APPROVAL' END;
+    DECLARE @PointStatus VARCHAR(20) = CASE @Point WHEN 'REQUEST' THEN 'WAITING_APPROVAL'
+                                                   WHEN 'MGMT'    THEN 'MGMT_APPROVAL'
+                                                   ELSE 'BAPP_REVIEW' END;
 
     IF @Status <> @PointStatus
        OR @StepStatus <> 'PENDING'
@@ -227,14 +236,15 @@ BEGIN
             WHERE  RequestId = @Id AND [Point] = @Point AND Round = @Round AND StepOrder = @NextOrder;
         END
         ELSE
-            -- Langkah terakhir: REQUEST -> FEASIBILITY (ST-04), MGMT -> PLANNING (ST-08)
-            SET @NewStatus = CASE @Point WHEN 'REQUEST' THEN 'FEASIBILITY' ELSE 'PLANNING' END;
+            -- Langkah terakhir: REQUEST -> FEASIBILITY (ST-04), MGMT -> PLANNING (ST-08), BAPP -> CLOSED (ST-13, BR-21)
+            SET @NewStatus = CASE @Point WHEN 'REQUEST' THEN 'FEASIBILITY' WHEN 'MGMT' THEN 'PLANNING' ELSE 'CLOSED' END;
     END
     ELSE
     BEGIN
-        -- ST-03 / ST-04 (Revise ke Civil) / ST-15
-        SET @NewStatus = CASE WHEN @Action = 'REJECT'         THEN 'REJECTED'
-                              WHEN @ReviseTo = 'CIVIL'        THEN 'FEASIBILITY'
+        -- ST-03 / ST-04 (Revise ke Civil) / ST-15; BAPP No -> kembali IN_PROGRESS (BR-89)
+        SET @NewStatus = CASE WHEN @Action = 'REJECT'                    THEN 'REJECTED'
+                              WHEN @Point = 'BAPP'                       THEN 'IN_PROGRESS'
+                              WHEN @ReviseTo = 'CIVIL'                   THEN 'FEASIBILITY'
                               ELSE 'RETURNED' END;
 
         UPDATE dbo.ApprovalStep SET Status = 'VOID'
@@ -244,6 +254,13 @@ BEGIN
     UPDATE dbo.ProjectRequest
     SET    Status = @NewStatus, UpdatedAt = @Now, UpdatedBy = @Username
     WHERE  Id = @Id;
+
+    -- T6-1: status BAPP ronde ini (RequestBapp.sql); RETURNED saat No, ACCEPTED saat Closed
+    IF @Point = 'BAPP' AND @NewStatus IN ('IN_PROGRESS', 'CLOSED') AND OBJECT_ID(N'dbo.ProjectBapp', N'U') IS NOT NULL
+        UPDATE dbo.ProjectBapp
+        SET    Status = CASE WHEN @NewStatus = 'CLOSED' THEN 'ACCEPTED' ELSE 'RETURNED' END,
+               ClosedAt = @Now, ClosedBy = @Username
+        WHERE  RequestId = @Id AND Round = @Round;
 
     INSERT INTO dbo.ApprovalHistory (RequestId, ApprovalStepId, Action, FromStatus, ToStatus, Remarks, ActionBy, ActionAt)
     VALUES (@Id, @StepId, @Action, @Status, @NewStatus, @Remarks, @Username, @Now);

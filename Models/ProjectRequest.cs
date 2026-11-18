@@ -292,6 +292,13 @@ namespace CIMS.Models
         public decimal ProgressPercent { get; set; }
         public DateTime? ActualStartDate { get; set; }
         public DateTime? ActualEndDate { get; set; }
+
+        /// <summary>
+        /// BR-83 (Keputusan 17-11-2026): sudah punya progress (> 0% atau mulai aktual terisi) -> tidak boleh dihapus,
+        /// nama dan tanggal mulai plan terkunci. Progress tidak pernah turun, jadi progress terkini > 0 setara
+        /// "pernah tersimpan > 0%". Validasi akhir di SP.
+        /// </summary>
+        public bool HasProgress => ProgressPercent > 0 || ActualStartDate.HasValue;
     }
 
     /// <summary>Estimasi biaya total per bulan (dbo.ProjectCostEstimate; BR-13).</summary>
@@ -389,6 +396,7 @@ namespace CIMS.Models
             "REQUEST" => "Request approval",
             "MGMT" => "Management approval",
             "BAPP" => "BAPP approval",
+            "ADDENDUM" => "Addendum approval",
             _ => Point
         };
 
@@ -432,10 +440,12 @@ namespace CIMS.Models
             "SUBMIT" => "Submitted",
             "RESUBMIT" => "Resubmitted",
             "CANCEL" => "Cancelled",
-            "APPROVE" => "Approved",
-            "REVISE" => "Revised",
+            // T6-1: titik BAPP memakai istilah Accept / No (PRD 3.4)
+            "APPROVE" => Point == "BAPP" ? "BAPP accepted" : "Approved",
+            "REVISE" => Point == "BAPP" ? "BAPP returned (No)" : "Revised",
             "REJECT" => "Rejected",
             "FEASIBLE" => "Feasible",
+            "BAPP_ISSUE" => "BAPP issued",
             "CATEGORY_CHANGE" => "Category changed",
             "BOQ_TOTAL" => "BOQ total",
             "SEND_TO_MGMT" => "Sent to management",
@@ -449,6 +459,9 @@ namespace CIMS.Models
             "MIGRATION" => "Running project entered",
             "OUTSIDE_APPROVAL" => "Approved outside CIMS",
             "ACTUAL_COST" => "Actual cost",
+            "ADDENDUM" => "Addendum entered",
+            "ADDENDUM_CONTRACT" => "Signed contract uploaded",
+            "ADDENDUM_ADJUST" => "Addendum completed",
             _ => Action
         };
 
@@ -474,6 +487,10 @@ namespace CIMS.Models
             "MIGRATION" => "bi-box-arrow-in-right",
             "OUTSIDE_APPROVAL" => "bi-patch-check",
             "ACTUAL_COST" => "bi-receipt",
+            "ADDENDUM" => "bi-file-earmark-diff",
+            "ADDENDUM_CONTRACT" => "bi-file-earmark-lock",
+            "BAPP_ISSUE" => "bi-clipboard2-check",
+            "ADDENDUM_ADJUST" => "bi-file-earmark-check",
             _ => "bi-dot"
         };
 
@@ -482,7 +499,10 @@ namespace CIMS.Models
         {
             "SUBMIT" or "RESUBMIT" or "SEND_TO_MGMT" or "SEND_TOR" => "text-bg-primary",
             "APPROVE" or "FEASIBLE" or "INHOUSE" or "CONTRACT" or "SITE_HANDOVER" => "text-bg-success",
-            "REVISE" or "RETURN_TOR" or "SCHEDULE_CHANGE" or "ESTIMATE_CHANGE" => "text-bg-warning",
+            "REVISE" or "RETURN_TOR" or "SCHEDULE_CHANGE" or "ESTIMATE_CHANGE" or "ADDENDUM" => "text-bg-warning",
+            "ADDENDUM_ADJUST" => "text-bg-success",
+            "ADDENDUM_CONTRACT" => "text-bg-primary",
+            "BAPP_ISSUE" => "text-bg-primary",
             "REJECT" => "text-bg-danger",
             "CATEGORY_CHANGE" or "BOQ_TOTAL" or "MIGRATION" or "OUTSIDE_APPROVAL" or "ACTUAL_COST" => "text-bg-info",
             _ => "text-bg-secondary"
@@ -583,6 +603,10 @@ namespace CIMS.Models
         public DateTime? SubmittedAt { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
+
+        /// <summary>Addendum terbuka (PENDING_APPROVAL / ADJUSTMENT) untuk tanda follow up (T4-4); null = tidak ada / tidak boleh lihat.</summary>
+        public string? OpenAddendumStatus { get; set; }
+        public string? OpenAddendumCode { get; set; }
     }
 
     /// <summary>Pertanyaan Environment Assessment + jawaban (null = belum dijawab).</summary>

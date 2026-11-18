@@ -1,0 +1,127 @@
+/* Cetak Berita Acara Penyelesaian Project (BAPP; T6-1, BR-94). Format mengikuti template FM-DGO-03 (A4).
+   Halaman berdiri sendiri (tanpa layout aplikasi); simpan ke PDF lewat dialog Print browser. */
+
+@page {
+    size: A4;
+    margin: 12mm 14mm 16mm 14mm;
+
+    @bottom-right {
+        content: "FM-DGO-03 Rev 01  |  Halaman " counter(page) " dari " counter(pages);
+        font-size: 8pt;
+        color: #555;
+    }
+}
+
+:root {
+    --bapp-border: #000;
+    --bapp-muted: #555;
+    --bapp-shade: #e8eef5;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    background: #f2f4f7;
+    color: #000;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 10pt;
+    line-height: 1.35;
+}
+
+.bapp-toolbar {
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: flex-end;
+    padding: 0.75rem 1rem;
+    background: #fff;
+    border-bottom: 1px solid #d0d5dd;
+}
+
+.bapp-toolbar button,
+.bapp-toolbar a {
+    min-height: 2.5rem;
+    padding: 0.4rem 1rem;
+    border: 1px solid #0d6efd;
+    border-radius: 0.375rem;
+    background: #0d6efd;
+    color: #fff;
+    font: inherit;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.bapp-toolbar a { background: #fff; color: #0d6efd; }
+
+.bapp-sheet {
+    width: 100%;
+    max-width: 210mm;
+    margin: 1rem auto;
+    padding: 12mm 14mm;
+    background: #fff;
+    box-shadow: 0 0 0.5rem rgba(0, 0, 0, 0.15);
+}
+
+.bapp-page-break { break-before: page; page-break-before: always; }
+
+.bapp-kop { border-bottom: 2px solid var(--bapp-border); margin-bottom: 0.5rem; padding-bottom: 0.25rem; }
+.bapp-kop img { width: 100%; height: auto; display: block; }
+.bapp-kop-text { text-align: center; font-weight: bold; font-size: 14pt; }
+
+.bapp-title { text-align: center; font-weight: bold; font-size: 13pt; margin: 0.5rem 0 0.75rem; }
+.bapp-title small { display: block; font-size: 11pt; }
+
+.bapp-section { font-weight: bold; margin: 0.75rem 0 0.25rem; }
+
+table { width: 100%; border-collapse: collapse; }
+
+.bapp-fields td { padding: 0.15rem 0.25rem; vertical-align: top; }
+.bapp-fields td:first-child { width: 38%; font-weight: bold; }
+.bapp-fields td.sep { width: 1rem; }
+
+.bapp-grid th,
+.bapp-grid td { border: 1px solid var(--bapp-border); padding: 0.25rem 0.4rem; vertical-align: top; }
+.bapp-grid th { background: var(--bapp-shade); text-align: center; }
+.bapp-grid .num { text-align: right; white-space: nowrap; }
+.bapp-grid .center { text-align: center; }
+.bapp-grid .total td { font-weight: bold; }
+
+.bapp-box { border: 1px solid var(--bapp-border); padding: 0.4rem 0.5rem; min-height: 2.5rem; white-space: pre-line; }
+
+.bapp-check { display: inline-block; margin-right: 1.25rem; }
+.bapp-check-list div { margin-bottom: 0.2rem; }
+
+.bapp-statement { margin: 0.75rem 0; text-align: justify; }
+
+.bapp-sign th,
+.bapp-sign td { border: 1px solid var(--bapp-border); text-align: center; padding: 0.25rem; vertical-align: middle; }
+.bapp-sign th { background: var(--bapp-shade); }
+.bapp-sign .sign-area { height: 22mm; font-size: 8pt; color: var(--bapp-muted); }
+.bapp-sign .sign-area strong { display: block; color: #0a5c2b; font-size: 8.5pt; }
+.bapp-sign .sign-name { font-weight: bold; }
+
+.bapp-digital-note { margin-top: 0.5rem; font-size: 8.5pt; color: var(--bapp-muted); font-style: italic; }
+
+.bapp-photo { border: 1px solid var(--bapp-border); margin-bottom: 0.5rem; text-align: center; }
+.bapp-photo .frame { min-height: 55mm; display: flex; align-items: center; justify-content: center; padding: 0.25rem; }
+.bapp-photo img { max-width: 100%; max-height: 70mm; object-fit: contain; }
+.bapp-photo .caption { border-top: 1px solid var(--bapp-border); padding: 0.2rem; }
+
+.bapp-small { font-size: 8.5pt; color: var(--bapp-muted); }
+
+@media print {
+    body { background: #fff; }
+    .bapp-toolbar { display: none; }
+    .bapp-sheet { margin: 0; padding: 0; max-width: none; box-shadow: none; }
+    .bapp-sign, .bapp-photo, tr { break-inside: avoid; page-break-inside: avoid; }
+}
+
+@media (max-width: 767.98px) {
+    .bapp-sheet { padding: 1rem; margin: 0; }
+    .bapp-grid, .bapp-sign { font-size: 8.5pt; }
+}
+
+.mt-1 { margin-top: 0.25rem; }

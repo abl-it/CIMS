@@ -11,7 +11,8 @@ namespace CIMS.Models
             new KeyValuePair<string, string>("PROCUREMENT", "Procurement (TOR)"),
             new KeyValuePair<string, string>("CONTRACT", "Contract"),
             new KeyValuePair<string, string>("BAPP", "BAPP"),
-            new KeyValuePair<string, string>("COST", "Actual Cost")
+            new KeyValuePair<string, string>("COST", "Actual Cost"),
+            new KeyValuePair<string, string>("ADDENDUM", "Addendum")   // T4-4: dokumen addendum / BOQ revisi
         };
 
         public static string StageLabel(string? code) =>

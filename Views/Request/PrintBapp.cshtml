@@ -1,0 +1,258 @@
+@model BappPrintViewModel
+@{
+    // Cetak Berita Acara Penyelesaian Project (T6-1; BR-94). Teks cetak Bahasa Indonesia mengikuti template resmi
+    // FM-DGO-03 (pengecualian aturan UI English; Keputusan 18-11-2026). Tanda tangan = persetujuan online CIMS.
+    Layout = null;
+    var h = Model.Header;
+    var id = System.Globalization.CultureInfo.GetCultureInfo("id-ID");
+    var isNkm = h.CoCode == "NKM";
+    var isOutsource = h.ExecutionType == RequestExecutionType.Outsource;
+
+    string D(DateTime? d) => d.HasValue ? d.Value.ToString("dd MMMM yyyy", id) : "-";
+    string Ds(DateTime? d) => d.HasValue ? d.Value.ToString("dd/MM/yyyy", id) : "......../......../............";
+    string Rp(decimal? v) => v.HasValue ? "Rp " + v.Value.ToString("#,0", id) : "-";
+    string Box(bool on) => on ? "☑" : "☐";
+    string T(string? v) => string.IsNullOrWhiteSpace(v) ? "-" : v;
+
+    var civil = Model.Sign("civil");
+    var fat = Model.Sign("fat");
+    var dgo = Model.Sign("dgo");
+    var kabag = Model.Sign("kabag");
+    var final = isNkm ? Model.Sign("director") : Model.Sign("gm");
+    var diff = (h.PlanCost ?? 0) - h.ActualCostTotal;
+    var actualStart = h.ActualStartDate ?? h.SiteHandoverDate;
+    var photoSlots = new[]
+    {
+        ("BAPP_PHOTO_INITIAL", "Foto tahap awal"),
+        ("BAPP_PHOTO_PROGRESS", "Foto proses pekerjaan"),
+        ("BAPP_PHOTO_FINAL", "Foto hasil akhir")
+    };
+}
+@functions {
+    // Satu kolom tanda tangan digital: nama + waktu persetujuan online; kosong bila langkah tidak ada.
+    static Microsoft.AspNetCore.Html.IHtmlContent SignCell(BappSignature? s, System.Globalization.CultureInfo id)
+    {
+        var enc = System.Text.Encodings.Web.HtmlEncoder.Default;
+        if (s == null || !s.SignedAt.HasValue)
+            return new Microsoft.AspNetCore.Html.HtmlString("<td class=\"sign-area\">-</td>");
+        var html = "<td class=\"sign-area\"><strong>&#10003; Ditandatangani secara digital</strong>"
+                 + enc.Encode(s.SignedAt.Value.ToString("dd/MM/yyyy HH:mm", id)) + "</td>";
+        return new Microsoft.AspNetCore.Html.HtmlString(html);
+    }
+
+    static string SignName(BappSignature? s) =>
+        s == null ? "(..............)" : "(" + (string.IsNullOrEmpty(s.FullName) ? s.Username : s.FullName) + ")";
+}
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BAPP @h.BappNo - @h.RequestNo</title>
+    <link rel="stylesheet" href="~/css/bapp-print.css" asp-append-version="true" />
+</head>
+<body>
+    <div class="bapp-toolbar">
+        <a asp-action="Details" asp-route-id="@h.RequestId">Back</a>
+        <button type="button" data-print>Print / Save as PDF</button>
+    </div>
+
+    <main class="bapp-sheet">
+        @* ---------- Halaman 1: Berita Acara ---------- *@
+        <div class="bapp-kop">
+            @if (isNkm)
+            {
+                @* Kop NKM berupa teks sampai gambar kop tersedia (Keputusan 18-11-2026) *@
+                <div class="bapp-kop-text">@h.CoCode</div>
+            }
+            else
+            {
+                <img src="~/images/kop-abl.png" alt="PT. Agung Bumi Lestari" />
+            }
+        </div>
+
+        <div class="bapp-title">BERITA ACARA PENYELESAIAN PROJECT<small>(BAPP)</small></div>
+
+        <table class="bapp-fields">
+            <tr><td>NO. BAPP</td><td class="sep">:</td><td>@T(h.BappNo)</td></tr>
+            <tr><td>TANGGAL BAPP</td><td class="sep">:</td><td>@D(h.BappDate)</td></tr>
+        </table>
+
+        <div class="bapp-section">A. DATA PROJECT</div>
+        <table class="bapp-fields">
+            <tr><td>NAMA PROJECT</td><td class="sep">:</td><td>@h.Title</td></tr>
+            <tr><td>NO. PROJECT</td><td class="sep">:</td><td>@T(h.RequestNo)</td></tr>
+            <tr><td>COST CENTER</td><td class="sep">:</td><td>@(string.IsNullOrEmpty(h.CostCenterCode) ? "-" : h.CostCenterCode + " - " + h.CostCenterName)</td></tr>
+            <tr><td>DEPARTEMEN PEMILIK PROJECT</td><td class="sep">:</td><td>@T(h.DeptName)@(string.IsNullOrEmpty(h.ABRV) ? "" : " (" + h.ABRV + ")")</td></tr>
+            <tr><td>DIAJUKAN OLEH (PIC PROJECT)</td><td class="sep">:</td><td>@(civil?.FullName ?? civil?.Username ?? "-")</td></tr>
+        </table>
+
+        <div class="bapp-section">B. DATA KONTRAK</div>
+        <table class="bapp-fields">
+            <tr><td>NO. KONTRAK KERJA</td><td class="sep">:</td><td>@(isOutsource ? T(h.ContractNo) : "- (in-house)")</td></tr>
+            <tr><td>TANGGAL KONTRAK</td><td class="sep">:</td><td>@(isOutsource ? D(h.ContractDate) : "-")</td></tr>
+            <tr><td>NAMA KONTRAKTOR</td><td class="sep">:</td><td>@(isOutsource ? T(h.VendorName) : "Civil (in-house)")</td></tr>
+            <tr><td>NILAI KONTRAK (Rp)</td><td class="sep">:</td><td>@Rp(isOutsource ? h.ContractValue : h.PlanCost)</td></tr>
+        </table>
+
+        <div class="bapp-section">C. PELAKSANAAN PROJECT</div>
+        <table class="bapp-grid">
+            <thead><tr><th>Uraian</th><th>Rencana</th><th>Realisasi</th></tr></thead>
+            <tbody>
+                <tr><td>Tanggal mulai</td><td class="center">@D(h.PlanStartDate)</td><td class="center">@D(actualStart)</td></tr>
+                <tr><td>Tanggal selesai</td><td class="center">@D(h.PlanEndDate)</td><td class="center">@D(h.ActualEndDate)</td></tr>
+            </tbody>
+        </table>
+        <div class="bapp-box mt-1"><strong>Lingkup pekerjaan:</strong>
+@T(h.ScopeOfWork)</div>
+
+        <div class="bapp-section">D. HASIL PEMERIKSAAN</div>
+        <div class="bapp-box">
+            <div>Hasil pemeriksaan pekerjaan:</div>
+            <div>
+                @foreach (var code in BappInspection.All)
+                {
+                    <span class="bapp-check">@Box(h.InspectionResult == code)&nbsp;&nbsp;@BappInspection.PrintLabel(code)</span>
+                }
+            </div>
+            <div>Catatan: @T(h.InspectionNotes)</div>
+        </div>
+
+        <div class="bapp-section">E. REKAPITULASI BIAYA</div>
+        <table class="bapp-grid">
+            <thead><tr><th>Uraian</th><th>Jumlah (Rp)</th></tr></thead>
+            <tbody>
+                <tr><td>Nilai kontrak / budget project (pengajuan)</td><td class="num">@((h.PlanCost ?? 0).ToString("#,0", id))</td></tr>
+                <tr><td>Total realisasi biaya (rincian pada Lampiran 1)</td><td class="num">@h.ActualCostTotal.ToString("#,0", id)</td></tr>
+                <tr class="total"><td>Selisih (@(diff >= 0 ? "sisa budget" : "kelebihan"))</td><td class="num">@Math.Abs(diff).ToString("#,0", id)</td></tr>
+            </tbody>
+        </table>
+
+        <div class="bapp-section">F. PENUTUPAN PROJECT</div>
+        <div class="bapp-box bapp-check-list">
+            <div>@Box(h.NoOutstandingAt.HasValue)&nbsp;&nbsp;Tidak ada outstanding biaya/tagihan untuk project ini (dikonfirmasi Accounting)</div>
+            <div>@Box(h.ClosedStatusAt.HasValue)&nbsp;&nbsp;Status project pada tracking project diperbarui menjadi CLOSED (dilakukan DGO@(h.ClosedStatusBy == "system" ? "; otomatis oleh sistem" : ""))</div>
+            <div>Tanggal penutupan project : @Ds(h.ProjectClosedAt)</div>
+        </div>
+
+        <p class="bapp-statement">
+            Dengan ditandatanganinya BAPP ini secara lengkap maka project dinyatakan telah selesai dan ditutup (closed), hasil pekerjaan
+            sesuai dengan kontrak kerja/spesifikasi, serta No. Project tidak dapat dibebani biaya lagi. Lampiran: (1) Rincian biaya project,
+            (2) Dokumentasi pekerjaan. Demikian BAPP ini dibuat dengan sebenarnya, dalam keadaan sehat dan tanpa tekanan dari pihak mana pun.
+        </p>
+
+        <table class="bapp-sign">
+            <thead>
+                <tr>
+                    <th>Dibuat Oleh</th>
+                    <th>Diketahui Oleh</th>
+                    <th colspan="2">Diverifikasi Oleh</th>
+                    <th colspan="2">Disetujui Oleh</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    @SignCell(civil, id)
+                    <td class="sign-area">@(isOutsource ? "" : "-")</td>
+                    @SignCell(fat, id)
+                    @SignCell(isNkm ? null : dgo, id)
+                    @SignCell(kabag, id)
+                    @SignCell(final, id)
+                </tr>
+                <tr class="sign-name">
+                    <td>@SignName(civil)</td>
+                    <td>@(isOutsource ? "(" + T(h.VendorName) + ")" : "(Civil)")</td>
+                    <td>@SignName(fat)</td>
+                    <td>@(isNkm ? "-" : SignName(dgo))</td>
+                    <td>@SignName(kabag)</td>
+                    <td>@SignName(final)</td>
+                </tr>
+                <tr>
+                    <td>PIC Project</td>
+                    <td>Civil/Kontraktor</td>
+                    <td>Accounting</td>
+                    <td>DGO</td>
+                    <td>Kabag Pemilik Project</td>
+                    <td>@(isNkm ? "Director" : "General Manager")</td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="bapp-digital-note">
+            Form ini telah ditandatangani secara digital melalui CIMS (persetujuan online pada tanggal dan jam yang tercantum),
+            sehingga tidak memerlukan tanda tangan basah.
+        </div>
+
+        @* ---------- Lampiran 1: Rincian biaya ---------- *@
+        <div class="bapp-page-break"></div>
+        <div class="bapp-title">LAMPIRAN 1 - RINCIAN BIAYA PROJECT</div>
+        <table class="bapp-fields">
+            <tr><td>NO. BAPP</td><td class="sep">:</td><td>@T(h.BappNo)</td></tr>
+            <tr><td>NAMA PROJECT</td><td class="sep">:</td><td>@h.Title</td></tr>
+            <tr><td>NO. PROJECT</td><td class="sep">:</td><td>@T(h.RequestNo)</td></tr>
+            <tr><td>COST CENTER</td><td class="sep">:</td><td>@(string.IsNullOrEmpty(h.CostCenterCode) ? "-" : h.CostCenterCode + " - " + h.CostCenterName)</td></tr>
+            <tr><td>NAMA KONTRAKTOR</td><td class="sep">:</td><td>@(isOutsource ? T(h.VendorName) : "Civil (in-house)")</td></tr>
+        </table>
+        <table class="bapp-grid mt-1">
+            <thead><tr><th>No</th><th>Uraian</th><th>Volume</th><th>Harga Satuan</th><th>Jumlah</th></tr></thead>
+            <tbody>
+                @if (!Model.Items.Any())
+                {
+                    <tr><td colspan="5" class="center">Tidak ada rincian biaya.</td></tr>
+                }
+                @for (var i = 0; i < Model.Items.Count; i++)
+                {
+                    var it = Model.Items[i];
+                    <tr>
+                        <td class="center">@(i + 1)</td>
+                        <td>
+                            @it.ItemName
+                            <span class="bapp-small">(@it.PeriodMonth.ToString("MMM yyyy", id)@(string.IsNullOrEmpty(it.ReferenceNo) ? "" : "; ref. " + it.ReferenceNo))</span>
+                        </td>
+                        <td class="num">@it.Qty.ToString("#,0.####", id) @it.Unit</td>
+                        <td class="num">@it.UnitPrice.ToString("#,0.##", id)</td>
+                        <td class="num">@it.Amount.ToString("#,0.##", id)</td>
+                    </tr>
+                }
+                <tr class="total"><td colspan="4">Total biaya project</td><td class="num">Rp @h.ActualCostTotal.ToString("#,0.##", id)</td></tr>
+            </tbody>
+        </table>
+        <p class="bapp-small">Catatan: referensi PO/invoice/kwitansi dicantumkan pada setiap komponen biaya (ref.). Rincian biaya di atas telah diketahui oleh pihak Accounting.</p>
+        <table class="bapp-sign">
+            <thead><tr><th>Dibuat Oleh</th><th>Diketahui Oleh</th><th>Diverifikasi Oleh</th></tr></thead>
+            <tbody>
+                <tr>@SignCell(civil, id)@SignCell(fat, id)@SignCell(fat, id)</tr>
+                <tr class="sign-name"><td>@SignName(civil)</td><td>@SignName(fat)</td><td>@SignName(fat)</td></tr>
+                <tr><td>PIC Project</td><td>Accounting</td><td>Accounting</td></tr>
+                <tr>
+                    <td>Tgl: @Ds(civil?.SignedAt)</td>
+                    <td>Tgl: @Ds(fat?.SignedAt)</td>
+                    <td>Tgl: @Ds(fat?.SignedAt)</td>
+                </tr>
+            </tbody>
+        </table>
+
+        @* ---------- Lampiran 2: Dokumentasi pekerjaan (foto opsional) ---------- *@
+        <div class="bapp-page-break"></div>
+        <div class="bapp-title">LAMPIRAN 2 - DOKUMENTASI PEKERJAAN</div>
+        @foreach (var (code, caption) in photoSlots)
+        {
+            var photo = Model.Photos.FirstOrDefault(p => p.AttachmentTypeCode == code);
+            <div class="bapp-photo">
+                <div class="frame">
+                    @if (photo != null)
+                    {
+                        <img src="@Url.Action("DownloadAttachment", new { id = photo.Id })" alt="@caption" />
+                    }
+                    else
+                    {
+                        <span class="bapp-small">Tidak ada foto</span>
+                    }
+                </div>
+                <div class="caption">@caption (tgl: @(photo != null ? photo.CreatedAt.ToString("dd/MM/yyyy", id) : "....../....../......"))</div>
+            </div>
+        }
+    </main>
+
+    <script src="~/js/bapp-print.js" asp-append-version="true"></script>
+</body>
+</html>

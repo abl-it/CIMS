@@ -1,0 +1,384 @@
+@model RequestDetailsViewModel
+@{
+    // Addendum kontrak (outsource) / perubahan budget BOQ (in-house) (T4-4; PRD 3.3.1, BR-78 s.d. BR-87).
+    // Semua addendum di-raise Civil; outsource: draft kontrak saat raise, kontrak final setelah approval (18-11-2026).
+    // Hak lihat (BR-86) dan semua aturan divalidasi ulang di SP; tampilan hanya mengikuti flag dari controller.
+    var r = Model.Request;
+    var returnUrl = ViewData["ReturnUrl"] as string;
+    var culture = System.Globalization.CultureInfo.InvariantCulture;
+    var isOutsource = r.ExecutionType == RequestExecutionType.Outsource;
+    var open = Model.OpenAddendum;
+    var step = Model.AddendumActionableStep;
+    var stepAddendum = step != null ? Model.Addenda.FirstOrDefault(a => a.AddendumNo == step.Round) : null;
+    var currentPlanCost = Model.Schedule?.Summary.PlanCost;
+    string Idr(decimal v) => "IDR " + v.ToString("#,0.##", culture);
+    string Size(long bytes) => bytes >= 1048576
+        ? (bytes / 1048576d).ToString("0.0", culture) + " MB"
+        : Math.Max(1, bytes / 1024).ToString(culture) + " KB";
+
+    // Kartu tidak tampil default: hanya bila sudah ada addendum / tugas approval, atau setelah tombol
+    // "New Addendum" di header halaman diklik (collapse .js-addendum-new; form input juga tersembunyi sampai diklik).
+    var hiddenByDefault = !Model.Addenda.Any() && step == null;
+}
+
+<div class="card mb-3 @(step != null || Model.CanAdjustAddendum || Model.CanUploadAddendumContract ? "border-info" : "") @(hiddenByDefault ? "collapse js-addendum-new" : "")" id="addendum">
+    <div class="card-header fw-semibold d-flex flex-wrap align-items-center gap-2">
+        <span><i class="bi bi-file-earmark-diff me-1" aria-hidden="true"></i>@(isOutsource ? "Contract Addendum" : "Budget Addendum")</span>
+        @if (open != null)
+        {
+            <span class="badge @AddendumStatus.BadgeClass(open.Status)">@open.DisplayCode: @AddendumStatus.Label(open.Status)</span>
+        }
+    </div>
+    <div class="card-body">
+
+        @if (open != null)
+        {
+            @* BR-81: selama addendum terbuka perubahan schedule/estimasi biasa dan addendum lain dikunci *@
+            <div class="alert alert-info small" role="status">
+                <i class="bi bi-lock me-1" aria-hidden="true"></i>
+                While addendum @open.DisplayCode is in progress, the previous value (@(currentPlanCost.HasValue ? Idr(currentPlanCost.Value) : "-")) stays in effect,
+                and regular schedule and cost estimate changes are locked. Weekly progress and actual cost can still be entered.
+                @if (open.Status == AddendumStatus.FinalContract && !Model.CanUploadAddendumContract)
+                {
+                    <span>Waiting for Civil to upload the signed contract.</span>
+                }
+                @if (open.Status == AddendumStatus.Adjustment && !Model.CanAdjustAddendum)
+                {
+                    <span>Waiting for Civil to adjust the action plans and cost estimate.</span>
+                }
+            </div>
+        }
+
+        @* --- Kontrak final bertanda tangan (outsource, BR-87): langkah terpisah sebelum penyesuaian --- *@
+        @if (Model.CanUploadAddendumContract && open != null && Model.AddendumFinalFileType is { } fft)
+        {
+            <div class="cims-plan-row mb-3">
+                <h2 class="h6">Upload signed contract: addendum @open.DisplayCode</h2>
+                <p class="small mb-3">
+                    The addendum is @(open.RequiresApproval ? "approved" : "accepted without approval") (new contract value @Idr(open.NewValue)).
+                    Upload the signed contract addendum to continue with the schedule and cost estimate adjustment.
+                </p>
+                <form asp-action="UploadAddendumContract" method="post" enctype="multipart/form-data" class="row g-2" id="addendumContractForm"
+                      data-confirm="Upload this file as the signed contract for addendum @open.DisplayCode?"
+                      data-confirm-title="Signed Contract" data-confirm-ok="Upload">
+                    <input type="hidden" name="id" value="@r.Id" />
+                    <input type="hidden" name="addendumId" value="@open.Id" />
+                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                    <div class="col-12 col-md-6">
+                        <label for="addFinalFile" class="form-label">@fft.Name</label>
+                        <input id="addFinalFile" name="file" type="file" class="form-control" required
+                               accept="@string.Join(",", fft.AllowedExtensions.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(e => "." + e.Trim()))" />
+                        <div class="form-text">@fft.AllowedExtensions.ToUpperInvariant(), max. @fft.MaxSizeMB MB.</div>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label for="addFinalRemarks" class="form-label">Remarks (optional)</label>
+                        <input id="addFinalRemarks" name="remarks" class="form-control" maxlength="1000" autocomplete="off" />
+                    </div>
+                    <div class="col-12 d-grid d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-upload me-1" aria-hidden="true"></i>Upload Signed Contract</button>
+                    </div>
+                </form>
+            </div>
+        }
+
+        @* --- Approval addendum (BR-80): hanya untuk approver langkah aktif --- *@
+        @if (step != null && stepAddendum != null)
+        {
+            <div class="cims-plan-row mb-3 request-approval">
+                <h2 class="h6">Your approval: addendum @stepAddendum.DisplayCode</h2>
+                <p class="small mb-2">
+                    @(string.IsNullOrEmpty(step.RoleName) ? step.RoleCode : step.RoleName) · step @step.StepOrder
+                    @if (step.StartedAt.HasValue)
+                    {
+                        <span class="text-muted">(waiting since @step.StartedAt.Value.ToString("dd MMM yyyy HH:mm", culture))</span>
+                    }
+                </p>
+                <p class="mb-2">
+                    @Idr(stepAddendum.PreviousValue) <i class="bi bi-arrow-right mx-1" aria-hidden="true"></i>
+                    <span class="fw-semibold">@Idr(stepAddendum.NewValue)</span>
+                    <span class="text-danger small">(+@stepAddendum.Difference.ToString("#,0.##", culture))</span>
+                </p>
+                <form asp-action="AddendumApprovalAct" method="post" id="addendumApprovalForm" data-remarks-form>
+                    <input type="hidden" name="id" value="@r.Id" />
+                    <input type="hidden" name="addendumId" value="@stepAddendum.Id" />
+                    <input type="hidden" name="stepId" value="@step.Id" />
+                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                    <div class="mb-3">
+                        <label for="addendumApprovalRemarks" class="form-label">Remarks</label>
+                        <textarea id="addendumApprovalRemarks" name="remarks" class="form-control" rows="2" maxlength="1000"
+                                  aria-describedby="addendumApprovalRemarksHelp addendumApprovalRemarksError"></textarea>
+                        <div id="addendumApprovalRemarksHelp" class="form-text">Optional for approval; required for rejection. Rejection cancels the addendum and keeps the previous value.</div>
+                        <div id="addendumApprovalRemarksError" class="invalid-feedback">Remarks are required to reject.</div>
+                    </div>
+                    <div class="d-grid d-md-flex justify-content-md-end gap-2">
+                        @if (step.AllowReject)
+                        {
+                            <button type="submit" name="approvalAction" value="@ApprovalAction.Reject" class="btn btn-outline-danger btn-lg"
+                                    data-requires-remarks="true"
+                                    data-confirm="Reject addendum @stepAddendum.DisplayCode? The previous value remains in effect." data-confirm-title="Reject Addendum"
+                                    data-confirm-ok="Reject" data-confirm-danger="true">
+                                <i class="bi bi-x-octagon me-1" aria-hidden="true"></i>Reject
+                            </button>
+                        }
+                        <button type="submit" name="approvalAction" value="@ApprovalAction.Approve" class="btn btn-success btn-lg"
+                                data-confirm="Approve addendum @stepAddendum.DisplayCode (@Idr(stepAddendum.NewValue))?" data-confirm-title="Approve Addendum"
+                                data-confirm-ok="Approve">
+                            <i class="bi bi-check2-circle me-1" aria-hidden="true"></i>Approve
+                        </button>
+                    </div>
+                </form>
+            </div>
+        }
+
+        @* --- Penyesuaian action plan + estimasi oleh Civil (BR-82 s.d. BR-85) --- *@
+        @if (Model.CanAdjustAddendum && open != null && Model.Schedule is { } sch)
+        {
+            var sum = sch.Summary;
+            var currentMonth = DateTime.Today.ToString("yyyy-MM", culture);
+            var currentMonthStart = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+            var minNewMonth = sum.ProjectStartDate.HasValue && sum.ProjectStartDate.Value.ToString("yyyy-MM", culture).CompareTo(currentMonth) > 0
+                ? sum.ProjectStartDate.Value.ToString("yyyy-MM", culture)
+                : currentMonth;
+            <div class="cims-plan-row mb-3">
+                <h2 class="h6">Adjust action plans and cost estimate: addendum @open.DisplayCode</h2>
+                <p class="small mb-3">
+                    New @(isOutsource ? "contract" : "BOQ") value: <span class="fw-semibold">@Idr(open.NewValue)</span>
+                    (previously @Idr(open.PreviousValue)). Total weight must be 100% and the total cost estimate must equal the new value.
+                    Action plans with progress cannot be removed; only their weight and plan end date can change.
+                    Estimates before @DateTime.Today.ToString("MMM yyyy", culture) cannot be changed.
+                    Changing weights recalculates the overall progress, which may go down.
+                </p>
+                <form asp-action="SaveAddendumAdjustment" method="post" id="addendumAdjustForm"
+                      data-schedule-form data-estimate-form data-require-complete="true" data-dynamic-months="true"
+                      data-min-new-month="@minNewMonth"
+                      data-plan-cost="@open.NewValue.ToString("0.##", culture)" data-plan-cost-label="the new value"
+                      data-confirm="Save the adjustment for addendum @open.DisplayCode? The plan cost will change to @Idr(open.NewValue)."
+                      data-confirm-title="Complete Addendum" data-confirm-ok="Save">
+                    <input type="hidden" name="id" value="@r.Id" />
+                    <input type="hidden" name="addendumId" value="@open.Id" />
+                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-12 col-md-6 col-lg-4">
+                            <label for="adjProjectStartDate" class="form-label">Project start date</label>
+                            <input id="adjProjectStartDate" name="projectStartDate" type="date" class="form-control" required data-project-start
+                                   value="@(sum.ProjectStartDate?.ToString("yyyy-MM-dd", culture))" />
+                        </div>
+                    </div>
+
+                    <div data-plan-list>
+                        @for (var i = 0; i < sch.ActionPlans.Count; i++)
+                        {
+                            <partial name="_ActionPlanRow" model="(i, sch.ActionPlans[i], true)" />
+                        }
+                    </div>
+                    <template data-plan-template>
+                        <partial name="_ActionPlanRow" model="(-1, (ProjectActionPlanItem?)null, false)" />
+                    </template>
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 my-3">
+                        <button type="button" class="btn btn-outline-primary" data-add-plan><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add Action Plan</button>
+                        <span class="small" aria-live="polite">Total weight: <span class="fw-semibold" data-weight-total>0</span>% of 100%</span>
+                    </div>
+
+                    <h3 class="h6">Monthly cost estimate</h3>
+                    <div data-estimate-list>
+                        @for (var i = 0; i < sch.CostEstimates.Count; i++)
+                        {
+                            var est = sch.CostEstimates[i];
+                            <partial name="_EstimateRow" model="(i, est, minNewMonth, (string?)null, est.PeriodMonth < currentMonthStart)" />
+                        }
+                    </div>
+                    <template data-estimate-template>
+                        <partial name="_EstimateRow" model="(-1, (ProjectCostEstimateItem?)null, minNewMonth, (string?)null, false)" />
+                    </template>
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 my-3">
+                        <button type="button" class="btn btn-outline-primary" data-add-estimate><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add Month</button>
+                        <span class="small" aria-live="polite">Total: IDR <span class="fw-semibold" data-estimate-total>0</span> of @Idr(open.NewValue)</span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="adjRemarks" class="form-label">Remarks</label>
+                        <textarea id="adjRemarks" name="remarks" class="form-control" rows="2" maxlength="1000"></textarea>
+                        <div class="form-text">Optional. Recorded in the history.</div>
+                    </div>
+                    <div class="d-grid d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-check2-circle me-1" aria-hidden="true"></i>Save &amp; Complete Addendum</button>
+                    </div>
+                </form>
+            </div>
+        }
+
+        @* --- Daftar addendum (riwayat; BR-78) --- *@
+        @if (Model.Addenda.Any())
+        {
+            <ul class="list-unstyled mb-0">
+                @foreach (var a in Model.Addenda)
+                {
+                    <li class="cims-plan-row">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
+                            <span class="fw-semibold">
+                                @a.DisplayCode
+                                @if (!string.IsNullOrEmpty(a.DocumentNo))
+                                {
+                                    <span class="fw-normal text-muted">· ref. @a.DocumentNo</span>
+                                }
+                            </span>
+                            <span class="badge @AddendumStatus.BadgeClass(a.Status)">@AddendumStatus.Label(a.Status)</span>
+                        </div>
+                        <dl class="row mb-0 request-detail small">
+                            <div class="col-12 col-md-6 cims-detail-item">
+                                <dt>Value</dt>
+                                <dd>
+                                    @Idr(a.PreviousValue) <i class="bi bi-arrow-right mx-1" aria-hidden="true"></i>@Idr(a.NewValue)
+                                    <span class="@(a.Difference > 0 ? "text-danger" : a.Difference < 0 ? "text-success" : "text-muted")">
+                                        (@(a.Difference > 0 ? "+" : "")@a.Difference.ToString("#,0.##", culture))
+                                    </span>
+                                </dd>
+                            </div>
+                            <div class="col-12 col-md-6 cims-detail-item">
+                                <dt>Addendum date</dt>
+                                <dd>@a.AddendumDate.ToString("dd MMM yyyy", culture)</dd>
+                            </div>
+                            <div class="col-12 cims-detail-item">
+                                <dt>Reason</dt>
+                                <dd class="request-text">@a.Reason</dd>
+                            </div>
+                            <div class="col-12 col-md-6 cims-detail-item">
+                                <dt>@(a.AttachmentTypeName ?? "Document")</dt>
+                                <dd class="text-break">
+                                    <a asp-action="DownloadAddendum" asp-route-id="@a.Id"><i class="bi bi-download me-1" aria-hidden="true"></i>@a.OriginalFileName</a>
+                                    <span class="text-muted">(@Size(a.FileSizeBytes))</span>
+                                </dd>
+                            </div>
+                            @if (a.HasFinalContract)
+                            {
+                                @* Kontrak final bertanda tangan (outsource, BR-87) *@
+                                <div class="col-12 col-md-6 cims-detail-item">
+                                    <dt>@(a.FinalAttachmentTypeName ?? "Signed contract")</dt>
+                                    <dd class="text-break">
+                                        <a asp-action="DownloadAddendum" asp-route-id="@a.Id" asp-route-kind="final"><i class="bi bi-download me-1" aria-hidden="true"></i>@a.FinalFileName</a>
+                                        <span class="text-muted">(@Size(a.FinalFileSizeBytes ?? 0))</span>
+                                        <span class="d-block text-muted">@(a.FinalUploadedByName ?? a.FinalUploadedBy) · @a.FinalUploadedAt?.ToString("dd MMM yyyy HH:mm", culture)</span>
+                                    </dd>
+                                </div>
+                            }
+                            else if (a.ExecutionType == RequestExecutionType.Outsource && a.Status != AddendumStatus.Rejected)
+                            {
+                                <div class="col-12 col-md-6 cims-detail-item">
+                                    <dt>Signed contract</dt>
+                                    <dd class="text-muted">Not uploaded yet</dd>
+                                </div>
+                            }
+                            <div class="col-12 col-md-6 cims-detail-item">
+                                <dt>Entered by</dt>
+                                <dd>@(a.CreatedByName ?? a.CreatedBy) · @a.CreatedAt.ToString("dd MMM yyyy HH:mm", culture)</dd>
+                            </div>
+                            <div class="col-12 cims-detail-item">
+                                <dt>Approval</dt>
+                                <dd>
+                                    @if (!a.RequiresApproval)
+                                    {
+                                        <span class="text-muted">Not required (value not increased)</span>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var s in a.Steps)
+                                        {
+                                            <span class="d-inline-block me-2">
+                                                @(string.IsNullOrEmpty(s.RoleName) ? s.RoleCode : s.RoleName)
+                                                <span class="badge @s.StatusBadgeClass">@s.StatusLabel</span>
+                                                @if (s.ActedAt.HasValue)
+                                                {
+                                                    <span class="text-muted">@(s.ActedByName ?? s.ActedBy) · @s.ActedAt.Value.ToString("dd MMM yyyy", culture)</span>
+                                                }
+                                                @if (!string.IsNullOrEmpty(s.Remarks))
+                                                {
+                                                    <span class="request-text">“@s.Remarks”</span>
+                                                }
+                                            </span>
+                                        }
+                                    }
+                                </dd>
+                            </div>
+                            @if (a.ClosedAt.HasValue)
+                            {
+                                <div class="col-12 cims-detail-item">
+                                    <dt>@(a.Status == AddendumStatus.Completed ? "Completed" : "Closed")</dt>
+                                    <dd>@(a.ClosedByName ?? a.ClosedBy) · @a.ClosedAt.Value.ToString("dd MMM yyyy HH:mm", culture)</dd>
+                                </div>
+                            }
+                        </dl>
+                    </li>
+                }
+            </ul>
+        }
+        @* --- Input addendum baru (BR-79): outsource = Purchasing, in-house = Civil; tampil setelah "New Addendum" diklik --- *@
+        @if (Model.CanCreateAddendum && Model.AddendumFileType is { } ft)
+        {
+            <div class="collapse js-addendum-new" id="addendumCreatePanel">
+            @if (Model.Addenda.Any())
+            {
+                <hr />
+            }
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <h2 class="h6 mb-0">New addendum</h2>
+                <button type="button" class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target=".js-addendum-new"
+                        aria-controls="addendum addendumCreatePanel">Cancel</button>
+            </div>
+            <p class="small text-muted">
+                Current plan cost: <span class="fw-semibold">@(r.PlanCost.HasValue ? Idr(r.PlanCost.Value) : "-")</span>.
+                A higher value needs management approval; an equal or lower value does not.
+                @if (isOutsource)
+                {
+                    <span>Attach the draft of the new contract now; after approval, upload the signed contract before adjusting the schedule.</span>
+                }
+                else
+                {
+                    <span>After that, adjust the action plans and cost estimate.</span>
+                }
+            </p>
+            <form asp-action="CreateAddendum" method="post" enctype="multipart/form-data" class="row g-2" id="addendumCreateForm"
+                  data-confirm="Save this addendum? Schedule and cost estimate changes are locked until it is completed."
+                  data-confirm-title="Save Addendum" data-confirm-ok="Save">
+                <input type="hidden" name="id" value="@r.Id" />
+                <input type="hidden" name="returnUrl" value="@returnUrl" />
+                @* Nomor addendum dibuat sistem: {RequestNo}-A{n} (Keputusan 18-11-2026); di sini hanya pratinjau *@
+                <div class="col-12 col-md-6 col-lg-3">
+                    <label for="addCodePreview" class="form-label">Addendum number</label>
+                    <input id="addCodePreview" class="form-control" readonly tabindex="-1" aria-describedby="addCodeHelp"
+                           value="@($"{r.RequestNo}-A{(Model.Addenda.Any() ? Model.Addenda.Max(a => a.AddendumNo) : 0) + 1}")" />
+                    <div id="addCodeHelp" class="form-text">Generated automatically.</div>
+                </div>
+                <div class="col-12 col-md-6 col-lg-3">
+                    @* Opsional untuk outsource dan in-house (Keputusan 18-11-2026) *@
+                    <label for="addDocumentNo" class="form-label">Reference document no. (optional)</label>
+                    <input id="addDocumentNo" name="DocumentNo" class="form-control" maxlength="50" autocomplete="off"
+                           aria-describedby="addDocumentNoHelp" />
+                    <div id="addDocumentNoHelp" class="form-text">@(isOutsource ? "E.g. draft contract or memo number, if any." : "E.g. memo or revised BOQ number, if any.")</div>
+                </div>
+                <div class="col-12 col-md-6 col-lg-3">
+                    <label for="addDate" class="form-label">Addendum date</label>
+                    <input id="addDate" name="AddendumDate" type="date" class="form-control" required />
+                </div>
+                <div class="col-12 col-md-6 col-lg-3">
+                    <label for="addNewValue" class="form-label">@(isOutsource ? "New contract value (IDR)" : "New BOQ value (IDR)")</label>
+                    <input id="addNewValue" name="NewValue" type="number" class="form-control" min="1" step="0.01" inputmode="decimal" required />
+                </div>
+                <div class="col-12">
+                    <label for="addReason" class="form-label">Reason</label>
+                    <textarea id="addReason" name="Reason" class="form-control" rows="2" maxlength="1000" required></textarea>
+                </div>
+                <div class="col-12 col-md-6">
+                    <label for="addFile" class="form-label">@ft.Name</label>
+                    <input id="addFile" name="file" type="file" class="form-control" required
+                           accept="@string.Join(",", ft.AllowedExtensions.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(e => "." + e.Trim()))" />
+                    <div class="form-text">@ft.AllowedExtensions.ToUpperInvariant(), max. @ft.MaxSizeMB MB.</div>
+                </div>
+                <div class="col-12 d-grid d-md-flex justify-content-md-end">
+                    <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-save me-1" aria-hidden="true"></i>Save Addendum</button>
+                </div>
+            </form>
+            </div>
+        }
+    </div>
+</div>

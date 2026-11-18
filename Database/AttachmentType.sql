@@ -7,7 +7,8 @@
      - Code unik dan TIDAK bisa diubah setelah dibuat (dipakai modul lain sebagai kunci).
      - Stage = tahap proses tempat lampiran diunggah:
          REQUEST (business case), DOCUMENT (Document Preparation Civil), PROCUREMENT (TOR),
-         CONTRACT (input Purchasing), BAPP, COST (upload actual cost).
+         CONTRACT (input Purchasing), BAPP, COST (upload actual cost),
+         ADDENDUM (dokumen addendum kontrak / BOQ revisi; T4-4, seed + migrasi constraint di RequestAddendum.sql).
      - IsMandatoryCapex/Opex/Lve = wajib diunggah pada tahap tersebut untuk kategori itu.
        Contoh: TOR dan Contract hanya untuk outsource -> tidak ditandai wajib per kategori; alur
        outsource yang mewajibkannya (BR-11).
@@ -42,7 +43,7 @@ BEGIN
         UpdatedBy          NVARCHAR(100) NULL,
         CONSTRAINT PK_AttachmentType PRIMARY KEY CLUSTERED (Id),
         CONSTRAINT CK_AttachmentType_Code    CHECK (Code NOT LIKE '%[^A-Z0-9_]%' COLLATE Latin1_General_BIN),
-        CONSTRAINT CK_AttachmentType_Stage   CHECK (Stage IN ('REQUEST', 'DOCUMENT', 'PROCUREMENT', 'CONTRACT', 'BAPP', 'COST')),
+        CONSTRAINT CK_AttachmentType_Stage   CHECK (Stage IN ('REQUEST', 'DOCUMENT', 'PROCUREMENT', 'CONTRACT', 'BAPP', 'COST', 'ADDENDUM')),
         CONSTRAINT CK_AttachmentType_Ext     CHECK (AllowedExtensions <> '' AND AllowedExtensions NOT LIKE '%[^a-z0-9,]%' COLLATE Latin1_General_BIN),
         CONSTRAINT CK_AttachmentType_MaxSize CHECK (MaxSizeMB BETWEEN 1 AND 100)
     );
@@ -142,9 +143,9 @@ BEGIN
         CASE WHEN @SortBy = N'Name'      AND @SortDir = N'DESC' THEN Name      END DESC,
         -- Stage diurutkan sesuai alur proses, bukan alfabet.
         CASE WHEN @SortBy = N'Stage'     AND @SortDir = N'ASC'  THEN
-             CHARINDEX(',' + Stage + ',', ',REQUEST,DOCUMENT,PROCUREMENT,CONTRACT,BAPP,COST,') END ASC,
+             CHARINDEX(',' + Stage + ',', ',REQUEST,DOCUMENT,PROCUREMENT,CONTRACT,BAPP,COST,ADDENDUM,') END ASC,
         CASE WHEN @SortBy = N'Stage'     AND @SortDir = N'DESC' THEN
-             CHARINDEX(',' + Stage + ',', ',REQUEST,DOCUMENT,PROCUREMENT,CONTRACT,BAPP,COST,') END DESC,
+             CHARINDEX(',' + Stage + ',', ',REQUEST,DOCUMENT,PROCUREMENT,CONTRACT,BAPP,COST,ADDENDUM,') END DESC,
         CASE WHEN @SortBy = N'CreatedAt' AND @SortDir = N'ASC'  THEN CreatedAt END ASC,
         CASE WHEN @SortBy = N'CreatedAt' AND @SortDir = N'DESC' THEN CreatedAt END DESC,
         Code ASC, Id ASC
@@ -200,7 +201,7 @@ BEGIN
     IF ISNULL(@Code, '') = ''                                  THROW 50022, N'Code is required.', 1;
     IF @Code LIKE '%[^A-Z0-9_]%' COLLATE Latin1_General_BIN    THROW 50022, N'Code may only contain letters, numbers, and underscores.', 1;
     IF ISNULL(@Name, N'') = N''                                THROW 50022, N'Name is required.', 1;
-    IF ISNULL(@Stage, '') NOT IN ('REQUEST', 'DOCUMENT', 'PROCUREMENT', 'CONTRACT', 'BAPP', 'COST')
+    IF ISNULL(@Stage, '') NOT IN ('REQUEST', 'DOCUMENT', 'PROCUREMENT', 'CONTRACT', 'BAPP', 'COST', 'ADDENDUM')
                                                                THROW 50022, N'Stage is invalid.', 1;
     IF @Ext = '' OR @Ext LIKE '%[^a-z0-9,]%' COLLATE Latin1_General_BIN
                                                                THROW 50022, N'Allowed extensions are invalid (example: pdf,jpg,png).', 1;
@@ -247,7 +248,7 @@ BEGIN
     DECLARE @Ext VARCHAR(200) = dbo.fn_AttachmentType_NormalizeExt(@AllowedExtensions);
 
     IF ISNULL(@Name, N'') = N''                                THROW 50022, N'Name is required.', 1;
-    IF ISNULL(@Stage, '') NOT IN ('REQUEST', 'DOCUMENT', 'PROCUREMENT', 'CONTRACT', 'BAPP', 'COST')
+    IF ISNULL(@Stage, '') NOT IN ('REQUEST', 'DOCUMENT', 'PROCUREMENT', 'CONTRACT', 'BAPP', 'COST', 'ADDENDUM')
                                                                THROW 50022, N'Stage is invalid.', 1;
     IF @Ext = '' OR @Ext LIKE '%[^a-z0-9,]%' COLLATE Latin1_General_BIN
                                                                THROW 50022, N'Allowed extensions are invalid (example: pdf,jpg,png).', 1;

@@ -441,6 +441,67 @@ BEGIN
 END
 GO
 
+/* ---------------------------------------------------------------------
+   9. usp_Request_RefreshScheduleSummary  (internal; T4-4, BR-84, Keputusan 17-11-2026)
+      Dipanggil saat schedule / bobot berubah ketika IN_PROGRESS (usp_Request_SaveSchedule, termasuk penyesuaian
+      addendum). Ringkasan project dihitung ulang pada minggu terakhir yang tersimpan:
+        % aktual = Σ(bobot baru × % progress terkini action plan) / 100 (boleh turun; BR-84)
+        % plan   = fn_Request_PlanProgress pada hari Minggu minggu itu (schedule terbaru)
+        status   = aturan sama dengan usp_Request_SaveProgress (CF-08)
+      Baris minggu lama (ProjectProgressWeek / ProjectProgressItem) TIDAK diubah.
+      Tanpa minggu tersimpan: tidak ada perubahan. Tidak membuka transaksi sendiri (ikut pemanggil).
+   --------------------------------------------------------------------- */
+CREATE OR ALTER PROCEDURE dbo.usp_Request_RefreshScheduleSummary
+    @Id          INT,
+    @Username    NVARCHAR(100),
+    @OldPercent  DECIMAL(5, 2) = NULL OUTPUT,
+    @NewPercent  DECIMAL(5, 2) = NULL OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @CoCode VARCHAR(10), @WeekEnd DATE;
+
+    SELECT  @OldPercent = r.ProgressPercent, @CoCode = r.CoCode
+    FROM    dbo.ProjectRequest r
+    WHERE   r.Id = @Id;
+
+    SET @NewPercent = @OldPercent;
+    SET @WeekEnd = (SELECT MAX(w.WeekEnd) FROM dbo.ProjectProgressWeek w WHERE w.RequestId = @Id);
+
+    IF @WeekEnd IS NULL
+        RETURN;
+
+    DECLARE @Actual DECIMAL(5, 2) =
+        CAST(ROUND((SELECT ISNULL(SUM(a.WeightPercent * a.ProgressPercent), 0) / 100.0
+                    FROM dbo.ProjectActionPlan a WHERE a.RequestId = @Id), 2) AS DECIMAL(5, 2));
+    DECLARE @Plan DECIMAL(5, 2) = (SELECT p.PlanPercent FROM dbo.fn_Request_PlanProgress(@Id, @WeekEnd) p);
+    DECLARE @Dev DECIMAL(6, 2) = @Actual - @Plan;
+    DECLARE @EndDate DATE = (SELECT MAX(a.PlanEndDate) FROM dbo.ProjectActionPlan a WHERE a.RequestId = @Id);
+
+    DECLARE @OnTrackMin DECIMAL(9, 2) = ISNULL((SELECT TOP (1) TRY_CAST(s.SettingValue AS DECIMAL(9, 2)) FROM dbo.AppSetting s
+                                                WHERE s.SettingKey = 'SCHEDULE_ONTRACK_MIN_DEV' AND s.CoCode IN (@CoCode, '*')
+                                                ORDER BY CASE WHEN s.CoCode = @CoCode THEN 0 ELSE 1 END), -5);
+    DECLARE @SlightMin DECIMAL(9, 2)  = ISNULL((SELECT TOP (1) TRY_CAST(s.SettingValue AS DECIMAL(9, 2)) FROM dbo.AppSetting s
+                                                WHERE s.SettingKey = 'SCHEDULE_SLIGHT_MIN_DEV' AND s.CoCode IN (@CoCode, '*')
+                                                ORDER BY CASE WHEN s.CoCode = @CoCode THEN 0 ELSE 1 END), -15);
+
+    DECLARE @Status VARCHAR(20) =
+        CASE WHEN @EndDate < @WeekEnd AND @Actual < 100 THEN 'DELAY'
+             WHEN @Dev >= @OnTrackMin THEN 'ON_TRACK'
+             WHEN @Dev >= @SlightMin  THEN 'SLIGHT_DELAY'
+             ELSE 'DELAY' END;
+
+    UPDATE dbo.ProjectRequest
+    SET    ProgressPercent = @Actual, PlanProgressPercent = @Plan,
+           ScheduleStatus = @Status, ScheduleStatusAt = SYSDATETIME(),
+           UpdatedAt = SYSDATETIME(), UpdatedBy = @Username
+    WHERE  Id = @Id;
+
+    SET @NewPercent = @Actual;
+END
+GO
+
 /* =====================================================================
    TEST (jalankan manual di DB dev; ganti <...> dengan data nyata)
    Kasus yang diharapkan error dibungkus TRY/CATCH (CATCH wajib ROLLBACK, lihat RequestApproval.sql).

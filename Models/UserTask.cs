@@ -13,8 +13,14 @@ namespace CIMS.Models
         public const string Scheduling = "SCHEDULING";
         public const string Progress = "PROGRESS";
 
+        /// <summary>Addendum berlaku: Civil upload kontrak final (outsource, BR-87) lalu menyesuaikan action plan + estimasi (BR-82).</summary>
+        public const string Addendum = "ADDENDUM";
+
+        /// <summary>Semua action plan 100%: Civil menerbitkan BAPP (T6-1, BR-88).</summary>
+        public const string Bapp = "BAPP";
+
         /// <summary>Urutan tampil (sama dengan usp_Task_GetSummary).</summary>
-        public static readonly string[] All = { Approval, Revise, Rejected, Feasibility, DocPreparation, Planning, Procurement, Scheduling, Progress };
+        public static readonly string[] All = { Approval, Revise, Rejected, Feasibility, DocPreparation, Planning, Procurement, Scheduling, Addendum, Progress, Bapp };
 
         public static bool IsValid(string? code) => code != null && All.Contains(code);
 
@@ -29,6 +35,8 @@ namespace CIMS.Models
             Procurement => "Procurement (contract)",
             Scheduling => "Scheduling / site handover",
             Progress => "Weekly progress",
+            Addendum => "Addendum (signed contract / adjustment)",
+            Bapp => "Issue BAPP",
             _ => code ?? string.Empty
         };
 
@@ -39,6 +47,8 @@ namespace CIMS.Models
             Revise => "Revise",
             Rejected => "View",
             Progress => "Update",
+            Addendum => "Adjust",
+            Bapp => "Issue",
             _ => "Open"
         };
 
@@ -53,6 +63,8 @@ namespace CIMS.Models
             Procurement => "bi-cart",
             Scheduling => "bi-calendar-range",
             Progress => "bi-graph-up-arrow",
+            Addendum => "bi-file-earmark-diff",
+            Bapp => "bi-clipboard2-check",
             _ => "bi-list-task"
         };
     }

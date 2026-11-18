@@ -100,7 +100,7 @@ BEGIN
         CONSTRAINT PK_ApprovalStep PRIMARY KEY CLUSTERED (Id),
         CONSTRAINT FK_ApprovalStep_Request FOREIGN KEY (RequestId) REFERENCES dbo.ProjectRequest (Id),
         CONSTRAINT UQ_ApprovalStep UNIQUE (RequestId, [Point], Round, StepOrder),
-        CONSTRAINT CK_ApprovalStep_Point  CHECK ([Point] IN ('REQUEST', 'MGMT', 'BAPP')),
+        CONSTRAINT CK_ApprovalStep_Point  CHECK ([Point] IN ('REQUEST', 'MGMT', 'BAPP', 'ADDENDUM')),   -- ADDENDUM: T4-4
         CONSTRAINT CK_ApprovalStep_Scope  CHECK (Scope IN ('DEPT', 'GROUP', 'PLANT')),
         CONSTRAINT CK_ApprovalStep_Status CHECK (Status IN ('PENDING', 'APPROVED', 'REVISED', 'REJECTED', 'VOID'))
     );
@@ -415,6 +415,7 @@ BEGIN
             JOIN lastRound lr ON lr.[Point] = s.[Point] AND lr.Round = s.Round
             LEFT JOIN dbo.HierarchyLevel h ON h.[Role] = s.RoleCode
     WHERE   s.RequestId = @RequestId
+      AND   s.[Point] <> 'ADDENDUM'          -- T4-4: langkah addendum tampil di kartu Addendum (usp_Addendum_GetByRequest)
     ORDER BY CHARINDEX(',' + s.[Point] + ',', ',REQUEST,MGMT,BAPP,'), s.StepOrder;
 END
 GO

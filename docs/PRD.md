@@ -1,6 +1,7 @@
 # PRD: CIMS (Civil Integrated Management System)
 
 Status: **FINAL v1.0** (2 November 2026). Semua asumsi disetujui (BR-15 direvisi). Siap disimpan sebagai `docs/PRD.md`. Tidak ada asumsi tersisa (03-11-2026).
+Revisi 17-11-2026: Addendum kontrak (outsource) dan perubahan budget (in-house), lihat 3.3.1 (BR-78 s.d. BR-87).
 Owner: Herman (IT Manager)
 Sumber: `CIMS-konteks-proyek.md`, source CIMS (CLAUDE.md, Customer, Role.sql, Auth.sql), flow `CIMS.pdf`, form `User entry.xlsx` (CAPEX/OPEX/LVE), form `7. User Satisfaction feedback after completion.xlsx` (+ appendix), `Departments.sql`, `APP_Departments.xlsx`, `APP_SubDepartments.xlsx`, keputusan Herman 31-10-2026 dan 02-11-2026.
 
@@ -116,16 +117,46 @@ Langkah approval di atas adalah **alur default** yang disimpan di tabel workflow
 3. CIVIL Prepare Schedule and Action Plan: jadwal, action plan berbobot, dan estimasi biaya per bulan (total = plan cost).
 4. CIVIL Site Handover and Start Execution.
 5. Selama eksekusi: progress per action plan mingguan; upload actual cost bulanan (detail per item barang/jasa) dari data closing akhir bulan.
+6. Bila terjadi addendum (outsource: perubahan kontrak; in-house: perubahan budget/BOQ) → CIVIL input addendum (outsource: dengan draft kontrak baru) → approval bila nilai naik → outsource: CIVIL upload kontrak final bertanda tangan → CIVIL menyesuaikan action plan dan estimasi biaya (3.3.1).
+
+### 3.3.1 Addendum kontrak / perubahan budget (Keputusan 17-11-2026)
+
+| ID | Aturan | Status |
+|---|---|---|
+| BR-78 | Addendum berlaku untuk project **outsource** (perubahan kontrak) dan **in-house** (perubahan budget/BOQ), pada status Scheduling/Preparation (ST-10) atau In Progress (ST-11). Satu project boleh punya lebih dari satu addendum (Addendum 1, 2, ...); riwayat seluruh addendum tersimpan. Addendum berikutnya hanya bisa dibuat setelah addendum sebelumnya selesai atau ditolak. | Keputusan |
+| BR-79 | Addendum **selalu di-raise oleh CIVIL** (outsource dan in-house; tidak lewat Purchasing). Isi: nomor dokumen referensi (opsional), tanggal, nilai baru (total; outsource = nilai kontrak, in-house = nilai BOQ), alasan, dan lampiran **wajib**: outsource = **draft kontrak baru**, in-house = BOQ revisi. Nomor addendum dibuat sistem: `{RequestNo}-A{n}` (mis. `QC-CPX-11-26-001-A1`; n = urutan addendum project, termasuk yang ditolak). | Keputusan (nomor otomatis 18-11-2026; raise oleh Civil + draft kontrak 18-11-2026) |
+| BR-80 | Approval addendum: **nilai naik** → approval titik `ADDENDUM` dari tabel workflow (default ABL: GM; NKM: Director; 3.9), langkah di-snapshot saat addendum disimpan (BR-37). **Nilai sama atau turun** → tanpa approval. Ditolak → addendum batal, nilai lama tetap berlaku. Approver mendapat tugas di Tugas Saya. Setelah disetujui / tanpa approval: outsource → menunggu kontrak final (BR-87); in-house → penyesuaian CIVIL (BR-82). | Keputusan |
+| BR-87 | Addendum **outsource**: setelah disetujui (atau tanpa approval), CIVIL **wajib** upload **kontrak final bertanda tangan** sebagai langkah terpisah sebelum penyesuaian action plan dan estimasi dibuka. Berlaku untuk semua addendum outsource (nilai naik, sama, atau turun). | Keputusan (18-11-2026) |
+| BR-81 | Selama addendum belum selesai (menunggu approval, kontrak final, atau penyesuaian CIVIL): nilai kontrak/BOQ dan plan cost lama tetap berlaku; addendum lain serta perubahan schedule, action plan, dan estimasi biaya di luar penyesuaian addendum dikunci. Progress mingguan dan actual cost tetap bisa diinput. | Keputusan |
+| BR-82 | Setelah addendum berlaku (disetujui atau tanpa approval; outsource: setelah kontrak final diupload, BR-87), CIVIL **wajib** menyesuaikan action plan dan estimasi biaya (Tugas Saya "Addendum adjustment"). Addendum selesai saat CIVIL menyimpan penyesuaian dengan total bobot = 100% dan total estimasi = nilai baru; saat itu plan cost (BR-12) = nilai baru dan status biaya dihitung ulang. Tercatat di riwayat. | Keputusan |
+| BR-83 | Saat project In Progress, **setiap** perubahan schedule (addendum maupun perubahan biasa, outsource maupun in-house): action plan yang sudah punya progress **tidak boleh dihapus**; hanya **bobot** dan **tanggal selesai plan** yang boleh diubah (nama dan tanggal mulai plan terkunci). Action plan yang belum punya progress boleh ditambah, diubah, atau dihapus. | Keputusan |
+| BR-84 | Setelah bobot berubah, % progress per action plan tetap; % penyelesaian project terkini dihitung ulang dengan bobot baru (BR-17) dan **boleh turun** karena addendum (pengecualian aturan progress tidak turun); data minggu sebelumnya tidak diubah; perubahan tercatat di riwayat. Kurva S plan dihitung ulang dari schedule terbaru (tanpa baseline awal). | Keputusan |
+| BR-85 | Pada penyesuaian addendum, estimasi biaya bulan sebelum bulan berjalan dikunci; hanya bulan berjalan dan sesudahnya yang boleh diubah. | Keputusan |
+| BR-86 | Hak lihat addendum: outsource mengikuti baris Kontrak (termasuk Purchasing, hanya lihat), in-house mengikuti baris Feasibility/BOQ di matriks 5.2. | Keputusan |
 
 ### 3.4 Fase C: Project Closing
 
-1. CIVIL Project Complete → Issue BAPP.
-2. KABAG review BAPP → Accept / No (kembali ke CIVIL).
-3. FAT review BAPP → Accept / No (kembali ke CIVIL).
-4. GM review BAPP → Accept / No (kembali ke CIVIL). Accept → Project Closed.
-5. CIVIL kirim survei ke KABAG → KABAG mengisi → CIVIL arsipkan.
+Penutupan project dilakukan **online** dengan form BAPP (format FM-DGO-03), tanpa tanda tangan basah (Keputusan 18-11-2026):
+1. CIVIL Project Complete → terbitkan BAPP online (data project, kontrak, pelaksanaan, lingkup pekerjaan, rekap biaya terisi dari sistem).
+2. KABAG user review → isi Hasil pemeriksaan (Sesuai / Sesuai dengan catatan perbaikan / Belum sesuai + catatan) → Accept / No (kembali ke CIVIL).
+3. FAT review → konfirmasi tidak ada outstanding biaya/tagihan → Accept / No.
+4. DGO review (ABL) → konfirmasi status project CLOSED → Accept / No.
+5. GM review (ABL; NKM: Director) → Accept / No. Accept → Project Closed.
+6. CIVIL mencetak Berita Acara (bisa ke PDF) dengan keterangan form sudah ditandatangani secara digital.
+7. CIVIL kirim survei ke KABAG → KABAG mengisi → status Survey Completed (tanpa langkah arsip terpisah; Keputusan 18-11-2026).
 
 Rantai approval BAPP juga **alur default** di tabel workflow (3.9). MO tidak ikut approval BAPP (Keputusan).
+
+| ID | Aturan | Status |
+|---|---|---|
+| BR-88 | CIVIL menerbitkan BAPP **online** saat In Progress bila: semua action plan **100%** dengan tanggal selesai aktual terisi dan tidak ada addendum terbuka (BR-81). Isian Civil: tanggal BAPP dan lingkup pekerjaan; foto dokumentasi **wajib**: foto tahap awal, proses pekerjaan, dan hasil akhir (masing-masing minimal satu; Lampiran 2). Dokumen BAPP tidak diupload (form dibuat sistem). Langkah approval BAPP di-snapshot saat terbit (BR-37). | Keputusan (18-11-2026, diubah: online) |
+| BR-89 | Approver BAPP memilih **Accept** atau **No**. No wajib alasan → status kembali **In Progress**; CIVIL memperbaiki lalu menerbitkan ulang = ronde baru dari langkah pertama. KABAG wajib mengisi Hasil pemeriksaan (bagian D); **Belum sesuai** hanya bisa disimpan dengan No. | Keputusan (18-11-2026) |
+| BR-93 | FAT wajib mencentang "Tidak ada outstanding biaya/tagihan" untuk Accept; DGO wajib mencentang "Status project diperbarui menjadi CLOSED" untuk Accept. NKM (tanpa DGO): centang kedua diisi sistem saat Closed. Tanggal penutupan = waktu Accept langkah terakhir. | Keputusan (18-11-2026) |
+| BR-94 | Setelah Closed, CIVIL mencetak Berita Acara (halaman cetak A4, simpan ke PDF lewat browser) dengan format FM-DGO-03 dalam Bahasa Indonesia; kolom tanda tangan berisi nama dan waktu persetujuan online dengan keterangan "ditandatangani secara digital". Kop: gambar kop ABL; NKM kop teks sampai gambar kop tersedia. Lampiran 1 = rincian actual cost per item; Lampiran 2 = foto dokumentasi (awal, proses, hasil akhir). | Keputusan (18-11-2026) |
+| BR-95 | Nomor BAPP otomatis `NNN/BAPP/{Company}/{bulan romawi}/{tahun}` dari tanggal BAPP, urut per Company per tahun; penerbitan ulang setelah No memakai nomor yang sama. | Keputusan (18-11-2026) |
+| BR-90 | Actual cost hanya bisa diinput/diupload sampai BAPP Review; setelah Closed tidak bisa diubah. | Keputusan (18-11-2026) |
+| BR-91 | Setelah Closed, CIVIL klik **Send survey**: item template kategori di-snapshot (BR-48). Survei boleh diisi pemegang role `kabag` pada ABRV + Company departemen peminta (BR-24); yang pertama mengisi berlaku. Submit → **Survey Completed** (ST-14). | Keputusan (18-11-2026) |
+| BR-92 | Halaman **User Satisfaction**: daftar survei (status, skor, tanggal; filter Company, kategori, periode) + Export Excel (FR-04). | Keputusan (18-11-2026) |
 
 ### 3.5 Aturan bisnis
 
@@ -150,9 +181,9 @@ Rantai approval BAPP juga **alur default** di tabel workflow (3.9). MO tidak iku
 | BR-17 | % penyelesaian project = Σ(bobot × % progress action plan). Plan progress mingguan dihitung dari tanggal plan (kurva S). | Keputusan |
 | BR-18 | Actual cost diupload bulanan oleh CIVIL lewat satu template Excel untuk semua project, detail per item barang atau jasa, dari data closing akhir bulan; total actual per bulan dibandingkan dengan estimasi bulan tersebut. Input manual tersedia sebagai cadangan. | Keputusan |
 | BR-19 | Upload ulang untuk bulan yang sama menimpa data actual bulan tersebut; file asli setiap upload diarsipkan. | Keputusan |
-| BR-20 | Approval BAPP default berurutan KABAG → FAT → GM. Penolakan di level mana pun kembali ke CIVIL. | Flow + Keputusan |
+| BR-20 | Approval BAPP default berurutan KABAG → FAT → DGO → GM (ABL); KABAG → FAT → Director (NKM). Penolakan di level mana pun kembali ke CIVIL. | Flow + Keputusan (DGO 18-11-2026) |
 | BR-21 | Project Closed hanya setelah langkah terakhir approval BAPP menerima. | Flow |
-| BR-22 | Setelah Closed, CIVIL mengirim survei ke KABAG departemen peminta; KABAG mengisi; hasil diarsipkan. | Keputusan |
+| BR-22 | Setelah Closed, CIVIL mengirim survei ke KABAG departemen peminta; KABAG mengisi; hasil tersimpan (detail BR-91). | Keputusan |
 | BR-23 | GM dan DIRECTOR adalah approver tingkat pabrik untuk seluruh departemen. | Keputusan |
 | BR-24 | **Satu ABRV = satu Kabag.** Kabag yang berwenang = pemegang role `kabag` pada ABRV (dan Company) yang sama dengan departemen requester. Contoh: QC C500 dan D500 di-approve Kabag QC yang sama; berlaku juga ENG (C300/D300), UTL (C400/D400), MO (C600/D600), WH-LOG (A400/B200). Bila ternyata ada lebih dari satu, yang approve pertama berlaku. | Keputusan |
 | BR-25 | Emergency maintenance dibuat CIVIL atas nama departemen peminta dan boleh dieksekusi sebelum approval; approval Kabag dan GM wajib menyusul dalam **3 hari kerja** (CF-02). | Keputusan |
@@ -206,7 +237,7 @@ ST-07 tidak dipakai (digabung ke ST-06 sejak v0.6).
 **Kebutuhan:** alur approval dapat diubah saat kebijakan berubah, tanpa ubah kode.
 
 **Batas desain (Keputusan):**
-- **Dinamis (tabel):** rantai approval pada tiga titik: (1) approval request sebelum Civil, (2) management approval setelah dokumen Civil, (3) approval BAPP. Per langkah: urutan, role approver, lingkup approver, **kondisi berlaku** (kategori dan/atau grup departemen requester), boleh Revise dan tujuannya, boleh Reject, aktif/nonaktif.
+- **Dinamis (tabel):** rantai approval pada empat titik: (1) approval request sebelum Civil, (2) management approval setelah dokumen Civil, (3) approval BAPP, (4) approval addendum bila nilai naik (BR-80, revisi 17-11-2026). Per langkah: urutan, role approver, lingkup approver, **kondisi berlaku** (kategori dan/atau grup departemen requester), boleh Revise dan tujuannya, boleh Reject, aktif/nonaktif.
 - **Tetap (kode):** tahapan operasional Civil (Feasibility, Document Preparation, Planning, Procurement, Scheduling, In Progress, Closing, Survey).
 
 **Lingkup approver:**
@@ -224,7 +255,9 @@ Isi default **ABL** (`CoCode = ABL`):
 | MGMT | 2 | `director` | PLANT | CAPEX | Semua | Civil | Ya |
 | BAPP | 1 | `kabag` | DEPT | Semua | Semua | Civil | - (No = kembali ke Civil) |
 | BAPP | 2 | `fat` | PLANT | Semua | Semua | Civil | - |
-| BAPP | 3 | `gm` | PLANT | Semua | Semua | Civil | - |
+| BAPP | 3 | `dgo` | PLANT | Semua | Semua | Civil | - |
+| BAPP | 4 | `gm` | PLANT | Semua | Semua | Civil | - |
+| ADDENDUM | 1 | `gm` | PLANT | Semua | Semua | - | Ya (addendum batal) |
 
 Isi default **NKM** (`CoCode = NKM`, Keputusan; dapat diubah lewat tabel):
 
@@ -235,6 +268,7 @@ Isi default **NKM** (`CoCode = NKM`, Keputusan; dapat diubah lewat tabel):
 | BAPP | 1 | `kabag` | DEPT | Semua | Semua | Civil | - |
 | BAPP | 2 | `fat` | PLANT | Semua | Semua | Civil | - |
 | BAPP | 3 | `director` | PLANT | Semua | Semua | Civil | - |
+| ADDENDUM | 1 | `director` | PLANT | Semua | Semua | - | Ya (addendum batal) |
 
 Catatan: di NKM tidak ada langkah MO dan GM; Director meng-approve semua kategori dan menjadi approver akhir BAPP. Approval susulan Emergency NKM: Kabag → Director (Keputusan, mengikuti alur NKM).
 
@@ -271,7 +305,7 @@ Catatan: di NKM tidak ada langkah MO dan GM; Director meng-approve semua kategor
 
 | Elemen | Plan | Actual | Frekuensi | Input oleh |
 |---|---|---|---|---|
-| Total biaya | Nilai kontrak (outsource) / nilai BOQ disetujui (in-house) | Akumulasi actual bulanan | - | Purchasing / sistem |
+| Total biaya | Nilai kontrak (outsource) / nilai BOQ disetujui (in-house); setelah addendum = nilai addendum terakhir yang selesai (BR-82) | Akumulasi actual bulanan | - | Purchasing / Civil (addendum in-house) / sistem |
 | Biaya per bulan | Estimasi total per bulan (total = plan cost) | Total dari item actual bulan tersebut | Bulanan | Civil |
 | Jadwal | Tanggal mulai project dan tanggal plan per action plan (schedule Civil); periode Preparation sebelum mulai | Tanggal aktual per action plan | Mingguan | Civil |
 | Progress | Plan progress mingguan (kurva S) | Σ(bobot × % progress action plan) | Mingguan | Civil |
@@ -289,7 +323,8 @@ Catatan: di NKM tidak ada langkah MO dan GM; Director meng-approve semua kategor
 | RL-02 | `director` | Director | 3 | Semua | Role umum portal | Keputusan |
 | RL-03 | `gm` | General Manager | 4 | Semua | Role umum portal | Keputusan |
 | RL-04 | `civil` | Civil Department | 5 | Semua (ABL + NKM) | Role khusus, didaftarkan di portal | Keputusan |
-| RL-05 | `fat` | Finance, Accounting & Tax | 5 | Project di tahap BAPP dan biaya | Role khusus, dibuat di portal | Keputusan |
+| RL-05 | `fat` | Finance, Accounting & Tax | 5 | Project di tahap BAPP dan biaya: project status In Progress, BAPP Review, Closed, Survey Completed pada Company sendiri (Keputusan 18-11-2026) | Role khusus, dibuat di portal | Keputusan |
+| RL-13 | `dgo` | DGO (verifikasi dan penutupan project) | 5 | Sama dengan FAT: project In Progress, BAPP Review, Closed, Survey Completed pada Company sendiri | Role baru, dibuat di portal | Keputusan (18-11-2026) |
 | RL-09 | `mo` | Manager Operational | 6 | Grup MILL (6 DepartmentID, 5 ABRV) | Role umum portal (sudah ada di seed) | Keputusan |
 | RL-06 | `purchasing` | Purchasing | 6 | Project outsource (ABL + NKM) | Role khusus, dibuat di portal | Keputusan |
 | RL-07 | `kabag` | Kepala Bagian | 7 | Departemen sendiri | Role umum portal | Keputusan |
@@ -300,27 +335,31 @@ Catatan: di NKM tidak ada langkah MO dan GM; Director meng-approve semua kategor
 
 Level hanya untuk tampilan; nilai sama diperbolehkan. Role seed lain (`komisaris`, `creator`) tidak memberi akses ke CIMS.
 Role `plan` dan `spv` memiliki hak akses **sama dengan `adm`** (kolom `adm` di matriks 5.2, termasuk buat, revisi, dan cancel request departemen sendiri).
-Role `emp` **hanya lihat (R (D))**: Request, Feasibility/BOQ/Drawing, Schedule/action plan/estimasi biaya, Progress mingguan, Dashboard, dan Report departemen sendiri. Tanpa buat/ubah/approve, dan tanpa akses kontrak, actual cost, BAPP, survei, dan master data.
+Role `emp` **hanya lihat (R (D))**: Request, Feasibility/BOQ/Drawing (termasuk addendum in-house), Schedule/action plan/estimasi biaya, Progress mingguan, Dashboard, dan Report departemen sendiri. Tanpa buat/ubah/approve, dan tanpa akses kontrak, actual cost, BAPP, survei, dan master data.
 
 ### 5.2 Matriks hak akses per modul
 
-Legenda: **C** = buat/ubah · **A** = approve/reject/revise · **R** = lihat · **-** = tidak ada akses. (D) = departemen sendiri (ABRV + Company) · (G) = departemen grup MILL.
+Legenda: **C** = buat/ubah · **A** = approve/reject/revise · **R** = lihat · **-** = tidak ada akses. (D) = departemen sendiri (ABRV + Company) · (G) = departemen grup MILL · (IP) = hanya project In Progress ke atas (FAT, Keputusan 18-11-2026).
 Semua role dibatasi Company-nya sendiri kecuali ditetapkan lain di 3.10.
 Kolom A mengikuti **default** tabel workflow (3.9); bila tabel diubah, hak approve mengikuti tabel.
 
 | Modul / aksi | adm | kabag | mo | civil | purchasing | fat | gm | director | administrator |
 |---|---|---|---|---|---|---|---|---|---|
-| Request: buat, revisi, cancel | C (D) | R (D) | R (G) | R | - | - | R | R | R |
+| Request: buat, revisi, cancel | C (D) | R (D) | R (G) | R | - | R (IP) | R | R | R |
 | Request: approval sebelum Civil | - | A (D) | A (G) | - | - | - | - | - | - |
-| Feasibility, ubah kategori, BOQ, Drawing | R (D) | R (D) | R (G) | C/A | - | - | R | R | R |
+| Feasibility, ubah kategori, BOQ, Drawing | R (D) | R (D) | R (G) | C/A | - | R (IP) | R | R | R |
 | Management approval (GM, Director CAPEX) | - | - | - | - | - | - | A | A | R |
 | TOR | - | - | - | C | R | - | R | R | R |
 | Kontrak (vendor, nilai, lampiran) | - | - | - | R | C | R | R | R | R |
+| Addendum outsource: input + draft & kontrak final (BR-79, BR-86, BR-87) | - | - | - | C | R | R | R | R | R |
+| Addendum in-house: input (BR-79, BR-86) | R (D) | R (D) | R (G) | C | - | - | R | R | R |
+| Addendum: approval bila nilai naik (BR-80) | - | - | - | - | - | - | A | A | R |
+| Addendum: penyesuaian action plan & estimasi (BR-82) | - | - | - | C | - | - | - | - | - |
 | Schedule, action plan, estimasi biaya | R (D) | R (D) | R (G) | C | - | R | R | R | R |
 | Progress mingguan | R (D) | R (D) | R (G) | C | - | - | R | R | R |
 | Upload actual cost | - | - | - | C | - | R | R | R | R |
-| BAPP: terbitkan | - | - | - | C | - | - | - | - | - |
-| BAPP: accept | - | A (D) | R (G) | R | - | A | A | R | R |
+| BAPP: terbitkan, cetak (BR-94) | - | - | - | C | - | - | - | - | - |
+| BAPP: accept (`dgo`: A, setara kolom fat) | - | A (D) | R (G) | R | - | A | A | R | R |
 | Survei: isi | - | C (D) | R (G) | R | - | - | R | R | R |
 | Dashboard dan Report | R (D) | R (D) | R (G) | R | - | R | R | R | R |
 | Master Data | - | - | - | C | - | - | R | R | C |
@@ -557,6 +596,7 @@ Urutan berdasarkan ketergantungan data. Setiap tahap dikerjakan dengan Claude Co
 | T3 | Feasibility, ubah kategori/sub-kategori (renumber), BOQ/Drawing, management approval (GM/Director) | 3.1, 3.9, BR-53, BR-54 | MVP |
 | T4 | In-house/Outsource, TOR, kontrak (Purchasing), schedule & action plan berbobot, estimasi biaya bulanan, site handover, **Input project berjalan** | 3.3, 9.3 | MVP |
 | T5 | Progress mingguan, upload actual cost per item (Excel + manual), status jadwal/biaya otomatis | 3.3, 4, 6.4, 8.1 | MVP |
+| T4-4 | Addendum kontrak (outsource) dan perubahan budget (in-house): input, approval bila naik, penyesuaian action plan & estimasi (revisi 17-11-2026) | 3.3.1, BR-78 s.d. BR-87 | MVP |
 | T6 | BAPP + approval BAPP, Project Closed, survei kepuasan | 3.4, 6.6 | MVP |
 | - | **Dashboard dasar**: kartu status per kategori, tabel project, Tugas Saya, filter Company/bulan; export Excel dari setiap list | 7.1, 8.1, 9.4 | MVP |
 | T7 | Emergency (warning 3 hari kerja) + Preventive manual | 3.2 | Fase 2 |

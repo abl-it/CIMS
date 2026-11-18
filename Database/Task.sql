@@ -19,7 +19,13 @@
          PROGRESS    : request IN_PROGRESS yang progress minggu berjalan (Senin s.d. Minggu) belum disimpan
                        -> role civil (pengingat input progress mingguan; T5-1, BR-16, BR-66). Hilang setelah
                        progress minggu itu disimpan. TaskSince = Senin minggu berjalan.
-       Urutan menjalankan: Task.sql SETELAH RequestProgress.sql (memakai ProjectProgressWeek dan fn_WeekStart).
+         ADDENDUM    : addendum berstatus FINAL_CONTRACT (outsource: upload kontrak final, BR-87) atau ADJUSTMENT
+                       (penyesuaian action plan + estimasi, BR-82) -> role civil (T4-4). TaskSince = saat langkah itu
+                       mulai. Approval addendum (nilai naik) muncul sebagai APPROVAL titik ADDENDUM.
+         BAPP        : project In Progress dengan semua action plan 100% + tanggal selesai aktual -> role civil
+                       (terbitkan BAPP; T6-1, BR-88). Approval BAPP muncul sebagai APPROVAL titik BAPP.
+       Urutan menjalankan: Task.sql SETELAH RequestProgress.sql (memakai ProjectProgressWeek dan fn_WeekStart)
+       dan SETELAH RequestAddendum.sql (memakai ProjectAddendum).
        Jenis lain (TOR -> purchasing, BAPP, survei) ditambah di modulnya (T4/T6).
      - TaskSince = sejak kapan tugas menunggu (StartedAt langkah, atau waktu status terakhir dari history).
        Tidak ada penanda overdue (BR-32).
@@ -136,6 +142,30 @@ RETURN
       AND   EXISTS (SELECT 1 FROM r WHERE r.RoleCode = N'civil')
       AND   pr.DepartmentID IN (SELECT DepartmentID FROM scope)
       AND   NOT EXISTS (SELECT 1 FROM dbo.ProjectProgressWeek w WHERE w.RequestId = pr.Id AND w.WeekStart = wk.WeekStart)
+
+    UNION ALL
+
+    -- T6-1: semua action plan 100% + selesai aktual saat In Progress -> civil terbitkan BAPP (BR-88)
+    SELECT  'BAPP', pr.Id, NULL,
+            (SELECT CAST(MAX(a.ActualEndDate) AS DATETIME2(3)) FROM dbo.ProjectActionPlan a WHERE a.RequestId = pr.Id)
+    FROM    dbo.ProjectRequest pr
+    WHERE   pr.Status = 'IN_PROGRESS'
+      AND   EXISTS (SELECT 1 FROM r WHERE r.RoleCode = N'civil')
+      AND   pr.DepartmentID IN (SELECT DepartmentID FROM scope)
+      AND   EXISTS (SELECT 1 FROM dbo.ProjectActionPlan a WHERE a.RequestId = pr.Id)
+      AND   NOT EXISTS (SELECT 1 FROM dbo.ProjectActionPlan a
+                        WHERE a.RequestId = pr.Id AND (a.ProgressPercent < 100 OR a.ActualEndDate IS NULL))
+
+    UNION ALL
+
+    -- Addendum berlaku -> civil: outsource upload kontrak final (BR-87), lalu penyesuaian action plan + estimasi (BR-82)
+    SELECT  'ADDENDUM', pr.Id, NULL, COALESCE(d.FinalUploadedAt, d.ApprovedAt, d.CreatedAt)
+    FROM    dbo.ProjectAddendum d
+            JOIN dbo.ProjectRequest pr ON pr.Id = d.RequestId
+    WHERE   d.Status IN ('FINAL_CONTRACT', 'ADJUSTMENT')
+      AND   pr.Status IN ('SCHEDULING', 'IN_PROGRESS')
+      AND   EXISTS (SELECT 1 FROM r WHERE r.RoleCode = N'civil')
+      AND   pr.DepartmentID IN (SELECT DepartmentID FROM scope)
 );
 GO
 
@@ -151,7 +181,7 @@ BEGIN
     SELECT  t.TaskType, COUNT(*) AS TaskCount
     FROM    dbo.fn_User_Tasks(@Username) t
     GROUP BY t.TaskType
-    ORDER BY CHARINDEX(',' + t.TaskType + ',', ',APPROVAL,REVISE,REJECTED,FEASIBILITY,DOC_PREPARATION,PLANNING,PROCUREMENT,SCHEDULING,PROGRESS,');
+    ORDER BY CHARINDEX(',' + t.TaskType + ',', ',APPROVAL,REVISE,REJECTED,FEASIBILITY,DOC_PREPARATION,PLANNING,PROCUREMENT,SCHEDULING,ADDENDUM,PROGRESS,BAPP,');
 END
 GO
 

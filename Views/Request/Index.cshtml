@@ -20,6 +20,7 @@
         if (!string.IsNullOrWhiteSpace(Model.Search)) d["search"] = Model.Search;
         if (!string.IsNullOrWhiteSpace(Model.Category)) d["category"] = Model.Category;
         if (!string.IsNullOrWhiteSpace(Model.Status)) d["status"] = Model.Status;
+        if (Model.AddendumOpen) d["addendum"] = "open";
         return d;
     }
 
@@ -103,6 +104,14 @@
             }
         </select>
     </div>
+    @* T4-4: follow up addendum yang masih terbuka (menunggu approval / penyesuaian) *@
+    <div class="col-12 col-md-auto">
+        <label for="addendum" class="form-label visually-hidden">Addendum</label>
+        <select id="addendum" name="addendum" class="form-select">
+            <option value="" selected="@(!Model.AddendumOpen)">All addenda</option>
+            <option value="open" selected="@Model.AddendumOpen">Addendum open</option>
+        </select>
+    </div>
     <div class="col-12 col-md-auto d-grid d-md-flex gap-2">
         <button type="submit" class="btn btn-primary"><i class="bi bi-search me-1" aria-hidden="true"></i>Search</button>
         <a asp-action="Index" class="btn btn-outline-secondary"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a>
@@ -148,7 +157,13 @@ else
                             </td>
                             <td class="d-none d-lg-table-cell cims-col-fit">@r.ABRV <span class="text-muted small">@r.CoCode</span></td>
                             <td class="d-none d-lg-table-cell cims-col-fit">@r.CreatedAt.ToString("dd MMM yyyy", culture)</td>
-                            <td class="cims-col-fit"><span class="badge @RequestStatus.BadgeClass(r.Status)">@RequestStatus.Label(r.Status)</span></td>
+                            <td class="cims-col-fit">
+                                <span class="badge @RequestStatus.BadgeClass(r.Status)">@RequestStatus.Label(r.Status)</span>
+                                @if (r.OpenAddendumStatus != null)
+                                {
+                                    <partial name="_OpenAddendumBadge" model="r" />
+                                }
+                            </td>
                             <td class="cims-col-fit text-end">
                                 <div class="d-inline-flex gap-1">
                                     <a asp-action="Details" asp-route-id="@r.Id" asp-route-returnUrl="@currentUrl" class="btn btn-outline-secondary cims-icon-btn"
@@ -186,7 +201,13 @@ else
                             <div class="fw-semibold">@r.Title</div>
                             <div class="text-muted small">Created @r.CreatedAt.ToString("dd MMM yyyy", culture)</div>
                         </div>
-                        <span class="badge @RequestStatus.BadgeClass(r.Status)">@RequestStatus.Label(r.Status)</span>
+                        <div class="text-end">
+                            <span class="badge @RequestStatus.BadgeClass(r.Status)">@RequestStatus.Label(r.Status)</span>
+                            @if (r.OpenAddendumStatus != null)
+                            {
+                                <partial name="_OpenAddendumBadge" model="r" />
+                            }
+                        </div>
                     </div>
                     <div class="row g-2 mt-2">
                         <div class="col"><a asp-action="Details" asp-route-id="@r.Id" asp-route-returnUrl="@currentUrl" class="btn btn-outline-secondary w-100">Details</a></div>

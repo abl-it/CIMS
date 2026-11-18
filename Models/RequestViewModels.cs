@@ -13,6 +13,11 @@ namespace CIMS.Models
         public string? Search { get; set; }
         public string? Category { get; set; }
         public string? Status { get; set; }
+
+        /// <summary>Filter follow up: "open" = hanya project dengan addendum terbuka (T4-4); null = semua.</summary>
+        public string? Addendum { get; set; }
+        public bool AddendumOpen => Addendum == "open";
+
         public string SortBy { get; set; } = "CreatedAt";
         public string SortDir { get; set; } = "DESC";
         public int Page { get; set; } = 1;
@@ -403,5 +408,44 @@ namespace CIMS.Models
 
         /// <summary>Saran satuan (master Unit aktif); hanya dimuat bila CanEnterActual.</summary>
         public IReadOnlyList<UnitOption> Units { get; set; } = Array.Empty<UnitOption>();
+
+        /// <summary>Addendum (T4-4), terbaru di atas; kosong bila tidak ada / tidak boleh melihat (BR-86).</summary>
+        public IReadOnlyList<ProjectAddendum> Addenda { get; set; } = Array.Empty<ProjectAddendum>();
+
+        /// <summary>Addendum yang masih terbuka (menunggu approval / penyesuaian); null = tidak ada.</summary>
+        public ProjectAddendum? OpenAddendum => Addenda.FirstOrDefault(a => a.IsOpen);
+
+        /// <summary>Boleh raise addendum baru (BR-78, BR-79): civil untuk outsource dan in-house; validasi akhir di SP.</summary>
+        public bool CanCreateAddendum { get; set; }
+
+        /// <summary>Aturan file raise (MD-09: ADDENDUM = draft kontrak / BOQ_REVISION); null bila CanCreateAddendum = false.</summary>
+        public AttachmentType? AddendumFileType { get; set; }
+
+        /// <summary>Civil dan addendum outsource FINAL_CONTRACT: upload kontrak final bertanda tangan (BR-87).</summary>
+        public bool CanUploadAddendumContract { get; set; }
+
+        /// <summary>Aturan file kontrak final (MD-09: ADDENDUM_FINAL); null bila CanUploadAddendumContract = false.</summary>
+        public AttachmentType? AddendumFinalFileType { get; set; }
+
+        /// <summary>Langkah approval addendum yang boleh diproses user ini (BR-80); null = tombol tidak tampil.</summary>
+        public ApprovalStepItem? AddendumActionableStep { get; set; }
+
+        /// <summary>Civil dan addendum berstatus ADJUSTMENT: form penyesuaian action plan + estimasi (BR-82).</summary>
+        public bool CanAdjustAddendum { get; set; }
+
+        /// <summary>BAPP per ronde (T6-1), terbaru di atas; kosong bila belum ada / tidak boleh melihat (5.2).</summary>
+        public IReadOnlyList<ProjectBapp> Bapps { get; set; } = Array.Empty<ProjectBapp>();
+
+        /// <summary>Civil dan status In Progress: upload lampiran BAPP dan terbitkan BAPP (BR-88); syarat dicek ulang di SP.</summary>
+        public bool CanIssueBapp { get; set; }
+
+        /// <summary>Semua action plan 100% dengan tanggal selesai aktual (syarat BR-88; untuk checklist).</summary>
+        public bool AllPlansComplete { get; set; }
+
+        /// <summary>Langkah approval BAPP yang boleh diproses user ini (form online per langkah); null = tidak ada.</summary>
+        public ApprovalStepItem? BappActionableStep { get; set; }
+
+        /// <summary>Civil dan status Closed / Survey Completed: cetak Berita Acara (BR-94).</summary>
+        public bool CanPrintBapp { get; set; }
     }
 }

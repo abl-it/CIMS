@@ -12,8 +12,9 @@ namespace CIMS.Controllers
     ///   purchasing = hanya request outsource (RL-06; difilter di SP lewat fn_User_OutsourceOnly).
     /// Lingkup data (departemen/Company) dibatasi di stored procedure (fn_AppUserAllowedDepartments).
     /// </summary>
+    // FAT (RL-05; Keputusan 18-11-2026): hanya lihat project In Progress ke atas (difilter di SP lewat fn_Request_VisibleToUser).
     [RoleAuthorize(CimsRoles.Adm, CimsRoles.Plan, CimsRoles.Spv, CimsRoles.Emp, CimsRoles.Kabag, CimsRoles.Mo,
-        CimsRoles.Civil, CimsRoles.Gm, CimsRoles.Director, CimsRoles.Administrator, CimsRoles.Purchasing)]
+        CimsRoles.Civil, CimsRoles.Gm, CimsRoles.Director, CimsRoles.Administrator, CimsRoles.Purchasing, CimsRoles.Fat, CimsRoles.Dgo)]
     public class RequestController : Controller
     {
         private static readonly string[] AllowedSortBy = { "CreatedAt", "RequestNo", "Title", "Category", "Status" };
@@ -42,11 +43,16 @@ namespace CIMS.Controllers
         private readonly IUserTaskService _taskService;
         private readonly IVendorService _vendorService;
         private readonly IUnitService _unitService;
+        private readonly IAddendumService _addendumService;
+        private readonly IBappService _bappService;
 
         public RequestController(IRequestService requestService, IRequestAttachmentService attachmentService,
             IRequestLookupService lookupService, ISubCategoryService subCategoryService, ICurrentUserService currentUserService,
-            IUserTaskService taskService, IVendorService vendorService, IUnitService unitService)
+            IUserTaskService taskService, IVendorService vendorService, IUnitService unitService, IAddendumService addendumService,
+            IBappService bappService)
         {
+            _addendumService = addendumService;
+            _bappService = bappService;
             _unitService = unitService;
             _vendorService = vendorService;
             _requestService = requestService;
@@ -67,7 +73,7 @@ namespace CIMS.Controllers
             if (query.Page < 1) query.Page = 1;
 
             var result = await _requestService.GetPagedAsync(query.CoCode, query.DepartmentId, query.Search, query.Category,
-                query.Status, query.SortBy, query.SortDir, query.Page, query.PageSize, ct);
+                query.Status, query.SortBy, query.SortDir, query.Page, query.PageSize, query.AddendumOpen, ct);
 
             // Halaman melebihi total -> arahkan ke halaman terakhir.
             if (result.TotalCount > 0 && query.Page > result.TotalPages)
@@ -79,6 +85,7 @@ namespace CIMS.Controllers
                     search = query.Search,
                     category = query.Category,
                     status = query.Status,
+                    addendum = query.Addendum,
                     sortBy = query.SortBy,
                     sortDir = query.SortDir,
                     page = result.TotalPages,
@@ -96,7 +103,7 @@ namespace CIMS.Controllers
         {
             await NormalizeListQueryAsync(query, ct);
             var result = await _requestService.GetPagedAsync(query.CoCode, query.DepartmentId, query.Search, query.Category,
-                query.Status, query.SortBy, query.SortDir, 1, 5000, ct);
+                query.Status, query.SortBy, query.SortDir, 1, 5000, query.AddendumOpen, ct);
 
             var columns = new List<ExcelExport.Column<RequestListItem>>
             {
@@ -108,6 +115,7 @@ namespace CIMS.Controllers
                 new("Department", x => x.ABRV ?? x.DeptName),
                 new("Requester", x => x.RequesterName),
                 new("Status", x => RequestStatus.Label(x.Status)),
+                new("Open addendum", x => x.OpenAddendumStatus == null ? null : $"{x.OpenAddendumCode} - {AddendumStatus.Label(x.OpenAddendumStatus)}"),
                 new("Target completion", x => x.TargetCompletionDate, "dd mmm yyyy"),
                 new("Budget expectation (IDR)", x => x.BudgetExpectation, "#,##0"),
                 new("Submitted", x => x.SubmittedAt, "dd mmm yyyy hh:mm"),
@@ -121,6 +129,7 @@ namespace CIMS.Controllers
                 dept != null ? "Department " + dept.DeptName : null,
                 query.Category != null ? "Category " + query.Category : null,
                 query.Status != null ? "Status " + RequestStatus.Label(query.Status) : null,
+                query.AddendumOpen ? "Addendum open" : null,
                 !string.IsNullOrWhiteSpace(query.Search) ? "Search \"" + query.Search + "\"" : null
             }.Where(s => s != null));
 
@@ -158,6 +167,7 @@ namespace CIMS.Controllers
                 c => string.Equals(c, query.Category, StringComparison.OrdinalIgnoreCase));
             query.Status = RequestStatus.All.Select(s => s.Key).FirstOrDefault(
                 s => string.Equals(s, query.Status, StringComparison.OrdinalIgnoreCase));
+            query.Addendum = string.Equals(query.Addendum, "open", StringComparison.OrdinalIgnoreCase) ? "open" : null;
             query.SortBy = AllowedSortBy.Contains(query.SortBy, StringComparer.OrdinalIgnoreCase)
                 ? AllowedSortBy.First(s => s.Equals(query.SortBy, StringComparison.OrdinalIgnoreCase))
                 : "CreatedAt";
@@ -189,12 +199,26 @@ namespace CIMS.Controllers
             // Planning oleh Civil (T4-1): TOR + In-house/Outsource. Procurement oleh Purchasing: kontrak.
             var canChooseExecution = request.Status == RequestStatus.Planning && isCivil;
             var canProcure = request.Status == RequestStatus.Procurement && CimsRoles.HasAny(AppUser, PurchasingRoles);
-            var canManageAttachments = canEdit || canDecideFeasibility || canPrepareDocuments || canChooseExecution || canProcure;
+            // T6-1: Civil saat In Progress mengunggah lampiran BAPP dan menerbitkan BAPP (BR-88)
+            var canIssueBapp = request.Status == RequestStatus.InProgress && isCivil;
+            var canManageAttachments = canEdit || canDecideFeasibility || canPrepareDocuments || canChooseExecution || canProcure
+                                       || canIssueBapp;
             var attachmentStage = canManageAttachments ? RequestAttachmentService.StageForStatus(request.Status) : null;
             var steps = await _requestService.GetApprovalStepsAsync(id, ct);
             var contract = await _requestService.GetContractAsync(id, ct);
+            // Addendum (T4-4): dimuat setelah cara eksekusi dipilih; hak lihat BR-86 di SP.
+            var addenda = request.ExecutionType != null
+                ? await _addendumService.GetByRequestAsync(id, ct)
+                : Array.Empty<ProjectAddendum>();
+            var openAddendum = addenda.FirstOrDefault(a => a.IsOpen);
+            var isScheduleStage = request.Status is RequestStatus.Scheduling or RequestStatus.InProgress;
+            // BR-79 (diubah 18-11-2026): addendum di-raise Civil (outsource dan in-house); satu addendum terbuka (BR-78).
+            // Purchasing hanya melihat (BR-86). SP memvalidasi ulang.
+            var canCreateAddendum = isScheduleStage && openAddendum == null && isCivil && request.ExecutionType != null;
+            // BR-87: outsource menunggu kontrak final bertanda tangan dari Civil
+            var canUploadAddendumContract = isScheduleStage && isCivil && openAddendum?.Status == AddendumStatus.FinalContract;
             // Schedule (T4-2): Civil mengubah saat Scheduling / In Progress; handover hanya saat Scheduling.
-            var canEditSchedule = isCivil && request.Status is RequestStatus.Scheduling or RequestStatus.InProgress;
+            var canEditSchedule = isCivil && isScheduleStage;
             var schedule = request.Status is RequestStatus.Scheduling or RequestStatus.InProgress or RequestStatus.BappReview
                     or RequestStatus.Closed or RequestStatus.SurveyCompleted
                 ? await _requestService.GetScheduleAsync(id, ct)
@@ -234,6 +258,14 @@ namespace CIMS.Controllers
                 actualMonth = await _requestService.GetActualMonthAsync(id, monthDate, ct);
             }
 
+            // Langkah approval aktif user: titik ADDENDUM diproses di kartu Addendum (usp_Addendum_ApprovalAct),
+            // titik lain di panel approval biasa (usp_Request_ApprovalAct).
+            var actionableStep = await _requestService.GetActionableStepAsync(id, ct);
+            var addendumStep = actionableStep?.Point == "ADDENDUM" ? actionableStep : null;
+            // T6-1: langkah BAPP diproses di kartu BAPP (form online per langkah, usp_Bapp_ApprovalAct)
+            var bappStep = actionableStep?.Point == "BAPP" ? actionableStep : null;
+            if (addendumStep != null || bappStep != null) actionableStep = null;
+
             return View(new RequestDetailsViewModel
             {
                 Request = request,
@@ -250,8 +282,10 @@ namespace CIMS.Controllers
                 Contract = contract,
                 Vendors = canProcure ? await _vendorService.GetActiveAsync(contract?.VendorId, ct) : Array.Empty<VendorOption>(),
                 Schedule = schedule,
-                CanEditSchedule = canEditSchedule && schedule != null,
-                CanHandover = canEditSchedule && schedule != null && request.Status == RequestStatus.Scheduling,
+                // BR-81: selama addendum terbuka perubahan schedule/estimasi biasa dikunci (SP juga menolak)
+                CanEditSchedule = canEditSchedule && schedule != null && openAddendum == null,
+                // Handover diblok selama addendum terbuka (Keputusan 18-11-2026; SP juga menolak)
+                CanHandover = canEditSchedule && schedule != null && request.Status == RequestStatus.Scheduling && openAddendum == null,
                 Progress = progress,
                 CanEnterProgress = canEnterProgress,
                 ProgressWeek = progressWeek,
@@ -267,8 +301,225 @@ namespace CIMS.Controllers
                 CanCancel = isRequester && RequestStatus.IsCancellable(request.Status)
                             && !steps.Any(s => s.Point == "MGMT" && s.Status == "APPROVED"),
                 // Hak approve dari langkah workflow (fn_User_ActionableSteps), bukan dari role saja
-                ActionableStep = await _requestService.GetActionableStepAsync(id, ct)
+                ActionableStep = actionableStep,
+                Addenda = addenda,
+                CanCreateAddendum = canCreateAddendum,
+                AddendumFileType = canCreateAddendum ? await _addendumService.GetFileTypeAsync(request.ExecutionType, ct) : null,
+                CanUploadAddendumContract = canUploadAddendumContract,
+                AddendumFinalFileType = canUploadAddendumContract ? await _addendumService.GetFinalFileTypeAsync(ct) : null,
+                AddendumActionableStep = addendumStep,
+                CanAdjustAddendum = canEditSchedule && schedule != null && openAddendum?.Status == AddendumStatus.Adjustment,
+                // T6-1: BAPP (lihat dibatasi di SP sesuai 5.2)
+                Bapps = request.Status is RequestStatus.InProgress or RequestStatus.BappReview or RequestStatus.Closed
+                        or RequestStatus.SurveyCompleted
+                    ? await _bappService.GetByRequestAsync(id, ct)
+                    : Array.Empty<ProjectBapp>(),
+                CanIssueBapp = canIssueBapp,
+                BappActionableStep = bappStep,
+                CanPrintBapp = isCivil && request.Status is RequestStatus.Closed or RequestStatus.SurveyCompleted,
+                AllPlansComplete = schedule != null && schedule.ActionPlans.Count > 0
+                                   && schedule.ActionPlans.All(a => a.ProgressPercent >= 100 && a.ActualEndDate.HasValue)
             });
+        }
+
+        /// <summary>
+        /// Raise addendum oleh Civil (T4-4; BR-78, BR-79, diubah 18-11-2026): outsource = nilai kontrak baru + draft kontrak,
+        /// in-house = nilai BOQ baru + BOQ revisi. Nilai naik -> menunggu approval (BR-80).
+        /// </summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [RoleAuthorize(CimsRoles.Civil)]
+        [RequestSizeLimit(UploadBodyLimit)]
+        [RequestFormLimits(MultipartBodyLengthLimit = UploadBodyLimit)]
+        public async Task<IActionResult> CreateAddendum(int id, AddendumInput input, IFormFile? file, string? returnUrl,
+            CancellationToken ct)
+        {
+            returnUrl = LocalOrNull(returnUrl);
+            return await RunActionAsync(id, returnUrl, async () =>
+            {
+                var result = await _addendumService.CreateAsync(id, input, file, ct);
+                var code = result.AddendumCode ?? $"{result.AddendumNo}";
+                TempData["Success"] = result.Status switch
+                {
+                    AddendumStatus.PendingApproval => $"Addendum {code} saved and sent for approval.",
+                    AddendumStatus.FinalContract => $"Addendum {code} saved. Upload the signed contract to continue.",
+                    _ => $"Addendum {code} saved. You can now adjust the action plans and cost estimate."
+                };
+            });
+        }
+
+        /// <summary>Upload kontrak final bertanda tangan addendum outsource oleh Civil (T4-4; BR-87): lanjut ke penyesuaian.</summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [RoleAuthorize(CimsRoles.Civil)]
+        [RequestSizeLimit(UploadBodyLimit)]
+        [RequestFormLimits(MultipartBodyLengthLimit = UploadBodyLimit)]
+        public async Task<IActionResult> UploadAddendumContract(int id, int addendumId, IFormFile? file, string? remarks,
+            string? returnUrl, CancellationToken ct)
+        {
+            returnUrl = LocalOrNull(returnUrl);
+            return await RunActionAsync(id, returnUrl, async () =>
+            {
+                await _addendumService.UploadFinalContractAsync(id, addendumId, file, remarks, ct);
+                TempData["Success"] = "Signed contract uploaded. You can now adjust the action plans and cost estimate.";
+            });
+        }
+
+        /// <summary>
+        /// Approve / Reject addendum (T4-4; BR-80). Hak sebenarnya dari snapshot langkah titik ADDENDUM
+        /// (default GM ABL / Director NKM, dari tabel workflow), diperiksa di SP.
+        /// </summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [RoleAuthorize(CimsRoles.Kabag, CimsRoles.Mo, CimsRoles.Gm, CimsRoles.Director)]
+        public async Task<IActionResult> AddendumApprovalAct(int id, int addendumId, int stepId, string? approvalAction,
+            string? remarks, string? returnUrl, CancellationToken ct)
+        {
+            returnUrl = LocalOrNull(returnUrl);
+            if (approvalAction is not (ApprovalAction.Approve or ApprovalAction.Reject))
+            {
+                TempData["Error"] = "Invalid approval action.";
+                return RedirectToAction(nameof(Details), new { id, returnUrl });
+            }
+
+            return await RunActionAsync(id, returnUrl, async () =>
+            {
+                var status = await _addendumService.ApprovalActAsync(addendumId, stepId, approvalAction, remarks, ct);
+                TempData["Success"] = approvalAction == ApprovalAction.Reject
+                    ? "Addendum rejected. The previous value remains in effect."
+                    : $"Addendum approved. Status: {AddendumStatus.Label(status)}.";
+            });
+        }
+
+        /// <summary>
+        /// Penyesuaian addendum oleh Civil (T4-4; BR-82 s.d. BR-85): action plan + estimasi dalam satu simpan;
+        /// total bobot 100% dan total estimasi = nilai baru; plan cost menjadi nilai baru.
+        /// </summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [RoleAuthorize(CimsRoles.Civil)]
+        public async Task<IActionResult> SaveAddendumAdjustment(int id, int addendumId, DateTime? projectStartDate,
+            List<ActionPlanInput>? actionPlans, List<CostEstimateInput>? estimates, string? remarks, string? returnUrl,
+            CancellationToken ct)
+        {
+            returnUrl = LocalOrNull(returnUrl);
+            if (projectStartDate == null)
+            {
+                TempData["Error"] = "Project start date is required.";
+                return RedirectToAction(nameof(Details), new { id, returnUrl });
+            }
+
+            var error = TryParseEstimates(estimates, out var rows);
+            if (error != null)
+            {
+                TempData["Error"] = error;
+                return RedirectToAction(nameof(Details), new { id, returnUrl });
+            }
+
+            return await RunActionAsync(id, returnUrl, async () =>
+            {
+                await _addendumService.SaveAdjustmentAsync(addendumId, projectStartDate.Value, NonEmptyPlans(actionPlans),
+                    rows, remarks, ct);
+                TempData["Success"] = "Addendum adjustment saved. The new value is now the plan cost.";
+            });
+        }
+
+        /// <summary>Terbitkan BAPP oleh Civil (T6-1; BR-88): In Progress -> BAPP Review, langkah approval di-snapshot.</summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [RoleAuthorize(CimsRoles.Civil)]
+        public async Task<IActionResult> IssueBapp(int id, BappInput input, string? returnUrl, CancellationToken ct)
+        {
+            returnUrl = LocalOrNull(returnUrl);
+            if (input.BappDate == null)
+            {
+                TempData["Error"] = "BAPP date is required.";
+                return RedirectToAction(nameof(Details), new { id, returnUrl });
+            }
+
+            return await RunActionAsync(id, returnUrl, async () =>
+            {
+                var (status, bappNo) = await _bappService.IssueAsync(id, input, ct);
+                TempData["Success"] = $"BAPP {bappNo} issued. Status: {RequestStatus.Label(status)}.";
+            });
+        }
+
+        /// <summary>
+        /// Accept / No langkah BAPP online (T6-1; BR-89, BR-93): Kabag isi hasil pemeriksaan, FAT konfirmasi tidak ada
+        /// outstanding, DGO konfirmasi status CLOSED. Hak dan aturan per langkah diperiksa di SP (snapshot workflow).
+        /// </summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [RoleAuthorize(CimsRoles.Kabag, CimsRoles.Fat, CimsRoles.Dgo, CimsRoles.Gm, CimsRoles.Director)]
+        public async Task<IActionResult> BappApprovalAct(int id, int stepId, string? approvalAction, string? remarks,
+            BappApprovalInput input, string? returnUrl, CancellationToken ct)
+        {
+            returnUrl = LocalOrNull(returnUrl);
+            if (approvalAction is not (ApprovalAction.Approve or ApprovalAction.Revise))
+            {
+                TempData["Error"] = "Invalid approval action.";
+                return RedirectToAction(nameof(Details), new { id, returnUrl });
+            }
+
+            return await RunActionAsync(id, returnUrl, async () =>
+            {
+                var status = await _bappService.ApprovalActAsync(id, stepId, approvalAction, remarks, input, ct);
+                TempData["Success"] = status switch
+                {
+                    RequestStatus.Closed => "BAPP accepted. The project is now closed.",
+                    RequestStatus.InProgress => "BAPP returned to Civil.",
+                    _ => "BAPP accepted. Waiting for the next approval step."
+                };
+            });
+        }
+
+        /// <summary>Cetak Berita Acara (T6-1; BR-94): Civil, setelah Closed. Halaman A4 untuk Print / Save as PDF.</summary>
+        [HttpGet]
+        [RoleAuthorize(CimsRoles.Civil)]
+        public async Task<IActionResult> PrintBapp(int id, CancellationToken ct)
+        {
+            var model = await _bappService.GetPrintDataAsync(id, ct);
+            if (model == null) return NotFound();
+            return View(model);
+        }
+
+        /// <summary>Unduh dokumen addendum: kind=final = kontrak final, selain itu file saat raise (hak lihat BR-86 di SP).</summary>
+        [HttpGet]
+        public async Task<IActionResult> DownloadAddendum(int id, string? kind, CancellationToken ct)
+        {
+            var final = string.Equals(kind, "final", StringComparison.OrdinalIgnoreCase);
+            var found = await _addendumService.GetForDownloadAsync(id, final, ct);
+            if (found == null) return NotFound();
+
+            var (file, fullPath) = found.Value;
+            return PhysicalFile(fullPath, file.ContentType, file.OriginalFileName);
+        }
+
+        /// <summary>Baris action plan yang kosong total (belum diisi sama sekali) diabaikan; sisanya divalidasi SP.</summary>
+        private static List<ActionPlanInput> NonEmptyPlans(List<ActionPlanInput>? actionPlans) =>
+            (actionPlans ?? new List<ActionPlanInput>())
+                .Where(a => a.Id > 0 || !string.IsNullOrWhiteSpace(a.Name) || a.WeightPercent.HasValue
+                            || a.PlanStartDate.HasValue || a.PlanEndDate.HasValue)
+                .ToList();
+
+        /// <summary>Estimasi dari form (bulan "yyyy-MM"); baris kosong diabaikan. Mengembalikan pesan error atau null.</summary>
+        private static string? TryParseEstimates(List<CostEstimateInput>? estimates, out List<(DateTime Month, decimal Amount)> rows)
+        {
+            rows = new List<(DateTime Month, decimal Amount)>();
+            var rowNo = 0;
+            foreach (var e in estimates ?? new List<CostEstimateInput>())
+            {
+                rowNo++;
+                if (string.IsNullOrWhiteSpace(e.Month) && e.Amount == null) continue;   // baris kosong
+                if (!DateTime.TryParseExact(e.Month, "yyyy-MM", System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.None, out var month))
+                    return $"Cost estimate row {rowNo}: month is required.";
+                if (e.Amount is null or <= 0)
+                    return $"Cost estimate row {rowNo}: amount must be greater than 0.";
+                rows.Add((month, e.Amount.Value));
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -564,11 +815,7 @@ namespace CIMS.Controllers
                 return RedirectToAction(nameof(Details), new { id, returnUrl });
             }
 
-            // Baris kosong total (belum diisi sama sekali) diabaikan; sisanya divalidasi SP.
-            var plans = (actionPlans ?? new List<ActionPlanInput>())
-                .Where(a => a.Id > 0 || !string.IsNullOrWhiteSpace(a.Name) || a.WeightPercent.HasValue
-                            || a.PlanStartDate.HasValue || a.PlanEndDate.HasValue)
-                .ToList();
+            var plans = NonEmptyPlans(actionPlans);
 
             return await RunActionAsync(id, returnUrl, async () =>
             {
@@ -585,24 +832,11 @@ namespace CIMS.Controllers
             string? returnUrl, CancellationToken ct)
         {
             returnUrl = LocalOrNull(returnUrl);
-            var rows = new List<(DateTime Month, decimal Amount)>();
-            var rowNo = 0;
-            foreach (var e in estimates ?? new List<CostEstimateInput>())
+            var error = TryParseEstimates(estimates, out var rows);
+            if (error != null)
             {
-                rowNo++;
-                if (string.IsNullOrWhiteSpace(e.Month) && e.Amount == null) continue;   // baris kosong
-                if (!DateTime.TryParseExact(e.Month, "yyyy-MM", System.Globalization.CultureInfo.InvariantCulture,
-                        System.Globalization.DateTimeStyles.None, out var month))
-                {
-                    TempData["Error"] = $"Cost estimate row {rowNo}: month is required.";
-                    return RedirectToAction(nameof(Details), new { id, returnUrl });
-                }
-                if (e.Amount is null or <= 0)
-                {
-                    TempData["Error"] = $"Cost estimate row {rowNo}: amount must be greater than 0.";
-                    return RedirectToAction(nameof(Details), new { id, returnUrl });
-                }
-                rows.Add((month, e.Amount.Value));
+                TempData["Error"] = error;
+                return RedirectToAction(nameof(Details), new { id, returnUrl });
             }
 
             return await RunActionAsync(id, returnUrl, async () =>
@@ -949,7 +1183,8 @@ namespace CIMS.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            return RedirectToAction(nameof(Details), new { id, returnUrl });
+            // Kembali ke kartu Attachments (upload/hapus beberapa file tanpa menggulir lagi)
+            return RedirectToAction(nameof(Details), null, new { id, returnUrl }, "attachments");
         }
 
         [HttpPost]
@@ -972,7 +1207,8 @@ namespace CIMS.Controllers
                 TempData["Error"] = ex.Message;
             }
 
-            return RedirectToAction(nameof(Details), new { id, returnUrl });
+            // Kembali ke kartu Attachments (upload/hapus beberapa file tanpa menggulir lagi)
+            return RedirectToAction(nameof(Details), null, new { id, returnUrl }, "attachments");
         }
 
         [HttpGet]

@@ -66,7 +66,7 @@ BEGIN
     (
         Id                   INT IDENTITY(1,1) NOT NULL,
         CoCode               VARCHAR(10)   NOT NULL,
-        [Point]              VARCHAR(10)   NOT NULL,   -- REQUEST | MGMT | BAPP
+        [Point]              VARCHAR(10)   NOT NULL,   -- REQUEST | MGMT | BAPP | ADDENDUM
         StepOrder            INT           NOT NULL,
         RoleCode             VARCHAR(50)   NOT NULL,   -- sesuai dbo.HierarchyLevel.Role
         Scope                VARCHAR(10)   NOT NULL,   -- DEPT | GROUP | PLANT
@@ -82,7 +82,7 @@ BEGIN
         CONSTRAINT PK_WorkflowStep        PRIMARY KEY CLUSTERED (Id),
         CONSTRAINT UQ_WorkflowStep_Order  UNIQUE (CoCode, [Point], StepOrder),
         CONSTRAINT CK_WorkflowStep_CoCode   CHECK (CoCode IN ('ABL', 'NKM')),
-        CONSTRAINT CK_WorkflowStep_Point    CHECK ([Point] IN ('REQUEST', 'MGMT', 'BAPP')),
+        CONSTRAINT CK_WorkflowStep_Point    CHECK ([Point] IN ('REQUEST', 'MGMT', 'BAPP', 'ADDENDUM')),   -- ADDENDUM: T4-4 (seed di RequestAddendum.sql)
         CONSTRAINT CK_WorkflowStep_Scope    CHECK (Scope IN ('DEPT', 'GROUP', 'PLANT')),
         CONSTRAINT CK_WorkflowStep_Category CHECK (Category IS NULL OR Category IN ('CAPEX', 'OPEX', 'LVE')),
         CONSTRAINT CK_WorkflowStep_ReviseTo CHECK (ReviseTo IS NULL OR ReviseTo IN ('REQUESTER', 'CIVIL'))

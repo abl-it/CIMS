@@ -433,6 +433,12 @@
     </div>
 }
 
+@* Survei kepuasan (T6-2; BR-91): kirim (Civil), isi (Kabag departemen peminta), hasil *@
+@if (Model.Survey != null || Model.CanSendSurvey)
+{
+    <partial name="_SurveyCard" model="Model" />
+}
+
 @* BAPP (T6-1; BR-88, BR-89): terbit, ronde, alasan No *@
 @if (Model.Bapps.Any() || Model.CanIssueBapp)
 {

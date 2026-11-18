@@ -58,6 +58,7 @@ builder.Services.AddScoped<IRequestAttachmentService, RequestAttachmentService>(
 builder.Services.AddScoped<IAddendumService, AddendumService>();
 builder.Services.AddScoped<IBappService, BappService>();
 builder.Services.AddScoped<IActualFileService, ActualFileService>();
+builder.Services.AddScoped<ISurveyService, SurveyService>();
 builder.Services.AddScoped<IUserTaskService, UserTaskService>();
 
 var app = builder.Build();

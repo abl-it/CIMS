@@ -19,8 +19,14 @@ namespace CIMS.Models
         /// <summary>Semua action plan 100%: Civil menerbitkan BAPP (T6-1, BR-88).</summary>
         public const string Bapp = "BAPP";
 
+        /// <summary>Project Closed tanpa survei: Civil mengirim survei (T6-2, BR-91).</summary>
+        public const string SurveySend = "SURVEY_SEND";
+
+        /// <summary>Survei terkirim: Kabag departemen peminta mengisi (T6-2, BR-24, BR-49).</summary>
+        public const string Survey = "SURVEY";
+
         /// <summary>Urutan tampil (sama dengan usp_Task_GetSummary).</summary>
-        public static readonly string[] All = { Approval, Revise, Rejected, Feasibility, DocPreparation, Planning, Procurement, Scheduling, Addendum, Progress, Bapp };
+        public static readonly string[] All = { Approval, Revise, Rejected, Feasibility, DocPreparation, Planning, Procurement, Scheduling, Addendum, Progress, Bapp, SurveySend, Survey };
 
         public static bool IsValid(string? code) => code != null && All.Contains(code);
 
@@ -37,6 +43,8 @@ namespace CIMS.Models
             Progress => "Weekly progress",
             Addendum => "Addendum (signed contract / adjustment)",
             Bapp => "Issue BAPP",
+            SurveySend => "Send survey",
+            Survey => "Fill survey",
             _ => code ?? string.Empty
         };
 
@@ -49,6 +57,8 @@ namespace CIMS.Models
             Progress => "Update",
             Addendum => "Adjust",
             Bapp => "Issue",
+            SurveySend => "Send",
+            Survey => "Fill",
             _ => "Open"
         };
 
@@ -65,6 +75,8 @@ namespace CIMS.Models
             Progress => "bi-graph-up-arrow",
             Addendum => "bi-file-earmark-diff",
             Bapp => "bi-clipboard2-check",
+            SurveySend => "bi-send",
+            Survey => "bi-star",
             _ => "bi-list-task"
         };
     }

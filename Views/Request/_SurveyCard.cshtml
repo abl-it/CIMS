@@ -1,0 +1,123 @@
+@model RequestDetailsViewModel
+@{
+    // Survei kepuasan setelah Closed (T6-2; PRD 3.4 langkah 7, BR-24, BR-48, BR-49, BR-91). Lihat dibatasi di SP (5.2);
+    // kirim (Civil) dan isi (Kabag departemen peminta) divalidasi ulang di SP.
+    var r = Model.Request;
+    var s = Model.Survey;
+    var returnUrl = ViewData["ReturnUrl"] as string;
+    var culture = System.Globalization.CultureInfo.InvariantCulture;
+    var canFill = s?.CanFill == true;
+    string Who(string? name, string? user) => string.IsNullOrEmpty(name) ? user ?? "-" : name;
+}
+
+<div class="card mb-3 cims-anchor @(Model.CanSendSurvey || canFill ? "border-info" : "")" id="survey">
+    <div class="card-header fw-semibold d-flex flex-wrap align-items-center gap-2">
+        <span><i class="bi bi-emoji-smile me-1" aria-hidden="true"></i>User satisfaction survey</span>
+        <span class="badge @SurveyStatus.BadgeClass(s?.Status ?? SurveyStatus.NotSent)">@SurveyStatus.Label(s?.Status ?? SurveyStatus.NotSent)</span>
+        @if (s?.ScorePercent != null)
+        {
+            <span class="badge text-bg-primary">Score @s.ScorePercent.Value.ToString("0.##", culture)%</span>
+        }
+    </div>
+    <div class="card-body">
+
+        @* --- Kirim survei (Civil, Closed; BR-91) --- *@
+        @if (Model.CanSendSurvey)
+        {
+            <p class="mb-2">
+                The project is closed. Send the satisfaction survey to the department head of
+                <span class="fw-semibold">@(r.ABRV ?? r.DeptName)</span> (@r.CoCode).
+                The active survey items for category @r.Category are used.
+            </p>
+            <form asp-action="SendSurvey" method="post" class="d-grid d-md-flex justify-content-md-end"
+                  data-confirm="Send the survey to the requesting department head?" data-confirm-title="Send Survey" data-confirm-ok="Send">
+                <input type="hidden" name="id" value="@r.Id" />
+                <input type="hidden" name="returnUrl" value="@returnUrl" />
+                <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-send me-1" aria-hidden="true"></i>Send survey</button>
+            </form>
+        }
+
+        @if (s != null)
+        {
+            <dl class="row mb-2 request-detail small">
+                <div class="col-12 col-md-6 cims-detail-item">
+                    <dt>Sent</dt>
+                    <dd>@Who(s.SentByName, s.SentBy) · @s.SentAt.ToString("dd MMM yyyy HH:mm", culture)</dd>
+                </div>
+                <div class="col-12 col-md-6 cims-detail-item">
+                    <dt>Submitted</dt>
+                    <dd>@(s.SubmittedAt.HasValue ? Who(s.SubmittedByName, s.SubmittedBy) + " · " + s.SubmittedAt.Value.ToString("dd MMM yyyy HH:mm", culture) : "Waiting for the department head")</dd>
+                </div>
+            </dl>
+
+            @if (canFill)
+            {
+                @* --- Isi survei (Kabag departemen peminta; BR-24, BR-49): semua item 1-10, submit final --- *@
+                <form asp-action="SubmitSurvey" method="post" id="surveyForm"
+                      data-confirm="Submit the survey? It cannot be changed afterwards." data-confirm-title="Submit Survey" data-confirm-ok="Submit">
+                    <input type="hidden" name="id" value="@r.Id" />
+                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                    <p class="small text-muted mb-2">Rate every item from 1 (very poor) to 10 (excellent).</p>
+                    @for (var i = 0; i < s.Items.Count; i++)
+                    {
+                        var item = s.Items[i];
+                        <div class="row g-2 align-items-center cims-plan-row">
+                            <input type="hidden" name="scores[@i].Id" value="@item.Id" />
+                            <div class="col-12 col-md">
+                                <label for="surveyScore@(item.Id)" class="form-label mb-0">@item.SortOrder. @item.ItemText</label>
+                            </div>
+                            <div class="col-12 col-md-3 col-lg-2">
+                                <select id="surveyScore@(item.Id)" name="scores[@i].Score" class="form-select" required>
+                                    <option value="">Score…</option>
+                                    @for (var v = 10; v >= 1; v--)
+                                    {
+                                        <option value="@v">@v</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                    }
+                    <div class="my-3">
+                        <label for="surveyNote" class="form-label">Note for Civil (optional)</label>
+                        <textarea id="surveyNote" name="noteForCivil" class="form-control" rows="3" maxlength="2000"></textarea>
+                    </div>
+                    <div class="d-grid d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-success btn-lg"><i class="bi bi-check2-circle me-1" aria-hidden="true"></i>Submit survey</button>
+                    </div>
+                </form>
+            }
+            else
+            {
+                @* --- Hasil / item survei (baca saja) --- *@
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-2">
+                        <thead>
+                            <tr>
+                                <th scope="col" class="cims-col-fit">#</th>
+                                <th scope="col">Item</th>
+                                <th scope="col" class="cims-col-fit text-end">Score</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in s.Items)
+                            {
+                                <tr>
+                                    <td>@item.SortOrder</td>
+                                    <td class="request-text">@item.ItemText</td>
+                                    <td class="text-end">@(item.Score?.ToString(culture) ?? "-")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                @if (!string.IsNullOrEmpty(s.NoteForCivil))
+                {
+                    <div class="small">
+                        <span class="fw-semibold">Note for Civil:</span>
+                        <span class="request-text">@s.NoteForCivil</span>
+                    </div>
+                }
+            }
+        }
+    </div>
+</div>

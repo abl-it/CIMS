@@ -462,6 +462,8 @@ namespace CIMS.Models
             "ADDENDUM" => "Addendum entered",
             "ADDENDUM_CONTRACT" => "Signed contract uploaded",
             "ADDENDUM_ADJUST" => "Addendum completed",
+            "SURVEY_SEND" => "Survey sent",
+            "SURVEY_SUBMIT" => "Survey submitted",
             _ => Action
         };
 
@@ -491,6 +493,8 @@ namespace CIMS.Models
             "ADDENDUM_CONTRACT" => "bi-file-earmark-lock",
             "BAPP_ISSUE" => "bi-clipboard2-check",
             "ADDENDUM_ADJUST" => "bi-file-earmark-check",
+            "SURVEY_SEND" => "bi-send",
+            "SURVEY_SUBMIT" => "bi-star",
             _ => "bi-dot"
         };
 
@@ -503,6 +507,8 @@ namespace CIMS.Models
             "ADDENDUM_ADJUST" => "text-bg-success",
             "ADDENDUM_CONTRACT" => "text-bg-primary",
             "BAPP_ISSUE" => "text-bg-primary",
+            "SURVEY_SEND" => "text-bg-primary",
+            "SURVEY_SUBMIT" => "text-bg-success",
             "REJECT" => "text-bg-danger",
             "CATEGORY_CHANGE" or "BOQ_TOTAL" or "MIGRATION" or "OUTSIDE_APPROVAL" or "ACTUAL_COST" => "text-bg-info",
             _ => "text-bg-secondary"

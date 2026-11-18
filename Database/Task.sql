@@ -24,7 +24,9 @@
                        mulai. Approval addendum (nilai naik) muncul sebagai APPROVAL titik ADDENDUM.
          BAPP        : project In Progress dengan semua action plan 100% + tanggal selesai aktual -> role civil
                        (terbitkan BAPP; T6-1, BR-88). Approval BAPP muncul sebagai APPROVAL titik BAPP.
-       Urutan menjalankan: Task.sql SETELAH RequestProgress.sql (memakai ProjectProgressWeek dan fn_WeekStart)
+         SURVEY_SEND : project Closed yang belum dikirim survei -> role civil (T6-2, BR-91).
+         SURVEY      : survei terkirim -> kabag ABRV + Company departemen peminta (fn_User_CanFillSurvey; T6-2).
+       Urutan menjalankan: Task.sql SETELAH RequestProgress.sql, RequestAddendum.sql, RequestSurvey.sql, (memakai ProjectProgressWeek dan fn_WeekStart)
        dan SETELAH RequestAddendum.sql (memakai ProjectAddendum).
        Jenis lain (TOR -> purchasing, BAPP, survei) ditambah di modulnya (T4/T6).
      - TaskSince = sejak kapan tugas menunggu (StartedAt langkah, atau waktu status terakhir dari history).
@@ -158,6 +160,27 @@ RETURN
 
     UNION ALL
 
+    -- T6-2: project Closed belum dikirim survei -> civil 'Send survey' (BR-91)
+    SELECT  'SURVEY_SEND', pr.Id, NULL,
+            (SELECT MAX(h.ActionAt) FROM dbo.ApprovalHistory h WHERE h.RequestId = pr.Id AND h.ToStatus = 'CLOSED')
+    FROM    dbo.ProjectRequest pr
+    WHERE   pr.Status = 'CLOSED'
+      AND   EXISTS (SELECT 1 FROM r WHERE r.RoleCode = N'civil')
+      AND   pr.DepartmentID IN (SELECT DepartmentID FROM scope)
+      AND   NOT EXISTS (SELECT 1 FROM dbo.ProjectSurvey s WHERE s.RequestId = pr.Id)
+
+    UNION ALL
+
+    -- T6-2: survei terkirim -> kabag departemen peminta 'Fill survey' (BR-91, BR-24)
+    SELECT  'SURVEY', pr.Id, NULL, s.SentAt
+    FROM    dbo.ProjectSurvey s
+            JOIN dbo.ProjectRequest pr ON pr.Id = s.RequestId
+    WHERE   s.Status = 'SENT' AND pr.Status = 'CLOSED'
+      AND   pr.DepartmentID IN (SELECT DepartmentID FROM scope)
+      AND   EXISTS (SELECT 1 FROM dbo.fn_User_CanFillSurvey(pr.Id, @Username))
+
+    UNION ALL
+
     -- Addendum berlaku -> civil: outsource upload kontrak final (BR-87), lalu penyesuaian action plan + estimasi (BR-82)
     SELECT  'ADDENDUM', pr.Id, NULL, COALESCE(d.FinalUploadedAt, d.ApprovedAt, d.CreatedAt)
     FROM    dbo.ProjectAddendum d
@@ -181,7 +204,7 @@ BEGIN
     SELECT  t.TaskType, COUNT(*) AS TaskCount
     FROM    dbo.fn_User_Tasks(@Username) t
     GROUP BY t.TaskType
-    ORDER BY CHARINDEX(',' + t.TaskType + ',', ',APPROVAL,REVISE,REJECTED,FEASIBILITY,DOC_PREPARATION,PLANNING,PROCUREMENT,SCHEDULING,ADDENDUM,PROGRESS,BAPP,');
+    ORDER BY CHARINDEX(',' + t.TaskType + ',', ',APPROVAL,REVISE,REJECTED,FEASIBILITY,DOC_PREPARATION,PLANNING,PROCUREMENT,SCHEDULING,ADDENDUM,PROGRESS,BAPP,SURVEY_SEND,SURVEY,');
 END
 GO
 

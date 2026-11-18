@@ -447,5 +447,11 @@ namespace CIMS.Models
 
         /// <summary>Civil dan status Closed / Survey Completed: cetak Berita Acara (BR-94).</summary>
         public bool CanPrintBapp { get; set; }
+
+        /// <summary>Survei kepuasan (T6-2); null bila belum dikirim atau user tidak boleh melihat (5.2).</summary>
+        public ProjectSurvey? Survey { get; set; }
+
+        /// <summary>Civil, status Closed, survei belum dikirim: tombol Send survey (BR-91).</summary>
+        public bool CanSendSurvey { get; set; }
     }
 }

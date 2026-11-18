@@ -46,13 +46,15 @@ namespace CIMS.Controllers
         private readonly IAddendumService _addendumService;
         private readonly IBappService _bappService;
         private readonly IActualFileService _actualFileService;
+        private readonly ISurveyService _surveyService;
 
         public RequestController(IRequestService requestService, IRequestAttachmentService attachmentService,
             IRequestLookupService lookupService, ISubCategoryService subCategoryService, ICurrentUserService currentUserService,
             IUserTaskService taskService, IVendorService vendorService, IUnitService unitService, IAddendumService addendumService,
-            IBappService bappService, IActualFileService actualFileService)
+            IBappService bappService, IActualFileService actualFileService, ISurveyService surveyService)
         {
             _actualFileService = actualFileService;
+            _surveyService = surveyService;
             _addendumService = addendumService;
             _bappService = bappService;
             _unitService = unitService;
@@ -271,6 +273,10 @@ namespace CIMS.Controllers
             var bappStep = actionableStep?.Point == "BAPP" ? actionableStep : null;
             if (addendumStep != null || bappStep != null) actionableStep = null;
 
+            // T6-2: survei kepuasan setelah Closed (lihat dibatasi di SP sesuai 5.2)
+            var isClosed = request.Status is RequestStatus.Closed or RequestStatus.SurveyCompleted;
+            var survey = isClosed ? await _surveyService.GetByRequestAsync(id, ct) : null;
+
             return View(new RequestDetailsViewModel
             {
                 Request = request,
@@ -323,7 +329,9 @@ namespace CIMS.Controllers
                 BappActionableStep = bappStep,
                 CanPrintBapp = isCivil && request.Status is RequestStatus.Closed or RequestStatus.SurveyCompleted,
                 AllPlansComplete = schedule != null && schedule.ActionPlans.Count > 0
-                                   && schedule.ActionPlans.All(a => a.ProgressPercent >= 100 && a.ActualEndDate.HasValue)
+                                   && schedule.ActionPlans.All(a => a.ProgressPercent >= 100 && a.ActualEndDate.HasValue),
+                Survey = survey,
+                CanSendSurvey = isCivil && request.Status == RequestStatus.Closed && survey == null
             });
         }
 
@@ -486,6 +494,44 @@ namespace CIMS.Controllers
             var model = await _bappService.GetPrintDataAsync(id, ct);
             if (model == null) return NotFound();
             return View(model);
+        }
+
+        /// <summary>Kirim survei kepuasan ke Kabag departemen peminta (T6-2; BR-91, BR-48): Civil, status Closed.</summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [RoleAuthorize(CimsRoles.Civil)]
+        public async Task<IActionResult> SendSurvey(int id, string? returnUrl, CancellationToken ct)
+        {
+            returnUrl = LocalOrNull(returnUrl);
+            return await RunActionAsync(id, returnUrl, async () =>
+            {
+                var count = await _surveyService.SendAsync(id, ct);                TempData["Success"] = $"Survey sent to the requesting department head ({count} items).";
+            });
+        }
+
+        /// <summary>
+        /// Submit survei oleh Kabag departemen peminta (T6-2; BR-24, BR-49): semua item 1-10, Note for Civil opsional.
+        /// Final: request menjadi Survey Completed. Hak isi diperiksa di SP (fn_User_CanFillSurvey).
+        /// </summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [RoleAuthorize(CimsRoles.Kabag)]
+        public async Task<IActionResult> SubmitSurvey(int id, List<SurveyScoreInput>? scores, string? noteForCivil,
+            string? returnUrl, CancellationToken ct)
+        {
+            returnUrl = LocalOrNull(returnUrl);
+            var rows = scores ?? new List<SurveyScoreInput>();
+            if (rows.Count == 0 || rows.Any(s => s.Score is null or < 1 or > 10))
+            {
+                TempData["Error"] = "Please rate every item from 1 to 10.";
+                return RedirectToAction(nameof(Details), new { id, returnUrl });
+            }
+
+            return await RunActionAsync(id, returnUrl, async () =>
+            {
+                var score = await _surveyService.SubmitAsync(id, rows, noteForCivil, ct);
+                TempData["Success"] = $"Survey submitted. Score: {score.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}%.";
+            });
         }
 
         /// <summary>Unduh dokumen addendum: kind=final = kontrak final, selain itu file saat raise (hak lihat BR-86 di SP).</summary>

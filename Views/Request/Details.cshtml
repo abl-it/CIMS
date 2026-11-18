@@ -1039,7 +1039,18 @@
                                             @m.PeriodMonth.ToString("MMM yyyy", culture)
                                             @if (m.HasActual)
                                             {
-                                                <div class="small text-muted">@m.ItemCount items · @(m.Source?.ToLowerInvariant())</div>
+                                                <div class="small text-muted">
+                                                    @m.ItemCount items · @(m.Source?.ToLowerInvariant())
+                                                    @if (m.FileCount > 0)
+                                                    {
+                                                        <span title="Cost detail documents"> · <i class="bi bi-paperclip" aria-hidden="true"></i>@m.FileCount</span>
+                                                    }
+                                                </div>
+                                                @if (m.MissingAttachment)
+                                                {
+                                                    @* BR-96: bulan dari Excel tanpa lampiran detail cost *@
+                                                    <span class="badge text-bg-warning">Missing attachment</span>
+                                                }
                                             }
                                         </td>
                                         <td class="text-end">@m.EstimateAmount.ToString("#,0.##", culture)</td>
@@ -1097,6 +1108,66 @@
                         </p>
                     }
 
+                    @* --- Lampiran detail cost bulan ini (BR-96) --- *@
+                    <div class="mb-3">
+                        <h3 class="h6 mb-1">
+                            Cost detail documents
+                            @if (mh.IsSaved && !am.Files.Any())
+                            {
+                                <span class="badge text-bg-warning ms-1">Missing attachment</span>
+                            }
+                        </h3>
+                        @if (!am.Files.Any())
+                        {
+                            <p class="small text-muted mb-2">No documents for this month yet.</p>
+                        }
+                        else
+                        {
+                            <ul class="list-unstyled mb-2">
+                                @foreach (var f in am.Files)
+                                {
+                                    <li class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                                        <a asp-action="DownloadActualFile" asp-route-id="@f.Id" class="text-break">
+                                            <i class="bi bi-paperclip me-1" aria-hidden="true"></i>@f.OriginalFileName
+                                        </a>
+                                        <span class="small text-muted">
+                                            @Size(f.FileSizeBytes) · @f.CreatedAt.ToString("dd MMM yyyy HH:mm", culture) · @(f.CreatedByName ?? f.CreatedBy)
+                                        </span>
+                                        @if (Model.CanEnterActual)
+                                        {
+                                            <form asp-action="RemoveActualFile" method="post" class="ms-auto"
+                                                  data-confirm="Remove this document?" data-confirm-title="Remove Document"
+                                                  data-confirm-ok="Remove" data-confirm-danger="true">
+                                                <input type="hidden" name="id" value="@r.Id" />
+                                                <input type="hidden" name="fileId" value="@f.Id" />
+                                                <input type="hidden" name="month" value="@monthKey" />
+                                                <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                                <button type="submit" class="btn btn-outline-danger cims-icon-btn" title="Remove document"
+                                                        aria-label="Remove @f.OriginalFileName"><i class="bi bi-trash" aria-hidden="true"></i></button>
+                                            </form>
+                                        }
+                                    </li>
+                                }
+                            </ul>
+                        }
+                        @if (Model.CanEnterActual && mh.IsSaved)
+                        {
+                            @* Bulan yang sudah tersimpan (mis. dari Excel): tambah dokumen tanpa menyimpan ulang item *@
+                            <form asp-action="UploadActualFile" method="post" enctype="multipart/form-data" class="row g-2 align-items-end">
+                                <input type="hidden" name="id" value="@r.Id" />
+                                <input type="hidden" name="month" value="@monthKey" />
+                                <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                <div class="col-12 col-md">
+                                    <label for="actualAddFile" class="form-label">Add document</label>
+                                    <input id="actualAddFile" name="file" type="file" class="form-control" required accept=".pdf,.xlsx,.jpg,.png" />
+                                </div>
+                                <div class="col-12 col-md-auto d-grid">
+                                    <button type="submit" class="btn btn-outline-primary"><i class="bi bi-upload me-1" aria-hidden="true"></i>Upload</button>
+                                </div>
+                            </form>
+                        }
+                    </div>
+
                     @if (Model.CanEnterActual)
                     {
                         <datalist id="unitOptions">
@@ -1105,7 +1176,8 @@
                                 <option value="@u.Name">@u.Description</option>
                             }
                         </datalist>
-                        <form asp-action="SaveActualCost" method="post" data-actual-form>
+                        <form asp-action="SaveActualCost" method="post" enctype="multipart/form-data" data-actual-form
+                              data-has-files="@(am.Files.Any() ? "true" : "false")">
                             <input type="hidden" name="id" value="@r.Id" />
                             <input type="hidden" name="returnUrl" value="@returnUrl" />
                             <input type="hidden" name="month" value="@monthKey" />
@@ -1122,6 +1194,15 @@
                             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 my-3">
                                 <button type="button" class="btn btn-outline-primary" data-add-actual><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add Item</button>
                                 <span class="small" aria-live="polite">Month total: IDR <span class="fw-semibold" data-actual-total>0</span></span>
+                            </div>
+                            <div class="mb-3">
+                                <label for="actualFiles" class="form-label">Cost detail documents@(am.Files.Any() ? " (optional, add more)" : "")</label>
+                                <input id="actualFiles" name="files" type="file" class="form-control" multiple accept=".pdf,.xlsx,.jpg,.png"
+                                       data-actual-files aria-describedby="actualFilesHelp" />
+                                <div id="actualFilesHelp" class="form-text">
+                                    PDF, XLSX, JPG, PNG (max. 20 MB each), e.g. PO / invoice / receipt summary.
+                                    @(am.Files.Any() ? "" : "Required to save items for this month.")
+                                </div>
                             </div>
                             <div class="mb-3">
                                 <label for="actualRemarks" class="form-label">Remarks</label>

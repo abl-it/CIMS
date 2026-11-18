@@ -96,6 +96,12 @@ namespace CIMS.Models
         public DateTime? UpdatedAt { get; set; }
         public string? UpdatedBy { get; set; }
         public bool HasActual { get; set; }
+
+        /// <summary>Jumlah lampiran detail cost aktif bulan ini (BR-96).</summary>
+        public int FileCount { get; set; }
+
+        /// <summary>Bulan berisi actual tanpa lampiran detail cost (mis. hasil upload Excel; BR-96).</summary>
+        public bool MissingAttachment => HasActual && FileCount == 0;
     }
 
     /// <summary>Actual cost project: ringkasan + per bulan.</summary>
@@ -137,11 +143,29 @@ namespace CIMS.Models
         public string? Notes { get; set; }
     }
 
+    /// <summary>Lampiran detail cost per project per bulan (dbo.ProjectActualFile; BR-96).</summary>
+    public class ActualFile
+    {
+        public int Id { get; set; }
+        public int RequestId { get; set; }
+        public DateTime PeriodMonth { get; set; }
+        public string OriginalFileName { get; set; } = string.Empty;
+        public string? RelativePath { get; set; }
+        public string ContentType { get; set; } = "application/octet-stream";
+        public long FileSizeBytes { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public string? CreatedBy { get; set; }
+        public string? CreatedByName { get; set; }
+    }
+
     /// <summary>Satu bulan lengkap untuk form / detail.</summary>
     public class ActualMonthForm
     {
         public ActualMonthHeader Header { get; set; } = new();
         public IReadOnlyList<ActualItem> Items { get; set; } = Array.Empty<ActualItem>();
+
+        /// <summary>Lampiran detail cost bulan ini (BR-96).</summary>
+        public IReadOnlyList<ActualFile> Files { get; set; } = Array.Empty<ActualFile>();
     }
 
     /// <summary>Input item dari form. Validasi akhir di SP.</summary>

@@ -84,6 +84,20 @@
                 return;
             }
         }
+
+        // BR-96: bulan berisi item wajib punya lampiran detail cost (lama atau baru). Validasi akhir di SP.
+        var hasItems = all.some(function (r) { return (r.querySelector('[data-field="ItemName"]') || {}).value; });
+        var fileInput = form.querySelector('[data-actual-files]');
+        var hasNewFiles = fileInput && fileInput.files && fileInput.files.length > 0;
+        if (hasItems && form.getAttribute('data-has-files') !== 'true' && !hasNewFiles) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            if (window.notify) {
+                window.notify.error('Please attach the cost detail document (e.g. PO / invoice / receipt summary) for this month.',
+                    'Please check the data');
+            }
+            if (fileInput) fileInput.focus();
+        }
     });
 
     // Bulan tanpa item: sediakan satu baris kosong

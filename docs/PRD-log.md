@@ -110,3 +110,4 @@ Pendamping `docs/PRD.md`.
 | 2026-11-18 | Nomor BAPP otomatis NNN/BAPP/{Company}/{bulan romawi}/{tahun}, urut per Company per tahun, sama saat terbit ulang | BR-95 |
 | 2026-11-18 | Cetak Berita Acara setelah Closed oleh Civil: halaman cetak A4 (Save as PDF), Bahasa Indonesia sesuai template, tanda tangan digital (nama + waktu accept online); kop ABL gambar, NKM teks; PIC Project = Civil penerbit; Civil/Kontraktor = vendor (outsource) / Civil (in-house) | BR-94 |
 | 2026-11-18 | Perubahan: foto dokumentasi Lampiran 2 wajib sebelum terbit BAPP (foto tahap awal, proses, hasil akhir; masing-masing minimal satu) | BR-88, BR-94 |
+| 2026-11-18 | Lampiran detail cost per project per bulan wajib: input manual ditolak tanpa lampiran (unggah di form bulan); bulan hasil upload Excel ditandai missing attachment lalu dilengkapi di Details; lampiran terakhir tidak bisa dihapus; PDF/XLSX/JPG/PNG maks. 20 MB | BR-96, BR-18 |

@@ -45,7 +45,9 @@ namespace CIMS.Services
 
         public async Task<(string AllowedExtensions, int MaxSizeMB)> GetFileRulesAsync(CancellationToken ct = default)
         {
-            var type = (await _lookupService.GetAttachmentTypesByStageAsync(CostStage, ct)).FirstOrDefault();
+            // Stage COST juga berisi ACTUAL_DETAIL (lampiran detail cost per bulan, BR-96): pilih berdasarkan kode
+            var types = await _lookupService.GetAttachmentTypesByStageAsync(CostStage, ct);
+            var type = types.FirstOrDefault(t => string.Equals(t.Code, "ACTUAL_COST", StringComparison.OrdinalIgnoreCase));
             return type == null ? ("xlsx", 5) : (type.AllowedExtensions, type.MaxSizeMB);
         }
 

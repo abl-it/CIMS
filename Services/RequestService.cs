@@ -536,7 +536,8 @@ namespace CIMS.Services
         }
 
         public async Task<ActualSaveResult> SaveActualMonthAsync(int id, DateTime month, IEnumerable<ActualItemInput> items,
-            string? remarks, string source = "MANUAL", int? attachmentId = null, CancellationToken ct = default)
+            string? remarks, string source = "MANUAL", int? attachmentId = null, CancellationToken ct = default,
+            string? filesJson = null)
         {
             var json = JsonSerializer.Serialize(items.Select(i => new
             {
@@ -558,6 +559,7 @@ namespace CIMS.Services
             p.Add("@Remarks", remarks, DbType.String);
             p.Add("@Source", source, DbType.AnsiString);
             p.Add("@AttachmentId", attachmentId, DbType.Int32);
+            p.Add("@FilesJson", filesJson, DbType.String);
 
             const string procedure = "dbo.usp_Request_SaveActualMonth";
             try

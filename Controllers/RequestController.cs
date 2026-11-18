@@ -45,12 +45,14 @@ namespace CIMS.Controllers
         private readonly IUnitService _unitService;
         private readonly IAddendumService _addendumService;
         private readonly IBappService _bappService;
+        private readonly IActualFileService _actualFileService;
 
         public RequestController(IRequestService requestService, IRequestAttachmentService attachmentService,
             IRequestLookupService lookupService, ISubCategoryService subCategoryService, ICurrentUserService currentUserService,
             IUserTaskService taskService, IVendorService vendorService, IUnitService unitService, IAddendumService addendumService,
-            IBappService bappService)
+            IBappService bappService, IActualFileService actualFileService)
         {
+            _actualFileService = actualFileService;
             _addendumService = addendumService;
             _bappService = bappService;
             _unitService = unitService;
@@ -256,6 +258,9 @@ namespace CIMS.Controllers
                 if (actualCost.Summary.FirstMonth is { } firstMonth && monthDate < firstMonth) monthDate = firstMonth;
                 if (monthDate > current) monthDate = current;
                 actualMonth = await _requestService.GetActualMonthAsync(id, monthDate, ct);
+                // BR-96: lampiran detail cost bulan terpilih
+                if (actualMonth != null)
+                    actualMonth.Files = await _actualFileService.ListAsync(id, actualMonth.Header.PeriodMonth, ct);
             }
 
             // Langkah approval aktif user: titik ADDENDUM diproses di kartu Addendum (usp_Addendum_ApprovalAct),
@@ -910,8 +915,10 @@ namespace CIMS.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [RoleAuthorize(CimsRoles.Civil)]
+        [RequestSizeLimit(UploadBodyLimit)]
+        [RequestFormLimits(MultipartBodyLengthLimit = UploadBodyLimit)]
         public async Task<IActionResult> SaveActualCost(int id, string? month, List<ActualItemInput>? items, string? remarks,
-            string? returnUrl, CancellationToken ct)
+            List<IFormFile>? files, string? returnUrl, CancellationToken ct)
         {
             returnUrl = LocalOrNull(returnUrl);
             var inv = System.Globalization.CultureInfo.InvariantCulture;
@@ -926,7 +933,9 @@ namespace CIMS.Controllers
 
             try
             {
-                var result = await _requestService.SaveActualMonthAsync(id, monthDate, rows, remarks, ct: ct);
+                // BR-96: lampiran detail cost baru disimpan bersama item (wajib minimal satu untuk bulan berisi actual)
+                var newFiles = (files ?? new List<IFormFile>()).Where(f => f is { Length: > 0 }).ToList();
+                var result = await _actualFileService.SaveMonthAsync(id, monthDate, rows, remarks, newFiles, ct);
                 var monthText = monthDate.ToString("MMM yyyy", inv);
                 TempData["Success"] = rows.Count == 0
                     ? $"Actual cost for {monthText} removed. Cost status: {CostStatus.Label(result.CostStatus)}."
@@ -944,7 +953,73 @@ namespace CIMS.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            return RedirectToAction(nameof(Details), new { id, returnUrl, month });
+            return RedirectToAction(nameof(Details), null, new { id, returnUrl, month }, "actualForm");
+        }
+
+        /// <summary>Tambah lampiran detail cost ke satu bulan (BR-96; mis. bulan hasil upload Excel). Kembali ke bulan itu.</summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [RoleAuthorize(CimsRoles.Civil)]
+        [RequestSizeLimit(UploadBodyLimit)]
+        [RequestFormLimits(MultipartBodyLengthLimit = UploadBodyLimit)]
+        public async Task<IActionResult> UploadActualFile(int id, string? month, IFormFile? file, string? returnUrl, CancellationToken ct)
+        {
+            returnUrl = LocalOrNull(returnUrl);
+            if (!DateTime.TryParseExact(month, "yyyy-MM", System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None, out var monthDate))
+            {
+                TempData["Error"] = "Month is required.";
+                return RedirectToAction(nameof(Details), new { id, returnUrl });
+            }
+
+            try
+            {
+                await _actualFileService.AddAsync(id, monthDate, file, ct);
+                TempData["Success"] = "Cost detail document uploaded.";
+            }
+            catch (Exception ex) when (ex is RequestValidationException or RequestInvalidStateException or RequestNotAuthorizedException)
+            {
+                TempData["Error"] = ex.Message;
+            }
+            catch (RequestNotFoundException ex)
+            {
+                TempData["Error"] = ex.Message;
+                return RedirectToAction(nameof(Index));
+            }
+
+            return RedirectToAction(nameof(Details), null, new { id, returnUrl, month }, "actualForm");
+        }
+
+        /// <summary>Hapus lampiran detail cost (BR-96); lampiran terakhir bulan berisi actual ditolak SP.</summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [RoleAuthorize(CimsRoles.Civil)]
+        public async Task<IActionResult> RemoveActualFile(int id, int fileId, string? month, string? returnUrl, CancellationToken ct)
+        {
+            returnUrl = LocalOrNull(returnUrl);
+            try
+            {
+                await _actualFileService.RemoveAsync(fileId, ct);
+                TempData["Success"] = "Cost detail document removed.";
+            }
+            catch (Exception ex) when (ex is RequestValidationException or RequestInvalidStateException
+                                           or RequestNotAuthorizedException or RequestNotFoundException)
+            {
+                TempData["Error"] = ex.Message;
+            }
+
+            return RedirectToAction(nameof(Details), null, new { id, returnUrl, month }, "actualForm");
+        }
+
+        /// <summary>Unduh lampiran detail cost (hak lihat detail actual cost diperiksa di SP).</summary>
+        [HttpGet]
+        public async Task<IActionResult> DownloadActualFile(int id, CancellationToken ct)
+        {
+            var found = await _actualFileService.GetForDownloadAsync(id, ct);
+            if (found == null) return NotFound();
+
+            var (file, fullPath) = found.Value;
+            return PhysicalFile(fullPath, file.ContentType, file.OriginalFileName);
         }
 
         /// <summary>

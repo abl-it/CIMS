@@ -183,8 +183,9 @@ namespace CIMS.Services
         /// <exception cref="RequestNotFoundException">SP error 50073.</exception>
         /// <exception cref="RequestInvalidStateException">SP error 50074.</exception>
         /// <exception cref="RequestNotAuthorizedException">SP error 50075 (bukan Civil).</exception>
+        /// <param name="filesJson">Lampiran detail cost baru yang sudah disimpan ke storage (BR-96; lihat IActualFileService).</param>
         Task<ActualSaveResult> SaveActualMonthAsync(int id, DateTime month, IEnumerable<ActualItemInput> items, string? remarks,
-            string source = "MANUAL", int? attachmentId = null, CancellationToken ct = default);
+            string source = "MANUAL", int? attachmentId = null, CancellationToken ct = default, string? filesJson = null);
 
         /// <summary>Log perubahan kategori (BR-02), terbaru di atas.</summary>
         Task<IReadOnlyList<CategoryChangeItem>> GetCategoryChangesAsync(int requestId, CancellationToken ct = default);

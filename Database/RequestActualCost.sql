@@ -19,6 +19,10 @@
      - Status keseluruhan (BR-70): kolom terhitung OverallStatus = status terburuk jadwal dan biaya.
      - Lihat detail bulan/item: civil, fat, gm, director, administrator (matriks PRD 5.2); ringkasan status
        untuk semua role yang boleh melihat request (kecuali purchasing-only).
+     - Lampiran detail cost per project per bulan (BR-96, Keputusan 18-11-2026): tabel ProjectActualFile (bagian 9-12).
+       Simpan manual dengan item wajib punya minimal satu lampiran aktif (file baru dikirim lewat @FilesJson);
+       bulan hasil Excel boleh tanpa lampiran (ditandai missing di Details); lampiran terakhir bulan berisi actual
+       tidak bisa dihapus. Jenis lampiran ACTUAL_DETAIL (stage COST).
    Error   : 50072 = Input wajib kosong / tidak valid
              50073 = Request tidak ditemukan atau di luar lingkup user
              50074 = Status request tidak mengizinkan aksi ini
@@ -252,7 +256,10 @@ BEGIN
             ISNULL(m.TotalAmount, 0) AS ActualAmount,
             ISNULL(m.ItemCount, 0) AS ItemCount,
             m.Source, m.UpdatedAt, m.UpdatedBy, m.CreatedAt, m.CreatedBy,
-            CAST(CASE WHEN m.Id IS NULL THEN 0 ELSE 1 END AS BIT) AS HasActual
+            CAST(CASE WHEN m.Id IS NULL THEN 0 ELSE 1 END AS BIT) AS HasActual,
+            -- BR-96: jumlah lampiran detail cost aktif bulan itu (0 + HasActual = missing attachment)
+            (SELECT COUNT(*) FROM dbo.ProjectActualFile f
+             WHERE f.RequestId = @RequestId AND f.PeriodMonth = ISNULL(e.PeriodMonth, m.PeriodMonth) AND f.IsActive = 1) AS FileCount
     FROM    (SELECT * FROM dbo.ProjectCostEstimate WHERE RequestId = @RequestId) e
             FULL OUTER JOIN (SELECT * FROM dbo.ProjectActualMonth WHERE RequestId = @RequestId) m
                 ON m.PeriodMonth = e.PeriodMonth
@@ -304,6 +311,9 @@ GO
       @ItemsJson: [{"type":"GOODS","name":"Cement","qty":10,"unit":"sak","price":65000,"amount":650000,
                     "ref":"PO-123","notes":null}, ...]   '[]' = hapus actual bulan itu
       @Source   : MANUAL (T5-2) | EXCEL (T5-3, dengan @UploadId; dipanggil usp_ActualUpload_Import)
+      @FilesJson: lampiran detail cost baru (BR-96) yang sudah disimpan aplikasi ke storage:
+                  [{"name":"rekap.pdf","path":"2026\\15\\<guid>.pdf","type":"application/pdf","size":12345}, ...]
+                  MANUAL dengan item: wajib minimal satu lampiran aktif bulan itu (lama + baru).
       Hasil: SELECT ringkasan biaya terbaru.
    --------------------------------------------------------------------- */
 CREATE OR ALTER PROCEDURE dbo.usp_Request_SaveActualMonth
@@ -314,7 +324,8 @@ CREATE OR ALTER PROCEDURE dbo.usp_Request_SaveActualMonth
     @Remarks       NVARCHAR(MAX) = NULL,
     @Source        VARCHAR(10)   = 'MANUAL',
     @AttachmentId  INT           = NULL,
-    @UploadId      INT           = NULL
+    @UploadId      INT           = NULL,
+    @FilesJson     NVARCHAR(MAX) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -322,6 +333,8 @@ BEGIN
 
     SET @Remarks = NULLIF(LTRIM(RTRIM(@Remarks)), N'');
     SET @Source  = UPPER(LTRIM(RTRIM(ISNULL(@Source, 'MANUAL'))));
+    IF ISJSON(ISNULL(@FilesJson, N'[]')) = 0
+        THROW 50072, N'Attachment data is invalid.', 1;
 
     IF NOT EXISTS (SELECT 1 FROM dbo.fn_User_Roles(@Username) r WHERE r.RoleCode = N'civil')
         THROW 50075, N'Only Civil can enter actual cost.', 1;
@@ -429,6 +442,49 @@ BEGIN
     IF @Count = 0 AND @MonthId IS NULL
         THROW 50072, N'Please add at least one item.', 1;
 
+    -- BR-96: lampiran detail cost baru (file sudah di storage) + wajib minimal satu untuk simpan manual
+    DECLARE @Files TABLE (Seq INT PRIMARY KEY, FileName NVARCHAR(260), RelPath NVARCHAR(400), ContentType VARCHAR(100), Size BIGINT);
+    INSERT INTO @Files (Seq, FileName, RelPath, ContentType, Size)
+    SELECT  CAST(j.[key] AS INT) + 1, NULLIF(LTRIM(RTRIM(x.[name])), N''), NULLIF(LTRIM(RTRIM(x.[path])), N''), x.[type], x.size
+    FROM    OPENJSON(ISNULL(@FilesJson, N'[]')) j
+            CROSS APPLY OPENJSON(j.[value])
+            WITH ([name] NVARCHAR(260) '$.name', [path] NVARCHAR(400) '$.path', [type] VARCHAR(100) '$.type', size BIGINT '$.size') x;
+
+    IF EXISTS (SELECT 1 FROM @Files)
+    BEGIN
+        DECLARE @FileTypeId INT, @FileExtList VARCHAR(200), @FileMaxMB INT;
+        SELECT  @FileTypeId = t.Id, @FileExtList = t.AllowedExtensions, @FileMaxMB = t.MaxSizeMB
+        FROM    dbo.AttachmentType t WHERE t.Code = 'ACTUAL_DETAIL' AND t.IsActive = 1;
+
+        IF @FileTypeId IS NULL
+            THROW 50072, N'The cost detail attachment type is not configured. Please contact the administrator.', 1;
+
+        SELECT TOP (1) @Msg = N'Attachment "' + ISNULL(f.FileName, N'?') + N'": '
+               + CASE WHEN f.FileName IS NULL OR f.RelPath IS NULL OR ISNULL(f.Size, 0) <= 0 THEN N'file is invalid.'
+                      WHEN f.Size > CAST(@FileMaxMB AS BIGINT) * 1048576 THEN N'file size exceeds the maximum.'
+                      ELSE N'file type is not allowed.' END
+        FROM   @Files f
+        WHERE  f.FileName IS NULL OR f.RelPath IS NULL OR ISNULL(f.Size, 0) <= 0
+           OR  f.Size > CAST(@FileMaxMB AS BIGINT) * 1048576
+           OR  CHARINDEX('.', f.FileName) = 0
+           OR  CHARINDEX(',' + LOWER(RIGHT(f.FileName, CHARINDEX('.', REVERSE(f.FileName)) - 1)) + ',', ',' + @FileExtList + ',') = 0
+        ORDER BY f.Seq;
+
+        IF @Msg IS NOT NULL
+            THROW 50072, @Msg, 1;
+
+        INSERT INTO dbo.ProjectActualFile
+            (RequestId, PeriodMonth, AttachmentTypeId, OriginalFileName, RelativePath, ContentType, FileSizeBytes, CreatedAt, CreatedBy)
+        SELECT  @Id, @PeriodMonth, @FileTypeId, f.FileName, f.RelPath, ISNULL(NULLIF(f.ContentType, ''), 'application/octet-stream'),
+                f.Size, @Now, @Username
+        FROM    @Files f;
+    END
+
+    IF @Source = 'MANUAL' AND @Count > 0
+       AND NOT EXISTS (SELECT 1 FROM dbo.ProjectActualFile f
+                       WHERE f.RequestId = @Id AND f.PeriodMonth = @PeriodMonth AND f.IsActive = 1)
+        THROW 50072, N'Please attach the cost detail document (e.g. PO / invoice / receipt summary) for this month.', 1;
+
     IF @MonthId IS NOT NULL
         DELETE FROM dbo.ProjectActualItem WHERE MonthId = @MonthId;
 
@@ -478,6 +534,204 @@ BEGIN
 END
 GO
 
+/* ---------------------------------------------------------------------
+   9. Lampiran detail cost per bulan (BR-96, Keputusan 18-11-2026)
+      Jenis lampiran ACTUAL_DETAIL (stage COST) untuk aturan file; disimpan di tabel sendiri (kunci RequestId +
+      PeriodMonth) agar hak lihat mengikuti detail actual cost (fn_User_CanSeeActualCost).
+   --------------------------------------------------------------------- */
+MERGE dbo.AttachmentType AS t
+USING (VALUES ('ACTUAL_DETAIL', N'Actual Cost Detail', 'COST', 'pdf,xlsx,jpg,png', 20)) AS s (Code, Name, Stage, AllowedExtensions, MaxSizeMB)
+   ON t.Code = s.Code
+WHEN NOT MATCHED BY TARGET THEN
+    INSERT (Code, Name, Stage, AllowedExtensions, MaxSizeMB, IsMandatoryCapex, IsMandatoryOpex, IsMandatoryLve, CreatedBy)
+    VALUES (s.Code, s.Name, s.Stage, s.AllowedExtensions, s.MaxSizeMB, 0, 0, 0, N'seed');
+GO
+
+IF OBJECT_ID(N'dbo.ProjectActualFile', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.ProjectActualFile
+    (
+        Id                INT IDENTITY(1,1) NOT NULL,
+        RequestId         INT            NOT NULL,
+        PeriodMonth       DATE           NOT NULL,       -- tanggal 1 bulan tersebut
+        AttachmentTypeId  INT            NOT NULL,
+        OriginalFileName  NVARCHAR(260)  NOT NULL,
+        RelativePath      NVARCHAR(400)  NOT NULL,       -- relatif terhadap FileStorage:RealizationAttachmentsPath
+        ContentType       VARCHAR(100)   NOT NULL,
+        FileSizeBytes     BIGINT         NOT NULL,
+        IsActive          BIT            NOT NULL CONSTRAINT DF_ProjectActualFile_IsActive DEFAULT (1),
+        CreatedAt         DATETIME2(3)   NOT NULL CONSTRAINT DF_ProjectActualFile_CreatedAt DEFAULT (SYSDATETIME()),
+        CreatedBy         NVARCHAR(100)  NOT NULL,
+        UpdatedAt         DATETIME2(3)   NULL,
+        UpdatedBy         NVARCHAR(100)  NULL,
+        CONSTRAINT PK_ProjectActualFile PRIMARY KEY CLUSTERED (Id),
+        CONSTRAINT FK_ProjectActualFile_Request FOREIGN KEY (RequestId)        REFERENCES dbo.ProjectRequest (Id),
+        CONSTRAINT FK_ProjectActualFile_Type    FOREIGN KEY (AttachmentTypeId) REFERENCES dbo.AttachmentType (Id),
+        CONSTRAINT CK_ProjectActualFile_Month   CHECK (DAY(PeriodMonth) = 1),
+        CONSTRAINT CK_ProjectActualFile_Size    CHECK (FileSizeBytes > 0)
+    );
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_ProjectActualFile_Month' AND object_id = OBJECT_ID(N'dbo.ProjectActualFile'))
+BEGIN
+    CREATE NONCLUSTERED INDEX IX_ProjectActualFile_Month ON dbo.ProjectActualFile (RequestId, PeriodMonth, IsActive);
+END
+GO
+
+/* ---------------------------------------------------------------------
+   10. usp_ActualFile_List  (lampiran aktif satu bulan; @Month NULL = semua bulan; hak lihat detail actual cost)
+   --------------------------------------------------------------------- */
+CREATE OR ALTER PROCEDURE dbo.usp_ActualFile_List
+    @RequestId INT,
+    @Month     DATE = NULL,
+    @Username  NVARCHAR(100)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @PeriodMonth DATE = CASE WHEN @Month IS NULL THEN NULL ELSE DATEFROMPARTS(YEAR(@Month), MONTH(@Month), 1) END;
+
+    SELECT  f.Id, f.RequestId, f.PeriodMonth, f.OriginalFileName, f.ContentType, f.FileSizeBytes, f.CreatedAt, f.CreatedBy,
+            e.FullName AS CreatedByName
+    FROM    dbo.ProjectActualFile f
+            JOIN dbo.ProjectRequest r         ON r.Id = f.RequestId
+            LEFT JOIN home..users u           ON u.Username = f.CreatedBy
+            LEFT JOIN home..app_employees e   ON e.EmployeeCode = u.EmployeeCode
+    WHERE   f.RequestId = @RequestId AND f.IsActive = 1
+      AND   (@PeriodMonth IS NULL OR f.PeriodMonth = @PeriodMonth)
+      AND   EXISTS (SELECT 1 FROM dbo.fn_User_AllowedDepartments(@Username) a WHERE a.DepartmentID = r.DepartmentID)
+      AND   NOT EXISTS (SELECT 1 FROM dbo.fn_User_OutsourceOnly(@Username))
+      AND   EXISTS (SELECT 1 FROM dbo.fn_User_CanSeeActualCost(@Username))
+    ORDER BY f.PeriodMonth, f.CreatedAt, f.Id;
+END
+GO
+
+/* ---------------------------------------------------------------------
+   11. usp_ActualFile_Insert  (civil; IN_PROGRESS / BAPP_REVIEW; tambah lampiran ke bulan, mis. bulan dari Excel)
+       File sudah disimpan aplikasi (aplikasi menghapus file bila SP gagal). Hasil: SELECT Id.
+   --------------------------------------------------------------------- */
+CREATE OR ALTER PROCEDURE dbo.usp_ActualFile_Insert
+    @RequestId         INT,
+    @Month             DATE,
+    @Username          NVARCHAR(100),
+    @OriginalFileName  NVARCHAR(260),
+    @RelativePath      NVARCHAR(400),
+    @ContentType       VARCHAR(100),
+    @FileSizeBytes     BIGINT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    SET @OriginalFileName = NULLIF(LTRIM(RTRIM(@OriginalFileName)), N'');
+
+    IF NOT EXISTS (SELECT 1 FROM dbo.fn_User_Roles(@Username) r WHERE r.RoleCode = N'civil')
+        THROW 50075, N'Only Civil can attach cost detail documents.', 1;
+    IF @Month IS NULL
+        THROW 50072, N'Month is required.', 1;
+    IF @OriginalFileName IS NULL OR NULLIF(@RelativePath, N'') IS NULL OR ISNULL(@FileSizeBytes, 0) <= 0
+        THROW 50072, N'Please choose a file.', 1;
+
+    DECLARE @PeriodMonth DATE = DATEFROMPARTS(YEAR(@Month), MONTH(@Month), 1);
+    DECLARE @Today DATE = CAST(SYSDATETIME() AS DATE);
+    DECLARE @Status VARCHAR(20), @FirstDate DATE;
+
+    SELECT  @Status = r.Status, @FirstDate = ISNULL(CAST(r.PreparationStartAt AS DATE), r.ProjectStartDate)
+    FROM    dbo.ProjectRequest r
+    WHERE   r.Id = @RequestId
+      AND   EXISTS (SELECT 1 FROM dbo.fn_User_AllowedDepartments(@Username) f WHERE f.DepartmentID = r.DepartmentID);
+
+    IF @Status IS NULL
+        THROW 50073, N'Request not found.', 1;
+    IF @Status NOT IN ('IN_PROGRESS', 'BAPP_REVIEW')
+        THROW 50074, N'Cost detail documents can only be changed while the project is in progress or in BAPP review.', 1;
+    IF (@FirstDate IS NOT NULL AND @PeriodMonth < DATEFROMPARTS(YEAR(@FirstDate), MONTH(@FirstDate), 1))
+       OR @PeriodMonth > DATEFROMPARTS(YEAR(@Today), MONTH(@Today), 1)
+        THROW 50072, N'The month is outside the actual cost period.', 1;
+
+    DECLARE @TypeId INT, @Ext VARCHAR(200), @MaxMB INT, @FileExt VARCHAR(20);
+    SELECT  @TypeId = t.Id, @Ext = t.AllowedExtensions, @MaxMB = t.MaxSizeMB
+    FROM    dbo.AttachmentType t WHERE t.Code = 'ACTUAL_DETAIL' AND t.IsActive = 1;
+
+    IF @TypeId IS NULL
+        THROW 50072, N'The cost detail attachment type is not configured. Please contact the administrator.', 1;
+
+    SET @FileExt = CASE WHEN CHARINDEX('.', @OriginalFileName) = 0 THEN ''
+                        ELSE LOWER(RIGHT(@OriginalFileName, CHARINDEX('.', REVERSE(@OriginalFileName)) - 1)) END;
+    IF @FileExt = '' OR CHARINDEX(',' + @FileExt + ',', ',' + @Ext + ',') = 0
+        THROW 50072, N'File type is not allowed for the cost detail document.', 1;
+    IF @FileSizeBytes > CAST(@MaxMB AS BIGINT) * 1048576
+        THROW 50072, N'File size exceeds the maximum for the cost detail document.', 1;
+
+    INSERT INTO dbo.ProjectActualFile
+        (RequestId, PeriodMonth, AttachmentTypeId, OriginalFileName, RelativePath, ContentType, FileSizeBytes, CreatedBy)
+    VALUES (@RequestId, @PeriodMonth, @TypeId, @OriginalFileName, @RelativePath,
+            ISNULL(NULLIF(@ContentType, ''), 'application/octet-stream'), @FileSizeBytes, @Username);
+
+    SELECT CAST(SCOPE_IDENTITY() AS INT) AS Id;
+END
+GO
+
+/* ---------------------------------------------------------------------
+   12. usp_ActualFile_Deactivate  (civil; IN_PROGRESS / BAPP_REVIEW; lampiran terakhir bulan berisi actual tidak boleh)
+       usp_ActualFile_GetById      (download; hak lihat detail actual cost)
+   --------------------------------------------------------------------- */
+CREATE OR ALTER PROCEDURE dbo.usp_ActualFile_Deactivate
+    @Id        INT,
+    @Username  NVARCHAR(100)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    IF NOT EXISTS (SELECT 1 FROM dbo.fn_User_Roles(@Username) r WHERE r.RoleCode = N'civil')
+        THROW 50075, N'Only Civil can remove cost detail documents.', 1;
+
+    DECLARE @RequestId INT, @PeriodMonth DATE, @Status VARCHAR(20);
+
+    BEGIN TRANSACTION;
+
+    SELECT  @RequestId = f.RequestId, @PeriodMonth = f.PeriodMonth, @Status = r.Status
+    FROM    dbo.ProjectActualFile f WITH (UPDLOCK, ROWLOCK)
+            JOIN dbo.ProjectRequest r ON r.Id = f.RequestId
+    WHERE   f.Id = @Id AND f.IsActive = 1
+      AND   EXISTS (SELECT 1 FROM dbo.fn_User_AllowedDepartments(@Username) a WHERE a.DepartmentID = r.DepartmentID);
+
+    IF @RequestId IS NULL
+        THROW 50073, N'Attachment not found.', 1;
+    IF @Status NOT IN ('IN_PROGRESS', 'BAPP_REVIEW')
+        THROW 50074, N'Cost detail documents can only be changed while the project is in progress or in BAPP review.', 1;
+    IF EXISTS (SELECT 1 FROM dbo.ProjectActualMonth m WHERE m.RequestId = @RequestId AND m.PeriodMonth = @PeriodMonth)
+       AND NOT EXISTS (SELECT 1 FROM dbo.ProjectActualFile f
+                       WHERE f.RequestId = @RequestId AND f.PeriodMonth = @PeriodMonth AND f.IsActive = 1 AND f.Id <> @Id)
+        THROW 50074, N'This is the last cost detail document for the month. Upload another one before removing it.', 1;
+
+    UPDATE dbo.ProjectActualFile
+    SET    IsActive = 0, UpdatedAt = SYSDATETIME(), UpdatedBy = @Username
+    WHERE  Id = @Id;
+
+    COMMIT TRANSACTION;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.usp_ActualFile_GetById
+    @Id        INT,
+    @Username  NVARCHAR(100)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT  f.Id, f.RequestId, f.PeriodMonth, f.OriginalFileName, f.RelativePath, f.ContentType, f.FileSizeBytes
+    FROM    dbo.ProjectActualFile f
+            JOIN dbo.ProjectRequest r ON r.Id = f.RequestId
+    WHERE   f.Id = @Id AND f.IsActive = 1
+      AND   EXISTS (SELECT 1 FROM dbo.fn_User_AllowedDepartments(@Username) a WHERE a.DepartmentID = r.DepartmentID)
+      AND   NOT EXISTS (SELECT 1 FROM dbo.fn_User_OutsourceOnly(@Username))
+      AND   EXISTS (SELECT 1 FROM dbo.fn_User_CanSeeActualCost(@Username));
+END
+GO
+
 /* =====================================================================
    TEST (jalankan manual di DB dev; ganti <...> dengan data nyata)
    Kasus yang diharapkan error dibungkus TRY/CATCH (CATCH wajib ROLLBACK, lihat RequestApproval.sql).
@@ -487,6 +741,13 @@ GO
 
    DECLARE @Req INT = 1008, @Civil NVARCHAR(100) = N'users1', @Other NVARCHAR(100) = N'hdahlia';
    DECLARE @J NVARCHAR(MAX);
+
+   -- 0) BR-96: simpan manual tanpa lampiran -> 50072 "Please attach the cost detail document";
+   --    dengan lampiran (path dummy) -> tersimpan, usp_ActualFile_List 1 baris; hapus lampiran terakhir -> 50074
+   --SET @J = N'[{"type":"GOODS","name":"Cement","qty":10,"unit":"sak","price":65000,"amount":650000}]';
+   --EXEC dbo.usp_Request_SaveActualMonth @Id = @Req, @Username = @Civil, @Month = '2026-11-01', @ItemsJson = @J,
+   --     @FilesJson = N'[{"name":"rekap.pdf","path":"2026\\1008\\test.pdf","type":"application/pdf","size":1000}]';
+   --EXEC dbo.usp_ActualFile_List @RequestId = @Req, @Month = '2026-11-01', @Username = @Civil;
 
    -- 1) Bukan civil -> 50075; bulan depan -> 50072; amount tidak sama qty x harga -> 50072; jenis salah -> 50072
    BEGIN TRY EXEC dbo.usp_Request_SaveActualMonth @Id = @Req, @Username = @Other, @Month = '2026-11-01', @ItemsJson = N'[]';

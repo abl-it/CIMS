@@ -18,6 +18,8 @@ Alur sistem untuk management (GM / Director): [`docs/CIMS-Management-Flow.drawio
 
 Alur kerja Administrator: [`docs/CIMS-Administrator-Flow.drawio`](../CIMS-Administrator-Flow.drawio) (6 halaman: Peran Administrator, Settings, Master Data, Konfigurasi SQL, Akses Pengguna, Troubleshooting) dan buku panduan [`docs/CIMS-User-Guide-Administrator.docx`](../CIMS-User-Guide-Administrator.docx) / [`.pdf`](../CIMS-User-Guide-Administrator.pdf).
 
+Alur kerja Civil: [`docs/CIMS-Civil-Flow.drawio`](../CIMS-Civil-Flow.drawio) (8 halaman: Tugas Civil per status, Feasibility & Doc Prep, Planning, Scheduling, In Progress, Addendum, BAPP & Survey, Running Project) dengan buku panduan [`docs/CIMS-User-Guide-Civil.docx`](../CIMS-User-Guide-Civil.docx) / [`.pdf`](../CIMS-User-Guide-Civil.pdf).
+
 Diagram di file `.md` memakai **Mermaid** (tampil langsung di GitHub, Azure DevOps, VS Code dengan ekstensi Markdown Preview Mermaid).
 
 Pembaruan: dokumen ini dibuat dari source per 19-11-2026. Bila menambah action/SP baru, perbarui `02-Function-Map.md` di commit yang sama.

@@ -16,6 +16,8 @@ Buku panduan developer (format sama dengan buku panduan role): [`docs/CIMS-User-
 
 Alur sistem untuk management (GM / Director): [`docs/CIMS-Management-Flow.drawio`](../CIMS-Management-Flow.drawio) (7 halaman: Gambaran Umum, Titik Keputusan, Management Approval, Addendum, BAPP & Closing, Monitoring, Status & KPI) dan buku panduan [`docs/CIMS-User-Guide-Management.docx`](../CIMS-User-Guide-Management.docx) / [`.pdf`](../CIMS-User-Guide-Management.pdf).
 
+Alur kerja Administrator: [`docs/CIMS-Administrator-Flow.drawio`](../CIMS-Administrator-Flow.drawio) (6 halaman: Peran Administrator, Settings, Master Data, Konfigurasi SQL, Akses Pengguna, Troubleshooting) dan buku panduan [`docs/CIMS-User-Guide-Administrator.docx`](../CIMS-User-Guide-Administrator.docx) / [`.pdf`](../CIMS-User-Guide-Administrator.pdf).
+
 Diagram di file `.md` memakai **Mermaid** (tampil langsung di GitHub, Azure DevOps, VS Code dengan ekstensi Markdown Preview Mermaid).
 
 Pembaruan: dokumen ini dibuat dari source per 19-11-2026. Bila menambah action/SP baru, perbarui `02-Function-Map.md` di commit yang sama.

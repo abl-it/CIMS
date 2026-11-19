@@ -1,0 +1,594 @@
+<mxfile host="Electron" agent="CIMS docs generator" version="24.0.0">
+  <diagram id="g1" name="1. Peran Administrator">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="c1" value="Administrator CIMS: apa yang dikelola, di mana, dan apa dampaknya" style="text;html=1;align=left;verticalAlign=middle;fontSize=20;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="10" width="1400" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="c2" value="Administrator tidak membuat atau menyetujui request. Tugasnya menjaga pengaturan, data acuan, konfigurasi, dan membantu akses pengguna." style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#555555;" vertex="1" parent="1">
+          <mxGeometry x="40" y="42" width="1400" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="c3" value="Di aplikasi: menu Settings" style="rounded=0;whiteSpace=wrap;html=1;fontSize=14;fontStyle=1;fillColor=#0277bd;strokeColor=#0277bd;fontColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="330" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="c4" value="&lt;b&gt;Settings&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;batas waktu Emergency,&lt;br&gt;ambang status jadwal dan biaya&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#e1f5fe;strokeColor=#0277bd;" vertex="1" parent="1">
+          <mxGeometry x="40" y="135" width="330" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="c5" value="Di aplikasi: menu Master Data" style="rounded=0;whiteSpace=wrap;html=1;fontSize=14;fontStyle=1;fillColor=#0277bd;strokeColor=#0277bd;fontColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="400" y="80" width="330" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="c6" value="&lt;b&gt;Master Data&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;Sub-category, Location, Vendor, Unit,&lt;br&gt;Attachment Type, Environment Assessment,&lt;br&gt;Survey Template, Customer&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#e1f5fe;strokeColor=#0277bd;" vertex="1" parent="1">
+          <mxGeometry x="400" y="135" width="330" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="c7" value="Lewat script SQL (BR-38)" style="rounded=0;whiteSpace=wrap;html=1;fontSize=14;fontStyle=1;fillColor=#0277bd;strokeColor=#0277bd;fontColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="760" y="80" width="330" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="c8" value="&lt;b&gt;Konfigurasi&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;WorkflowStep, DepartmentGroup,&lt;br&gt;kalender kerja, override AppSetting,&lt;br&gt;HierarchyLevel&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#eceff1;strokeColor=#455a64;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="760" y="135" width="330" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="c9" value="Di portal" style="rounded=0;whiteSpace=wrap;html=1;fontSize=14;fontStyle=1;fillColor=#0277bd;strokeColor=#0277bd;fontColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="80" width="330" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="c10" value="&lt;b&gt;Akses pengguna&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;kolom Role di home..users&lt;br&gt;(dikelola pengelola portal)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#ede7f6;strokeColor=#5e35b1;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="135" width="330" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="c11" value="Dampak pada alur CIMS" style="rounded=1;arcSize=4;whiteSpace=wrap;html=1;fillColor=#fafafa;strokeColor=#bbbbbb;dashed=0;align=left;verticalAlign=middle;spacingLeft=10;spacingTop=4;fontSize=13;fontStyle=1;fontColor=#555555;" vertex="1" parent="1">
+          <mxGeometry x="40" y="290" width="1410" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="c12" value="&lt;b&gt;Status project&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;On Track / At Risk / Delayed&lt;br&gt;di Dashboard&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="40" y="345" width="330" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="c13" value="&lt;b&gt;Form request dan project&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;pilihan sub-kategori, lokasi, vendor,&lt;br&gt;satuan, lampiran wajib, survei&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="400" y="345" width="330" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="c14" value="&lt;b&gt;Alur approval&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;siapa menyetujui, urutan,&lt;br&gt;hari kerja, grup Mill&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="760" y="345" width="330" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="c15" value="&lt;b&gt;Siapa boleh masuk&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;menu, tombol, dan lingkup data&lt;br&gt;setiap pengguna&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="345" width="330" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="c16" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="c4" target="c12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c17" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="c6" target="c13">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c18" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="c8" target="c14">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c19" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="c10" target="c15">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c20" value="&lt;b&gt;Juga bisa dibuka (hanya lihat)&lt;/b&gt;: Dashboard, Request List, User Satisfaction, Actual Cost Upload. Administrator melihat data ABL dan NKM; filter Company awalnya Company sendiri." style="shape=note;whiteSpace=wrap;html=1;size=14;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;fillColor=#fffbe6;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="460" width="1410" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="c21" value="&lt;b&gt;Keterangan warna&lt;/b&gt;" style="text;html=1;align=left;verticalAlign=top;whiteSpace=wrap;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="530" width="200" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="c22" value="Administrator" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#e1f5fe;strokeColor=#0277bd;" vertex="1" parent="1">
+          <mxGeometry x="40" y="558" width="175" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="c23" value="Sistem CIMS" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="230" y="558" width="175" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="c24" value="Portal / pengelola portal" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#ede7f6;strokeColor=#5e35b1;" vertex="1" parent="1">
+          <mxGeometry x="420" y="558" width="175" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="c25" value="Developer / DBA" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#eceff1;strokeColor=#455a64;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="610" y="558" width="175" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="c26" value="Berhasil" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#d5e8d4;strokeColor=#38761d;" vertex="1" parent="1">
+          <mxGeometry x="800" y="558" width="175" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="c27" value="Error / ditolak" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="990" y="558" width="175" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="c28" value="Kembali / perbaiki" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#fff4e6;strokeColor=#d79b00;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1180" y="558" width="175" height="34" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="g2" name="2. Settings">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="c1" value="Mengubah nilai Settings (batas waktu dan ambang status)" style="text;html=1;align=left;verticalAlign=middle;fontSize=20;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="10" width="1000" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="c2" value="Hanya Administrator. Lima setting: Emergency follow-up limit, ambang jadwal (On Track, Slightly Delay), ambang biaya (On Track, At Risk)." style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#555555;" vertex="1" parent="1">
+          <mxGeometry x="40" y="42" width="1000" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="c3" value="&lt;b&gt;Administrator&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;perubahan nilai sudah diputuskan dan disetujui&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#e1f5fe;strokeColor=#0277bd;" vertex="1" parent="1">
+          <mxGeometry x="300.0" y="80" width="340" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="c4" value="&lt;b&gt;Buka menu Settings&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;filter: All rows / All companies / ABL / NKM&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#e1f5fe;strokeColor=#0277bd;" vertex="1" parent="1">
+          <mxGeometry x="300.0" y="170" width="340" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="c5" value="Baris untuk&lt;br&gt;Company itu&lt;br&gt;sudah ada?" style="rhombus;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="385.0" y="255" width="170" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="c6" value="&lt;b&gt;Klik Edit (pensil)&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;pada baris setting&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#e1f5fe;strokeColor=#0277bd;" vertex="1" parent="1">
+          <mxGeometry x="320.0" y="390" width="300" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="c7" value="&lt;b&gt;Isi Value, klik Save Changes&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#e1f5fe;strokeColor=#0277bd;" vertex="1" parent="1">
+          <mxGeometry x="320.0" y="470" width="300" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="c8" value="Valid?" style="rhombus;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="395.0" y="545" width="150" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="c9" value="&lt;b&gt;Tersimpan&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;toast sukses; kolom Updated = waktu + username&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#d5e8d4;strokeColor=#38761d;" vertex="1" parent="1">
+          <mxGeometry x="290.0" y="670" width="360" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="c10" value="&lt;b&gt;Periksa Dashboard&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;pastikan status On Track / At Risk / Delayed&lt;br&gt;sesuai harapan&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#e1f5fe;strokeColor=#0277bd;" vertex="1" parent="1">
+          <mxGeometry x="300.0" y="760" width="340" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="c11" value="&lt;b&gt;Override per Company&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;tambah baris ABL / NKM&lt;br&gt;lewat script SQL (halaman 4)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#eceff1;strokeColor=#455a64;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="735.0" y="270" width="250" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="c12" value="&lt;b&gt;Pesan error di form&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;nilai tidak tersimpan;&lt;br&gt;perbaiki lalu simpan lagi&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="10.0" y="550" width="220" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="c13" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="c3" target="c4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c14" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="c4" target="c5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c15" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="c6" target="c7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c16" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="c7" target="c8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c17" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="c9" target="c10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c18" value="Ya" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="c5" target="c6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c19" value="Tidak" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="c5" target="c11">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c20" value="Ya" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;strokeColor=#38761d;fontColor=#38761d;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="c8" target="c9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c21" value="Tidak" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;strokeColor=#b85450;fontColor=#b85450;dashed=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="c8" target="c12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c22" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;strokeColor=#d79b00;fontColor=#9a6700;dashed=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="c12" target="c7">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="120" y="493" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="c23" value="&lt;b&gt;Validasi sistem&lt;/b&gt;&lt;br&gt;• Harus angka, maksimal 2 desimal.&lt;br&gt;• Rentang: Emergency 1–30 hari kerja; jadwal −100 s.d. 0 poin; biaya 1–1000%.&lt;br&gt;• Pasangan konsisten: On Track jadwal &amp;gt; Slightly Delay; rasio On Track biaya &amp;lt; At Risk.&lt;br&gt;• Default: Emergency 3 · jadwal −5 / −15 · biaya 100% / 110%." style="shape=note;whiteSpace=wrap;html=1;size=14;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;fillColor=#fffbe6;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="700" y="470" width="300" height="170" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="g3" name="3. Master Data">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="c1" value="Mengelola master data (Administrator dan Civil; Vendor juga Purchasing)" style="text;html=1;align=left;verticalAlign=middle;fontSize=20;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="10" width="1000" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="c2" value="Pola sama untuk semua menu Master Data. Data tidak dihapus, hanya dinonaktifkan." style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#555555;" vertex="1" parent="1">
+          <mxGeometry x="40" y="42" width="1000" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="c3" value="&lt;b&gt;Buka Master Data &gt; menu&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;mis. Sub-category, Attachment Type&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#e1f5fe;strokeColor=#0277bd;" vertex="1" parent="1">
+          <mxGeometry x="310.0" y="80" width="320" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="c4" value="&lt;b&gt;Cari, filter, urutkan&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;Search / Reset; klik judul kolom&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#e1f5fe;strokeColor=#0277bd;" vertex="1" parent="1">
+          <mxGeometry x="310.0" y="166" width="320" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="c5" value="Aksi?" style="rhombus;whiteSpace=wrap;html=1;fontSize=12;fillColor=#e1f5fe;strokeColor=#0277bd;" vertex="1" parent="1">
+          <mxGeometry x="400.0" y="246" width="140" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="c6" value="&lt;b&gt;Add / Edit&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;isi form (Code, Name, ...)&lt;br&gt;lalu Save&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#e1f5fe;strokeColor=#0277bd;" vertex="1" parent="1">
+          <mxGeometry x="320.0" y="375" width="300" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="c7" value="Valid?" style="rhombus;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="395.0" y="465" width="150" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="c8" value="&lt;b&gt;Tersimpan&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;toast sukses; kembali ke list&lt;br&gt;dengan filter, urutan, halaman yang sama&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#d5e8d4;strokeColor=#38761d;" vertex="1" parent="1">
+          <mxGeometry x="300.0" y="595" width="340" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="c9" value="&lt;b&gt;Dipakai form baru&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;pilihan di request / project&lt;br&gt;langsung memakai data terbaru&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="310.0" y="685" width="320" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="c10" value="&lt;b&gt;Error&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;kode duplikat: di bawah field Code&lt;br&gt;lainnya: pesan error di atas form&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="5.0" y="470" width="230" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="c11" value="&lt;b&gt;View (ikon mata)&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;detail data; bisa lanjut Edit&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#e1f5fe;strokeColor=#0277bd;" vertex="1" parent="1">
+          <mxGeometry x="10.0" y="260" width="220" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="c12" value="&lt;b&gt;Nonaktifkan / Aktifkan&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;ikon lingkaran merah / centang hijau&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#e1f5fe;strokeColor=#0277bd;" vertex="1" parent="1">
+          <mxGeometry x="695.0" y="260" width="250" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="c13" value="Konfirmasi?" style="rhombus;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="745.0" y="355" width="150" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="c14" value="&lt;b&gt;Status Inactive&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;hilang dari pilihan form baru;&lt;br&gt;request lama tetap tampil nilainya&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="690.0" y="470" width="260" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="c15" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="c3" target="c4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c16" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="c4" target="c5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c17" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="c6" target="c7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c18" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="c8" target="c9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c19" value="tambah / ubah" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="c5" target="c6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c20" value="lihat" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="c5" target="c11">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c21" value="status" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="c5" target="c12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c22" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="c12" target="c13">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c23" value="Ya" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;strokeColor=#38761d;fontColor=#38761d;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="c13" target="c14">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c24" value="Ya" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;strokeColor=#38761d;fontColor=#38761d;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="c7" target="c8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c25" value="Tidak" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;strokeColor=#b85450;fontColor=#b85450;dashed=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="c7" target="c10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c26" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;strokeColor=#d79b00;fontColor=#9a6700;dashed=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="c10" target="c6">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="120" y="405" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="c27" value="&lt;b&gt;Perhatikan&lt;/b&gt;&lt;br&gt;• Attachment Type: format, ukuran, dan lampiran wajib per kategori dicek saat langkah dijalankan, jadi ikut mengenai request yang belum melewati tahap itu.&lt;br&gt;• Survey Template: item di-snapshot saat survei dikirim; perubahan hanya untuk survei berikutnya.&lt;br&gt;• Customer belum dipakai di alur request." style="shape=note;whiteSpace=wrap;html=1;size=14;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;fillColor=#fffbe6;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="780" width="960" height="90" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="g4" name="4. Konfigurasi SQL">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="c1" value="Mengubah konfigurasi lewat script SQL (BR-38)" style="text;html=1;align=left;verticalAlign=middle;fontSize=20;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="10" width="1000" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="c2" value="WorkflowStep, DepartmentGroup / Member, WorkCalendarWeekend / Holiday, override AppSetting, HierarchyLevel. Belum ada halaman di aplikasi." style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#555555;" vertex="1" parent="1">
+          <mxGeometry x="40" y="42" width="1000" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="c3" value="&lt;b&gt;Permintaan perubahan&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;mis. tambah langkah approval,&lt;br&gt;departemen baru di grup Mill, libur pabrik&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#e1f5fe;strokeColor=#0277bd;" vertex="1" parent="1">
+          <mxGeometry x="300.0" y="80" width="340" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="c4" value="Sudah disetujui&lt;br&gt;dan tercatat&lt;br&gt;di PRD?" style="rhombus;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="385.0" y="175" width="170" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="c5" value="&lt;b&gt;Tulis script SQL&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;idempotent (aman dijalankan ulang), simpan di Database/,&lt;br&gt;isi UpdatedBy / UpdatedAt; jangan DELETE, pakai IsActive = 0&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#eceff1;strokeColor=#455a64;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="270.0" y="320" width="400" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="c6" value="&lt;b&gt;Jalankan di database dev / test&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;cek hasil: usp_Workflow_GetSteps,&lt;br&gt;buat request uji, cek My Tasks approver&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#eceff1;strokeColor=#455a64;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="290.0" y="420" width="360" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="c7" value="Hasil sesuai?" style="rhombus;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="390.0" y="515" width="160" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="c8" value="&lt;b&gt;Jalankan di production&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;oleh Administrator / DBA&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#e1f5fe;strokeColor=#0277bd;" vertex="1" parent="1">
+          <mxGeometry x="310.0" y="640" width="320" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="c9" value="&lt;b&gt;Catat di docs/PRD-log.md&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;dan beri tahu pengguna terkait&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#e1f5fe;strokeColor=#0277bd;" vertex="1" parent="1">
+          <mxGeometry x="310.0" y="726" width="320" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="c10" value="&lt;b&gt;Berlaku&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;workflow: untuk titik approval yang dimulai&lt;br&gt;setelah perubahan (snapshot BR-37)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#d5e8d4;strokeColor=#38761d;" vertex="1" parent="1">
+          <mxGeometry x="290.0" y="812" width="360" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="c11" value="&lt;b&gt;Tahan dulu&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;ajukan keputusan ke pemilik proses;&lt;br&gt;catat di PRD dan PRD-log&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="740.0" y="195" width="240" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="c12" value="&lt;b&gt;Perbaiki script&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;ulangi uji di dev&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#fff4e6;strokeColor=#d79b00;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="20.0" y="530" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="c13" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="c3" target="c4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c14" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="c5" target="c6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c15" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="c6" target="c7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c16" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="c8" target="c9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c17" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="c9" target="c10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c18" value="Ya" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="c4" target="c5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c19" value="Belum" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;strokeColor=#b85450;fontColor=#b85450;dashed=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="c4" target="c11">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c20" value="Ya" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;strokeColor=#38761d;fontColor=#38761d;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="c7" target="c8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c21" value="Tidak" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;strokeColor=#d79b00;fontColor=#9a6700;dashed=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="c7" target="c12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c22" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;strokeColor=#d79b00;fontColor=#9a6700;dashed=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="c12" target="c5">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="120" y="355" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="c23" value="&lt;b&gt;Jangan&lt;/b&gt; mengubah data transaksi (status request, langkah approval yang sedang berjalan) langsung di database. Role baru juga perlu perubahan kode (CimsRoles, otorisasi) oleh developer. Contoh script: docs/dev/04-Workflow-Change.md." style="shape=note;whiteSpace=wrap;html=1;size=14;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;fillColor=#fffbe6;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="900" width="960" height="60" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="g5" name="5. Akses Pengguna">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="c1" value="Akses pengguna: bagaimana CIMS memeriksa, dan cara memberi akses" style="text;html=1;align=left;verticalAlign=middle;fontSize=20;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="10" width="1100" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="c2" value="Pengguna dan role diambil dari portal (home..users). CIMS tidak punya halaman pengelolaan user." style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#555555;" vertex="1" parent="1">
+          <mxGeometry x="40" y="42" width="1100" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="c3" value="A. Saat pengguna membuka CIMS" style="rounded=0;whiteSpace=wrap;html=1;fontSize=14;fontStyle=1;fillColor=#0277bd;strokeColor=#0277bd;fontColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="520" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="c4" value="&lt;b&gt;Pengguna&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;login di portal, buka CIMS dari portal&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#ede7f6;strokeColor=#5e35b1;" vertex="1" parent="1">
+          <mxGeometry x="150.0" y="135" width="300" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="c5" value="Sesi portal&lt;br&gt;valid?" style="rhombus;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="225.0" y="215" width="150" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="c6" value="Terdaftar di portal&lt;br&gt;dan belum resign?" style="rhombus;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="205.0" y="335" width="190" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="c7" value="Punya role&lt;br&gt;CIMS?" style="rhombus;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="225.0" y="465" width="150" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="c8" value="&lt;b&gt;Masuk CIMS&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;menu, tombol, dan data&lt;br&gt;sesuai gabungan role&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#d5e8d4;strokeColor=#38761d;" vertex="1" parent="1">
+          <mxGeometry x="150.0" y="590" width="300" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="c9" value="&lt;b&gt;Ke halaman login portal&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="420.0" y="235" width="200" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="c10" value="&lt;b&gt;Not Authorized&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="420.0" y="360" width="200" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="c11" value="&lt;b&gt;Not Authorized&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="420.0" y="485" width="200" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="c12" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="c4" target="c5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c13" value="Ya" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="c5" target="c6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c14" value="Ya" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="c6" target="c7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c15" value="Ya" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;strokeColor=#38761d;fontColor=#38761d;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="c7" target="c8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c16" value="Tidak" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;strokeColor=#b85450;fontColor=#b85450;dashed=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="c5" target="c9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c17" value="Tidak" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;strokeColor=#b85450;fontColor=#b85450;dashed=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="c6" target="c10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c18" value="Tidak" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;strokeColor=#b85450;fontColor=#b85450;dashed=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="c7" target="c11">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c19" value="B. Memberi / mencabut akses" style="rounded=0;whiteSpace=wrap;html=1;fontSize=14;fontStyle=1;fillColor=#0277bd;strokeColor=#0277bd;fontColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="660" y="80" width="480" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="c20" value="&lt;b&gt;Permintaan akses&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;dari atasan pengguna; tentukan role&lt;br&gt;sesuai tugas (tabel role)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#e1f5fe;strokeColor=#0277bd;" vertex="1" parent="1">
+          <mxGeometry x="740.0" y="135" width="320" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="c21" value="Role sudah ada&lt;br&gt;di CIMS?" style="rhombus;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="815.0" y="230" width="170" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="c22" value="&lt;b&gt;Pengelola portal ubah kolom Role&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;dipisah titik koma, mis. kabag;adm&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#ede7f6;strokeColor=#5e35b1;" vertex="1" parent="1">
+          <mxGeometry x="730.0" y="355" width="340" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="c23" value="&lt;b&gt;Berlaku langsung&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;role dibaca setiap halaman dibuka;&lt;br&gt;minta pengguna refresh halaman&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#d5e8d4;strokeColor=#38761d;" vertex="1" parent="1">
+          <mxGeometry x="730.0" y="450" width="340" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="c24" value="&lt;b&gt;Role baru&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:11px'&gt;HierarchyLevel (SQL) + kode&lt;br&gt;(CimsRoles, otorisasi) oleh developer&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#eceff1;strokeColor=#455a64;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1120.0" y="240" width="240" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="c25" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="c20" target="c21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c26" value="Ya" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="c21" target="c22">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c27" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="c22" target="c23">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c28" value="Tidak" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="c21" target="c24">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c29" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="c24" target="c22">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1240" y="385" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="c30" value="&lt;b&gt;Lingkup data&lt;/b&gt;: administrator, civil, purchasing, gm, director = semua departemen ABL dan NKM · fat, dgo = project In Progress s.d. Survey Completed, Company sendiri · mo = grup MILL · kabag, adm, plan, spv, emp = departemen sendiri (ABRV + Company)." style="shape=note;whiteSpace=wrap;html=1;size=14;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;fillColor=#fffbe6;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="660" y="560" width="820" height="76" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="g6" name="6. Troubleshooting">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="c1" value="Membantu pengguna: keluhan, yang dicek, dan tindakannya" style="text;html=1;align=left;verticalAlign=middle;fontSize=20;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="10" width="1400" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="c2" value="Bila belum selesai, catat username, nomor request, waktu, dan pesan error persis, lalu teruskan ke developer." style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#555555;" vertex="1" parent="1">
+          <mxGeometry x="40" y="42" width="1400" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="c3" value="Keluhan pengguna" style="rounded=0;whiteSpace=wrap;html=1;fontSize=14;fontStyle=1;fillColor=#0277bd;strokeColor=#0277bd;fontColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="300" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="c4" value="Yang dicek Administrator" style="rounded=0;whiteSpace=wrap;html=1;fontSize=14;fontStyle=1;fillColor=#0277bd;strokeColor=#0277bd;fontColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="460" y="80" width="420" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="c5" value="Tindakan" style="rounded=0;whiteSpace=wrap;html=1;fontSize=14;fontStyle=1;fillColor=#0277bd;strokeColor=#0277bd;fontColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="80" width="440" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="c6" value="&lt;b&gt;Kembali ke login portal&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="40" y="130" width="300" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="c7" value="Sesi portal habis / cookie terhapus" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="460" y="130" width="420" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="c8" value="Login ulang di portal, buka CIMS dari portal" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#d5e8d4;strokeColor=#38761d;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="130" width="440" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="c9" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="c6" target="c7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c10" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="c7" target="c8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c11" value="&lt;b&gt;Not Authorized&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="40" y="202" width="300" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="c12" value="Role di portal, tanggal resign" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="460" y="202" width="420" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="c13" value="Minta pengelola portal menambah role CIMS (halaman 5)" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#d5e8d4;strokeColor=#38761d;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="202" width="440" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="c14" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="c11" target="c12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c15" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="c12" target="c13">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c16" value="&lt;b&gt;Menu / tombol tidak muncul&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="40" y="274" width="300" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="c17" value="Role vs tugas; lingkup departemen" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="460" y="274" width="420" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="c18" value="Sesuaikan role; pastikan data milik departemennya" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#d5e8d4;strokeColor=#38761d;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="274" width="440" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="c19" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="c16" target="c17">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c20" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="c17" target="c18">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c21" value="&lt;b&gt;Tugas approval tidak muncul&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="40" y="346" width="300" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="c22" value="Riwayat approval di detail request; tabel workflow" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="460" y="346" width="420" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="c23" value="Tunggu langkah sebelumnya; cek role dan lingkup approver" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#d5e8d4;strokeColor=#38761d;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="346" width="440" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="c24" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="c21" target="c22">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c25" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="c22" target="c23">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c26" value="&lt;b&gt;Upload lampiran ditolak&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="40" y="418" width="300" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="c27" value="Attachment Type: extensions, max size" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="460" y="418" width="420" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="c28" value="Sesuaikan file, atau ubah aturan bila sudah disetujui" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#d5e8d4;strokeColor=#38761d;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="418" width="440" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="c29" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="c26" target="c27">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c30" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="c27" target="c28">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c31" value="&lt;b&gt;Submit ditolak: lampiran wajib&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="40" y="490" width="300" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="c32" value="Attachment Type: Mandatory for" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="460" y="490" width="420" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="c33" value="Upload lampiran wajib" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#d5e8d4;strokeColor=#38761d;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="490" width="440" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="c34" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="c31" target="c32">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c35" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="c32" target="c33">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c36" value="&lt;b&gt;Pilihan data hilang di form&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="40" y="562" width="300" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="c37" value="Master data: status Active" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="460" y="562" width="420" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="c38" value="Aktifkan kembali bila masih dipakai" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#d5e8d4;strokeColor=#38761d;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="562" width="440" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="c39" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="c36" target="c37">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c40" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="c37" target="c38">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c41" value="&lt;b&gt;Status project tidak sesuai&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="40" y="634" width="300" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="c42" value="Settings: ambang; progress dan actual cost" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="460" y="634" width="420" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="c43" value="Koreksi ambang (halaman 2) atau minta Civil melengkapi data" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#d5e8d4;strokeColor=#38761d;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="634" width="440" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="c44" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="c41" target="c42">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c45" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="c42" target="c43">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

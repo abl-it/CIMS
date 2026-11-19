@@ -12,6 +12,8 @@ Dokumen teknis untuk developer CIMS (ASP.NET Core 8 MVC + Dapper + SQL Server). 
 | [CIMS-Developer-Flow.drawio](CIMS-Developer-Flow.drawio) | Versi **draw.io** (6 halaman): Arsitektur, Status Request, Workflow Approval, Alur Fitur per Fase, Troubleshooting, Perubahan Workflow. Buka dengan draw.io desktop, app.diagrams.net, atau ekstensi VS Code "Draw.io Integration" |
 | [CIMS-Module-Flow.drawio](CIMS-Module-Flow.drawio) | Alur per modul (**draw.io**, 14 halaman, swimlane per aktor): Request & Submit, Approval, Feasibility & Doc Prep, Execution & Procurement, Schedule & Site Handover, Progress Mingguan, Actual Cost (Manual), Actual Cost Upload (Excel), Addendum, BAPP & Closing, Survey, Running Project, Lampiran, Tugas Saya |
 
+Buku panduan developer (format sama dengan buku panduan role): [`docs/CIMS-User-Guide-Developer.docx`](../CIMS-User-Guide-Developer.docx) / [`.pdf`](../CIMS-User-Guide-Developer.pdf) — setup lingkungan, konfigurasi, struktur project, konvensi kode, membuat modul baru (pola Customer, tahap A/B/C + PASS), workflow approval, troubleshooting, build/Git/deployment IIS, dan referensi cepat.
+
 Diagram di file `.md` memakai **Mermaid** (tampil langsung di GitHub, Azure DevOps, VS Code dengan ekstensi Markdown Preview Mermaid).
 
 Pembaruan: dokumen ini dibuat dari source per 19-11-2026. Bila menambah action/SP baru, perbarui `02-Function-Map.md` di commit yang sama.

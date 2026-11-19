@@ -9,6 +9,8 @@ Dokumen teknis untuk developer CIMS (ASP.NET Core 8 MVC + Dapper + SQL Server). 
 | [03-Troubleshooting.md](03-Troubleshooting.md) | Best practice troubleshooting: langkah diagnosis, kode error SP, gejala umum dan penyebabnya, query diagnosis |
 | [04-Workflow-Change.md](04-Workflow-Change.md) | Alur workflow approval dan best practice bila workflow berubah (tambah/hapus/ubah langkah, role baru, titik baru) |
 
-Diagram memakai **Mermaid** (tampil langsung di GitHub, Azure DevOps, VS Code dengan ekstensi Markdown Preview Mermaid).
+| [CIMS-Developer-Flow.drawio](CIMS-Developer-Flow.drawio) | Versi **draw.io** (6 halaman): Arsitektur, Status Request, Workflow Approval, Alur Fitur per Fase, Troubleshooting, Perubahan Workflow. Buka dengan draw.io desktop, app.diagrams.net, atau ekstensi VS Code "Draw.io Integration" |
+
+Diagram di file `.md` memakai **Mermaid** (tampil langsung di GitHub, Azure DevOps, VS Code dengan ekstensi Markdown Preview Mermaid).
 
 Pembaruan: dokumen ini dibuat dari source per 19-11-2026. Bila menambah action/SP baru, perbarui `02-Function-Map.md` di commit yang sama.

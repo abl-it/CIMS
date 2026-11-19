@@ -20,6 +20,8 @@ Alur kerja Administrator: [`docs/CIMS-Administrator-Flow.drawio`](../CIMS-Admini
 
 Alur kerja Civil: [`docs/CIMS-Civil-Flow.drawio`](../CIMS-Civil-Flow.drawio) (8 halaman: Tugas Civil per status, Feasibility & Doc Prep, Planning, Scheduling, In Progress, Addendum, BAPP & Survey, Running Project) dengan buku panduan [`docs/CIMS-User-Guide-Civil.docx`](../CIMS-User-Guide-Civil.docx) / [`.pdf`](../CIMS-User-Guide-Civil.pdf).
 
+Alur kerja Purchasing: [`docs/CIMS-Purchasing-Flow.drawio`](../CIMS-Purchasing-Flow.drawio) (4 halaman: Peran Purchasing, Procurement, Addendum Kontrak, Vendor) dengan buku panduan [`docs/CIMS-User-Guide-Purchasing.docx`](../CIMS-User-Guide-Purchasing.docx) / [`.pdf`](../CIMS-User-Guide-Purchasing.pdf).
+
 Diagram di file `.md` memakai **Mermaid** (tampil langsung di GitHub, Azure DevOps, VS Code dengan ekstensi Markdown Preview Mermaid).
 
 Pembaruan: dokumen ini dibuat dari source per 19-11-2026. Bila menambah action/SP baru, perbarui `02-Function-Map.md` di commit yang sama.

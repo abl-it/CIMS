@@ -1,4 +1,4 @@
-/* =====================================================================
+﻿/* =====================================================================
    RequestExecution.sql  -  In-house / Outsource, TOR, kontrak Purchasing (T4-1; PRD 3.3 langkah 1-2,
                             BR-11, BR-12, BR-15, ST-08, ST-09, ST-10, RL-06)
    Target  : Microsoft SQL Server 2016 SP1+ (CREATE OR ALTER)

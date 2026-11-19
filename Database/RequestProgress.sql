@@ -1,4 +1,4 @@
-/* =====================================================================
+﻿/* =====================================================================
    RequestProgress.sql  -  Progress mingguan per action plan, plan progress (kurva S), status jadwal
                            (T5-1; PRD 3.3 langkah 5, BR-16, BR-17, BR-68, BR-71, CF-08, Data 4)
    Target  : Microsoft SQL Server 2016 SP1+ (CREATE OR ALTER), compat level >= 130 (OPENJSON).

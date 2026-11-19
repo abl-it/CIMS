@@ -1,4 +1,4 @@
-/* =====================================================================
+﻿/* =====================================================================
    Request.sql  -  Request / Business Case: DRAFT (T2-1; PRD 3.1, 6.1, 6.5, BR-01, BR-02, BR-28, BR-40,
                    BR-42..BR-46, BR-55, BR-56, BR-61, ST-01, ST-03)
    Target  : Microsoft SQL Server 2016 SP1+ (CREATE OR ALTER), compat level >= 130 (OPENJSON).

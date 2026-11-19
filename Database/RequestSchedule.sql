@@ -1,4 +1,4 @@
-/* =====================================================================
+﻿/* =====================================================================
    RequestSchedule.sql  -  Schedule, action plan berbobot, estimasi biaya bulanan, site handover
                            (T4-2; PRD 3.3 langkah 3-4, BR-13, BR-14, BR-15, BR-16, BR-17, ST-10, ST-11)
    Target  : Microsoft SQL Server 2016 SP1+ (CREATE OR ALTER), compat level >= 130 (OPENJSON).

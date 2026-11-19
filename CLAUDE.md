@@ -59,6 +59,7 @@ Aturan:
 - Perhatikan: NULL handling, identity (`SCOPE_IDENTITY()` / `OUTPUT`), datatype, date/time.
 - Pagination: `OFFSET ... FETCH NEXT ...` dengan `ORDER BY` yang deterministik.
 - Setiap stored procedure baru disimpan sebagai file `.sql` di `/Database`, bisa dijalankan ulang (`CREATE OR ALTER PROCEDURE`).
+- File `.sql` yang berisi karakter non-ASCII (mis. `·`, `→`, `×`, `²`) wajib disimpan **UTF-8 dengan BOM**; tanpa BOM file terbaca ANSI saat dijalankan dan literal `N'...'` tersimpan rusak (mis. `Â·`).
 - Jangan ubah struktur tabel existing tanpa konfirmasi. Berikan script migrasi terpisah.
 - Claude Code **tidak menjalankan script SQL ke database production**. Hanya dev/test.
 

@@ -1,4 +1,4 @@
-/* =====================================================================
+﻿/* =====================================================================
    Unit.sql  -  Master data Satuan (T5-2; PRD MD-04, BR-61)
    Target  : Microsoft SQL Server 2016 SP1+ (CREATE OR ALTER)
    Sifat   : Idempotent, aman dijalankan ulang. Jalankan di DB DEV/TEST.

@@ -1,4 +1,4 @@
-/* =====================================================================
+﻿/* =====================================================================
    RequestMigration.sql  -  Input project berjalan saat go-live (T4-3; PRD 9.3: FR-03, BR-76, BR-77)
    Target  : Microsoft SQL Server 2016 SP1+ (CREATE OR ALTER), compat level >= 130 (OPENJSON).
    Sifat   : Idempotent, aman dijalankan ulang. Jalankan di DB DEV/TEST SETELAH Request.sql (kolom IsMigrated),

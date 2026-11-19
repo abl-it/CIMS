@@ -1,4 +1,4 @@
-/* =====================================================================
+﻿/* =====================================================================
    RequestSurvey.sql  -  Survei kepuasan user setelah Project Closed + daftar User Satisfaction
                          (T6-2; PRD 3.4 langkah 7, 5.2, 6.6, BR-22, BR-24, BR-47, BR-48, BR-49, BR-91, BR-92, ST-14, KPI-03)
    Target  : Microsoft SQL Server 2016 SP1+ (CREATE OR ALTER), compat level >= 130 (OPENJSON).

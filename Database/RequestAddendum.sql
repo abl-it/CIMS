@@ -1,4 +1,4 @@
-/* =====================================================================
+﻿/* =====================================================================
    RequestAddendum.sql  -  Addendum kontrak (outsource) dan perubahan budget/BOQ (in-house)
                            (T4-4; PRD 3.3 langkah 6, 3.3.1, 3.9, 5.2, BR-78 s.d. BR-87, BR-12, BR-13, BR-37)
    Target  : Microsoft SQL Server 2016 SP1+ (CREATE OR ALTER), compat level >= 130 (OPENJSON).

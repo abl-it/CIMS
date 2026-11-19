@@ -1,4 +1,4 @@
-/* =====================================================================
+﻿/* =====================================================================
    RequestDocPrep.sql  -  Document Preparation + kirim ke management (T3-2; PRD 3.1 langkah 5-6,
                           BR-05, BR-06, BR-07, BR-12, BR-37, BR-52, BR-53, ST-05, ST-06)
    Target  : Microsoft SQL Server 2016 SP1+ (CREATE OR ALTER)

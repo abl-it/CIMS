@@ -1,4 +1,4 @@
-/* =====================================================================
+﻿/* =====================================================================
    DashboardChart.sql  -  Data grafik dasar (sebagian T8 ditarik ke MVP, Keputusan 16-11-2026; PRD 4, 8.1, BR-17, BR-69)
    Target  : Microsoft SQL Server 2016 SP1+ (CREATE OR ALTER)
    Sifat   : Idempotent, aman dijalankan ulang. Jalankan di DB DEV/TEST SETELAH Dashboard.sql dan RequestProgress.sql.

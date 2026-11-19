@@ -1,4 +1,4 @@
-/* =====================================================================
+﻿/* =====================================================================
    RequestSubmit.sql  -  Request: Submit / Resubmit / Cancel (T2-2; PRD 3.1, 3.9, 6.1, BR-04, BR-09, BR-10,
                          BR-37, BR-41, BR-42, BR-43, BR-52, BR-55, BR-62, ST-02, ST-04, ST-16)
    Target  : Microsoft SQL Server 2016 SP1+ (CREATE OR ALTER)

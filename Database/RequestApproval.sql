@@ -1,4 +1,4 @@
-/* =====================================================================
+﻿/* =====================================================================
    RequestApproval.sql  -  Approval request sebelum Civil (T2-3; PRD 3.9, 5.2, BR-03, BR-08, BR-10, BR-24,
                            BR-28, BR-30, BR-39, BR-50, BR-63, ST-02, ST-03, ST-04, ST-15)
    Target  : Microsoft SQL Server 2016 SP1+ (CREATE OR ALTER)

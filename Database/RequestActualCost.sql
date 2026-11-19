@@ -1,4 +1,4 @@
-/* =====================================================================
+﻿/* =====================================================================
    RequestActualCost.sql  -  Actual cost bulanan per item (input manual), status biaya dan keseluruhan
                              (T5-2; PRD 3.3 langkah 5, 6.4, BR-18, BR-19, BR-69, BR-70, BR-71, CF-08)
    Target  : Microsoft SQL Server 2016 SP1+ (CREATE OR ALTER), compat level >= 130 (OPENJSON).

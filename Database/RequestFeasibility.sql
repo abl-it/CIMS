@@ -1,4 +1,4 @@
-/* =====================================================================
+﻿/* =====================================================================
    RequestFeasibility.sql  -  Feasibility oleh Civil (T3-1; PRD 3.1 langkah 4, BR-02, BR-04, BR-08, BR-10,
                               BR-41, BR-42, BR-54, BR-55, BR-62, ST-03, ST-04, ST-05, ST-15)
    Target  : Microsoft SQL Server 2016 SP1+ (CREATE OR ALTER)

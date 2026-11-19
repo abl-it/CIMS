@@ -24,6 +24,8 @@ Alur kerja Purchasing: [`docs/CIMS-Purchasing-Flow.drawio`](../CIMS-Purchasing-F
 
 Alur kerja FAT: [`docs/CIMS-FAT-Flow.drawio`](../CIMS-FAT-Flow.drawio) (3 halaman: Peran FAT, Konfirmasi BAPP, Memantau Biaya) dengan buku panduan [`docs/CIMS-User-Guide-FAT.docx`](../CIMS-User-Guide-FAT.docx) / [`.pdf`](../CIMS-User-Guide-FAT.pdf).
 
+Alur kerja DGO: [`docs/CIMS-DGO-Flow.drawio`](../CIMS-DGO-Flow.drawio) (3 halaman: Peran DGO, Konfirmasi BAPP, Memantau Project) dengan buku panduan [`docs/CIMS-User-Guide-DGO.docx`](../CIMS-User-Guide-DGO.docx) / [`.pdf`](../CIMS-User-Guide-DGO.pdf).
+
 Diagram di file `.md` memakai **Mermaid** (tampil langsung di GitHub, Azure DevOps, VS Code dengan ekstensi Markdown Preview Mermaid).
 
 Pembaruan: dokumen ini dibuat dari source per 19-11-2026. Bila menambah action/SP baru, perbarui `02-Function-Map.md` di commit yang sama.
